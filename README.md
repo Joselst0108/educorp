@@ -1,0 +1,2 @@
+# educorp
+plataforma integral educativa
