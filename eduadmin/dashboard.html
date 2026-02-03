@@ -43,13 +43,43 @@
         return;
       }
 
-      if (!data.session) {
-        window.location.href = '../login.html';
-        return;
-      }
+     if (!data.session) {
+  window.location.href = '../login.html';
+  return;
+}
 
-      estado.innerHTML = '✅ Sesión activa';
-    }
+// Leer rol desde profiles
+const userId = data.session.user.id;
+
+const { data: profile, error: profileError } = await window.supabase
+  .from('profiles')
+  .select('role, is_active')
+  .eq('id', userId)
+  .single();
+
+if (profileError || !profile || !profile.is_active) {
+  window.location.href = '../login.html';
+  return;
+}
+
+const allowedRoles = ['superadmin', 'director', 'secretaria'];
+
+if (!allowedRoles.includes(profile.role)) {
+  alert('⛔ No tienes permisos para EduAdmin');
+  // lo mandamos a su dashboard según rol
+  const rutas = {
+    superadmin: '../eduadmin/dashboard.html',
+    director: '../eduadmin/dashboard.html',
+    secretaria: '../eduadmin/dashboard.html',
+    docente: '../eduasist/dashboard.html',
+    alumno: '../eduasist/dashboard.html',
+    apoderado: '../eduasist/dashboard.html'
+  };
+  window.location.href = rutas[profile.role] || '../login.html';
+  return;
+}
+
+estado.innerHTML = '✅ Sesión activa (' + profile.role + ')';
 
     document.getElementById('btnLogout').addEventListener('click', async () => {
       if (!window.supabase) return;
