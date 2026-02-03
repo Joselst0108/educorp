@@ -2,61 +2,101 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>Boleta Automática (V2)</title>
 
-  <!-- Supabase v2 -->
+  <!-- Supabase v2 CDN (OBLIGATORIO) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Tu supabaseClient global -->
-  <!-- Ajusta la ruta si tu proyecto lo tiene en otro lugar -->
-<script src="/assets/js/supabaseClient.js"></script>
+  <!-- Cliente Supabase GLOBAL -->
+  <!-- OJO: esta ruta debe existir exactamente así en Netlify -->
+  <script src="/assets/js/supabaseClient.js"></script>
+
+  <style>
+    body {
+      font-family: system-ui, Arial, sans-serif;
+      padding: 20px;
+      line-height: 1.5;
+    }
+    input, button {
+      padding: 6px;
+      margin: 4px 0;
+    }
+    button {
+      cursor: pointer;
+    }
+    hr {
+      margin: 20px 0;
+    }
+  </style>
 </head>
 
 <body>
+
   <h1>Boleta Automática (V2)</h1>
+
   <p>
     Alumno: ve su boleta |
     Apoderado: consulta por DNI (luego selector de hijos) |
     Docente/Director: consulta por DNI
   </p>
 
-  <div id="sessionBox">Cargando sesión...</div>
+  <!-- ===============================
+       MENSAJES DEL SISTEMA
+  ================================ -->
+  <p id="msg"></p>
 
-  <button id="btnLogout">Cerrar sesión</button>
-  <p><a href="../dashboard.html">← Volver al Dashboard EduAsist</a></p>
+  <button onclick="window.supabase?.auth.signOut()">Cerrar sesión</button>
 
-  <hr/>
+  <p>
+    ← <a href="/eduassist/dashboard.html">Volver al Dashboard EduAsist</a>
+  </p>
 
+  <hr />
+
+  <!-- ===============================
+       FORMULARIO CONSULTA
+  ================================ -->
   <h2>Consultar por DNI del alumno</h2>
 
-  <label for="dniInput">DNI:</label>
-  <input id="dniInput" type="text" inputmode="numeric" placeholder="Ej: 45102911" />
-  <button id="btnBuscar">Ver boleta</button>
+  <label>
+    DNI:<br />
+    <input
+      type="text"
+      id="dni"
+      placeholder="Ej: 45102911"
+    />
+  </label>
+  <br />
 
-  <br/><br/>
+  <label>
+    Año:<br />
+    <input
+      type="number"
+      id="anio"
+      value="2026"
+    />
+  </label>
+  <br />
 
-  <label for="anioInput">Año:</label>
-  <input id="anioInput" type="number" placeholder="2026" />
+  <button id="btnVer">Ver boleta</button>
 
-  <p id="msg" style="margin-top:10px;"></p>
+  <hr />
 
-  <hr/>
-
+  <!-- ===============================
+       RESULTADOS
+  ================================ -->
   <h2>Notas</h2>
   <div id="notasBox">-</div>
 
   <h2>Asistencia</h2>
   <div id="asistenciaBox">-</div>
 
-  <!-- Supabase CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<!-- Cliente Supabase -->
-<script src="/assets/js/supabaseClient.js"></script>
-
-<!-- Lógica de la boleta -->
-<script src="./boletin-auto.js"></script>
+  <!-- ===============================
+       LÓGICA DE LA BOLETA
+  ================================ -->
+  <script src="./boletin-auto.js"></script>
 
 </body>
 </html>
