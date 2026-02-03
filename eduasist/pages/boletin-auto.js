@@ -1,4 +1,4 @@
-// boletin-auto.js
+88// boletin-auto.js
 
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -218,16 +218,18 @@
   }
 
   async function onLogout() {
-    try {
-      const sb = await requireSupabase();
-      await sb.auth.signOut();
-      setMsg("✅ Sesión cerrada.", "ok");
-      sessionBox.innerHTML = "Sesión cerrada.";
-    } catch (e) {
-      console.error(e);
-      setMsg("❌ Error al cerrar sesión.", "err");
-    }
+  try {
+    const sb = await requireSupabase();
+    const { error } = await sb.auth.signOut();
+    if (error) throw error;
+
+    // 🔁 Redirección directa al login
+    window.location.href = "/login.html";
+  } catch (e) {
+    console.error(e);
+    alert("Error al cerrar sesión");
   }
+}
 
   // Init
   document.addEventListener("DOMContentLoaded", async () => {
