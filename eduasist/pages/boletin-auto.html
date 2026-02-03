@@ -1,67 +1,62 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Boleta Automática (V2)</title>
 </head>
+
 <body>
   <h1>Boleta Automática (V2)</h1>
 
   <p>
-    Alumno: ve su boleta | Apoderado: elige hijo | Docente/Director: consulta por DNI
+    Alumno: ve su boleta |
+    Apoderado: elige hijo |
+    Docente/Director: consulta por DNI
   </p>
 
-  <div id="sessionBox">
-    <strong id="sessionStatus">Cargando sesión…</strong>
-    <button id="btnLogout" type="button" style="display:none">Cerrar sesión</button>
+  <div id="sessionBox" style="margin: 8px 0; padding: 6px; border: 1px solid #ccc;">
+    <b id="sessionStatus">Cargando sesión...</b>
+    <button id="btnLogout" style="margin-left: 10px;">Cerrar sesión</button>
+    <div style="margin-top:6px;">
+      <small>
+        <span id="roleText"></span>
+        <span id="colegioText"></span>
+        <span id="alumnoText"></span>
+      </small>
+    </div>
   </div>
 
-  <p><a href="../dashboard.html">— Volver al Dashboard EduAsist</a></p>
-
+  <p><a href="../dashboard">← Volver al Dashboard EduAsist</a></p>
   <hr />
 
-  <!-- Panel de consulta por DNI (solo docente/director) -->
-  <section id="dniPanel" style="display:none">
-    <h3>1) Consultar por DNI del alumno</h3>
-    <input id="dniInput" type="text" placeholder="DNI del alumno" />
-    <button id="btnBuscarDni" type="button">Ver boleta</button>
-    <p id="dniMsg"></p>
-  </section>
+  <!-- CONSULTA POR DNI (para doc/director/superadmin o para probar) -->
+  <h3>Consultar por DNI del alumno</h3>
+  <input id="dniInput" type="text" placeholder="DNI (8 dígitos)" />
+  <button id="btnBuscar">Ver boleta</button>
 
-  <!-- Panel de apoderado (elige hijo) -->
-  <section id="apoderadoPanel" style="display:none">
-    <h3>1) Elegir hijo</h3>
-    <select id="selectHijo"></select>
-    <button id="btnVerHijo" type="button">Ver boleta</button>
-    <p id="apoderadoMsg"></p>
-  </section>
+  <div style="margin-top:10px;">
+    <label>Año:</label>
+    <input id="anioInput" type="number" value="2026" />
+  </div>
 
-  <!-- Año académico -->
-  <section>
-    <label for="anioInput"><strong>Año:</strong></label><br />
-    <input id="anioInput" type="number" placeholder="2026" />
-    <p id="anioMsg"></p>
-  </section>
+  <div id="msg" style="margin:10px 0; color:#b00;"></div>
 
   <hr />
 
   <h2>Notas</h2>
-  <div id="notasBox"></div>
+  <div id="notasBox">-</div>
 
   <h2>Asistencia</h2>
-  <div id="asistenciaBox"></div>
+  <div id="asistenciaBox">-</div>
 
-  <hr />
-  <p><a href="../../index.html">Volver a EduCorp</a></p>
-
-  <!-- ✅ 1) SDK Supabase -->
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- ✅ 2) Tu cliente global (debe crear window.supabase) -->
-  <script src="../../assets/js/supabaseClient.js"></script>
+  <!-- OJO: Ajusta esta ruta si tu supabaseClient.js está en otro lugar -->
+  <script src="../../js/supabaseClient.js"></script>
 
-  <!-- ✅ 3) Lógica de boleta -->
-  <script src="./boleta-automatica-v2.js"></script>
+  <!-- Tu lógica -->
+  <script src="./boletin-auto.js"></script>
 </body>
 </html>
