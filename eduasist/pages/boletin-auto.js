@@ -1,116 +1,246 @@
 // boletin-auto.js
-document.addEventListener('DOMContentLoaded', async () => {
-  const msg = document.getElementById('msg');
-  const notasBox = document.getElementById('notasBox');
-  const asistenciaBox = document.getElementById('asistenciaBox');
-  const dniInput = document.getElementById('dni');
-  const anioInput = document.getElementById('anio');
-  const btnVer = document.getElementById('btnVer');
 
-  // ===============================
-  // VALIDACIÓN SUPABASE
-  // ===============================
-  if (!window.supabase) {
-    msg.innerHTML = '❌ Supabase NO está inicializado. Revisa que exista <b>/assets/js/supabaseClient.js</b>';
-    msg.style.color = 'red';
-    return;
+(function () {
+  const $ = (id) => document.getElementById(id);
+
+  const sessionBox = $("sessionBox");
+  const msg = $("msg");
+  const notasBox = $("notasBox");
+  const asistenciaBox = $("asistenciaBox");
+
+  const dniInput = $("dniInput");
+  const anioInput = $("anioInput");
+
+  const btnVerBoleta = $("btnVerBoleta");
+  const btnLogout = $("btnLogout");
+
+  function setMsg(text, type = "") {
+    msg.className = type === "ok" ? "ok" : type === "err" ? "err" : "";
+    msg.textContent = text || "";
   }
 
-  msg.innerHTML = '✅ Supabase listo';
-  msg.style.color = 'green';
+  function renderNotas(rows) {
+    if (!rows || rows.length === 0) {
+      notasBox.textContent = "-";
+      return;
+    }
+    const html = `
+      <table>
+        <thead>
+          <tr>
+            <th>Curso</th>
+            <th>Periodo</th>
+            <th>Nota</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td>${r.curso ?? ""}</td>
+              <td>${r.periodo ?? ""}</td>
+              <td>${(r.nota_numerica ?? r.nota_literal ?? "-")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+    notasBox.innerHTML = html;
+  }
 
-  // ===============================
-  // BOTÓN VER BOLETA
-  // ===============================
-  btnVer.addEventListener('click', async () => {
-    const dni = dniInput.value.trim();
-    const anio = anioInput.value.trim();
+  function renderAsistencia(rows) {
+    if (!rows || rows.length === 0) {
+      asistenciaBox.textContent = "-";
+      return;
+    }
+    const html = `
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td>${r.fecha ?? ""}</td>
+              <td>${r.estado ?? ""}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+    asistenciaBox.innerHTML = html;
+  }
 
-    notasBox.innerHTML = '-';
-    asistenciaBox.innerHTML = '-';
-    msg.innerHTML = '';
+  async function requireSupabase() {
+    // Tu supabaseClient.js debe crear window.supabase
+    if (!window.supabase) {
+      setMsg("❌ supabaseClient NO está cargado. Revisa la ruta: /assets/js/supabaseClient.js", "err");
+      throw new Error("supabase not loaded");
+    }
+    return window.supabase;
+  }
 
-    if (!dni || !anio) {
-      msg.innerHTML = '⚠️ Ingresa DNI y año';
-      msg.style.color = 'orange';
+  async function getSessionAndProfile(sb) {
+    const { data: sData, error: sErr } = await sb.auth.getSession();
+    if (sErr) throw sErr;
+
+    const session = sData?.session;
+    if (!session) {
+      sessionBox.innerHTML = `<span class="err">❌ Sin sesión. Inicia sesión.</span>`;
+      throw new Error("no session");
+    }
+
+    const uid = session.user.id;
+
+    const { data: profile, error: pErr } = await sb
+      .from("profiles")
+      .select("id, role, colegio_id, alumno_id")
+      .eq("id", uid)
+      .single();
+
+    if (pErr || !profile) {
+      sessionBox.innerHTML = `<span class="err">❌ No existe profile para este usuario.</span>`;
+      throw (pErr || new Error("no profile"));
+    }
+
+    sessionBox.innerHTML =
+      `✅ Sesión activa (<b>${profile.role}</b>)<br/>colegio_id: <code>${profile.colegio_id}</code>`;
+
+    return { session, profile };
+  }
+
+  async function findAlumnoByDNI(sb, dni, profile) {
+    // Si no es superadmin, restringimos al colegio del usuario
+    let q = sb.from("alumnos").select("id, dni, colegio_id").eq("dni", dni);
+
+    if (profile.role !== "superadmin") {
+      q = q.eq("colegio_id", profile.colegio_id);
+    }
+
+    const { data, error } = await q.limit(1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) return null;
+
+    return data[0];
+  }
+
+  async function loadNotas(sb, colegio_id, alumno_id, anio) {
+    // notas.periodo es text, filtramos que contenga el año (ej: "2026", "2026-I", etc.)
+    const { data, error } = await sb
+      .from("notas")
+      .select("curso, periodo, nota_numerica, nota_literal")
+      .eq("colegio_id", colegio_id)
+      .eq("alumno_id", alumno_id)
+      .ilike("periodo", `%${anio}%`)
+      .order("curso", { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function loadAsistencia(sb, colegio_id, alumno_id, anio) {
+    const from = `${anio}-01-01`;
+    const to = `${anio}-12-31`;
+
+    const { data, error } = await sb
+      .from("asistencia")
+      .select("fecha, estado")
+      .eq("colegio_id", colegio_id)
+      .eq("alumno_id", alumno_id)
+      .gte("fecha", from)
+      .lte("fecha", to)
+      .order("fecha", { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function onVerBoleta() {
+    setMsg("");
+    notasBox.textContent = "-";
+    asistenciaBox.textContent = "-";
+
+    const sb = await requireSupabase();
+    const { profile } = await getSessionAndProfile(sb);
+
+    const anio = String(anioInput.value || "").trim();
+    if (!anio || anio.length !== 4) {
+      setMsg("❌ Año inválido (ej: 2026).", "err");
       return;
     }
 
-    try {
-      // ===============================
-      // 1. BUSCAR ALUMNO POR DNI
-      // ===============================
-      const { data: alumno, error: alumnoError } = await window.supabase
-        .from('alumnos')
-        .select('id, colegio_id')
-        .eq('dni', dni)
-        .single();
+    let alumno_id = null;
+    let colegio_id = null;
 
-      if (alumnoError || !alumno) {
-        msg.innerHTML = '❌ Alumno no encontrado';
-        msg.style.color = 'red';
+    // Si es alumno: usa su propio alumno_id
+    if (profile.role === "alumno") {
+      alumno_id = profile.alumno_id;
+      colegio_id = profile.colegio_id;
+    } else {
+      // docente/director/superadmin consultan por DNI
+      const dni = String(dniInput.value || "").trim();
+      if (!dni) {
+        setMsg("❌ Ingresa un DNI para consultar.", "err");
         return;
       }
 
-      // ===============================
-      // 2. OBTENER NOTAS
-      // ===============================
-      const { data: notas, error: notasError } = await window.supabase
-        .from('notas')
-        .select('curso, periodo, nota_numerica, nota_literal')
-        .eq('alumno_id', alumno.id)
-        .eq('colegio_id', alumno.colegio_id);
+      const alumno = await findAlumnoByDNI(sb, dni, profile);
 
-      if (notasError) {
-        throw notasError;
+      if (!alumno) {
+        // Esto puede ser por RLS también; por eso el mensaje es más claro:
+        setMsg("❌ Alumno no encontrado (o tu RLS no permite leer alumnos de ese colegio).", "err");
+        return;
       }
 
-      if (!notas || notas.length === 0) {
-        notasBox.innerHTML = '<i>No hay notas registradas</i>';
-      } else {
-        let htmlNotas = '<ul>';
-        notas.forEach(n => {
-          htmlNotas += `
-            <li>
-              <b>${n.curso}</b> (${n.periodo}) :
-              ${n.nota_numerica ?? '-'} ${n.nota_literal ?? ''}
-            </li>`;
-        });
-        htmlNotas += '</ul>';
-        notasBox.innerHTML = htmlNotas;
-      }
-
-      // ===============================
-      // 3. OBTENER ASISTENCIA
-      // ===============================
-      const { data: asistencias, error: asisError } = await window.supabase
-        .from('asistencia')
-        .select('fecha, estado')
-        .eq('alumno_id', alumno.id)
-        .eq('colegio_id', alumno.colegio_id);
-
-      if (asisError) {
-        throw asisError;
-      }
-
-      if (!asistencias || asistencias.length === 0) {
-        asistenciaBox.innerHTML = '<i>No hay registros de asistencia</i>';
-      } else {
-        let htmlAsis = '<ul>';
-        asistencias.forEach(a => {
-          htmlAsis += `<li>${a.fecha} : ${a.estado}</li>`;
-        });
-        htmlAsis += '</ul>';
-        asistenciaBox.innerHTML = htmlAsis;
-      }
-
-      msg.innerHTML = '✅ Boleta cargada correctamente';
-      msg.style.color = 'green';
-
-    } catch (err) {
-      console.error(err);
-      msg.innerHTML = '❌ Error al cargar la boleta';
-      msg.style.color = 'red';
+      alumno_id = alumno.id;
+      colegio_id = alumno.colegio_id;
     }
+
+    setMsg("⏳ Cargando notas y asistencia...", "");
+
+    try {
+      const [notas, asistencia] = await Promise.all([
+        loadNotas(sb, colegio_id, alumno_id, anio),
+        loadAsistencia(sb, colegio_id, alumno_id, anio)
+      ]);
+
+      renderNotas(notas);
+      renderAsistencia(asistencia);
+
+      setMsg("✅ Boleta cargada.", "ok");
+    } catch (e) {
+      console.error(e);
+      setMsg("❌ Error al cargar datos. Revisa consola / RLS / tablas.", "err");
+    }
+  }
+
+  async function onLogout() {
+    try {
+      const sb = await requireSupabase();
+      await sb.auth.signOut();
+      setMsg("✅ Sesión cerrada.", "ok");
+      sessionBox.innerHTML = "Sesión cerrada.";
+    } catch (e) {
+      console.error(e);
+      setMsg("❌ Error al cerrar sesión.", "err");
+    }
+  }
+
+  // Init
+  document.addEventListener("DOMContentLoaded", async () => {
+    try {
+      const sb = await requireSupabase();
+      await getSessionAndProfile(sb);
+      setMsg("✅ Supabase listo", "ok");
+    } catch (e) {
+      console.error(e);
+      // el mensaje ya se mostró arriba
+    }
+
+    btnVerBoleta.addEventListener("click", onVerBoleta);
+    btnLogout.addEventListener("click", onLogout);
   });
-});
+})();
