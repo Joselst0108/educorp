@@ -43,6 +43,18 @@ Lo<!DOCTYPE html>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <!-- Supabase Client -->
-<script src="assets/js/supabaseClient.js"></script>
+<script>
+  if (window.supabase) {
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<p style="color:green;">✅ Supabase conectado correctamente</p>'
+    );
+  } else {
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<p style="color:red;">❌ Supabase NO conectado</p>'
+    );
+  }
+</script>
 </body>
 </html>
