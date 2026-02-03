@@ -16,6 +16,16 @@
 
     <label>Contraseña:</label><br />
     <input type="password" placeholder="Tu DNI o código" /><br /><br />
+  <br>
+<label>Entrar a (modo prueba):</label><br />
+<select id="appDestino">
+  <option value="eduasist/dashboard.html">EduAsist (Docente/Alumno/Apoderado)</option>
+  <option value="eduadmin/dashboard.html">EduAdmin (Director/Secretaria)</option>
+  <option value="edubank/dashboard.html">EduBank (si está habilitado)</option>
+  <option value="eduia/dashboard.html">EduIA (si está habilitado)</option>
+</select>
+<br><br>
+
 <button type="button" id="btnEntrar">Entrar</button>
 
   </form>
