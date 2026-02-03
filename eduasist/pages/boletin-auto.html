@@ -1,309 +1,67 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAsist | Boleta Automática</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Boleta Automática (V2)</title>
 </head>
 <body>
-
   <h1>Boleta Automática (V2)</h1>
-  <p>Alumno: ve su boleta | Apoderado: elige hijo | Docente/Director: consulta por DNI</p>
 
-  <div id="estado">Cargando sesión...</div>
-  <button id="btnLogout" type="button">Cerrar sesión</button>
-  <p><a href="../dashboard.html">⬅ Volver al Dashboard EduAsist</a></p>
+  <p>
+    Alumno: ve su boleta | Apoderado: elige hijo | Docente/Director: consulta por DNI
+  </p>
+
+  <div id="sessionBox">
+    <strong id="sessionStatus">Cargando sesión…</strong>
+    <button id="btnLogout" type="button" style="display:none">Cerrar sesión</button>
+  </div>
+
+  <p><a href="../dashboard.html">— Volver al Dashboard EduAsist</a></p>
 
   <hr />
 
-  <!-- Panel apoderado -->
-  <div id="panelApoderado" style="display:none;">
-    <h2>Mis hijos</h2>
-    <div id="listaHijos">Cargando...</div>
-  </div>
+  <!-- Panel de consulta por DNI (solo docente/director) -->
+  <section id="dniPanel" style="display:none">
+    <h3>1) Consultar por DNI del alumno</h3>
+    <input id="dniInput" type="text" placeholder="DNI del alumno" />
+    <button id="btnBuscarDni" type="button">Ver boleta</button>
+    <p id="dniMsg"></p>
+  </section>
 
-  <!-- Panel alumno -->
-  <div id="panelAlumno" style="display:none;">
-    <h2>Mi boleta</h2>
-  </div>
+  <!-- Panel de apoderado (elige hijo) -->
+  <section id="apoderadoPanel" style="display:none">
+    <h3>1) Elegir hijo</h3>
+    <select id="selectHijo"></select>
+    <button id="btnVerHijo" type="button">Ver boleta</button>
+    <p id="apoderadoMsg"></p>
+  </section>
 
-  <!-- Panel docente/director -->
-  <div id="panelStaff" style="display:none;">
-    <h2>Consulta por DNI (Docente/Director)</h2>
-    <input id="dni" type="text" placeholder="DNI del alumno" />
-    <button id="btnVerDni" type="button">Ver boleta</button>
-    <br /><br />
-  </div>
-
-  <label>Año:</label><br />
-  <input id="anio" type="number" />
-  <br /><br />
-
-  <div id="infoAlumno"></div>
+  <!-- Año académico -->
+  <section>
+    <label for="anioInput"><strong>Año:</strong></label><br />
+    <input id="anioInput" type="number" placeholder="2026" />
+    <p id="anioMsg"></p>
+  </section>
 
   <hr />
+
   <h2>Notas</h2>
-  <div id="notasBox">-</div>
+  <div id="notasBox"></div>
 
-  <hr />
   <h2>Asistencia</h2>
-  <div id="asisBox">-</div>
-
-  [11:10 a. m., 3/2/2026] José silvestre: <!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAsist | Boleta Automática</title>
-</head>
-<body>
-
-  <h1>Boleta Automática (V2)</h1>
-  <p>Alumno: ve su boleta | Apoderado: elige hijo | Docente/Director: consulta por DNI</p>
-
-  <div id="estado">Cargando sesión...</div>
-  <button id="btnLogout" type="button">Cerrar sesión</button>
-  <p><a href="../dashboard.html">⬅ Volver al Dashboard EduAsist</a></p>
+  <div id="asistenciaBox"></div>
 
   <hr />
+  <p><a href="../../index.html">Volver a EduCorp</a></p>
 
-  <!-- Panel apoderado -->
-  <div id="panelApoderado" style="display:none;">
-    <h2>Mis hijos</h2>
-    <div id="listaHijos">Cargando...</div>
-  </div>
+  <!-- ✅ 1) SDK Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Panel alumno -->
-  <div id="panelAlumno" style="display:none;">
-    <h2>Mi boleta</h2>
-  …
-[11:12 a. m., 3/2/2026] José silvestre: <li><a href="pages/boletin-auto.html">Boleta Automática (V2)</a></li>
-[11:30 a. m., 3/2/2026] José silvestre: const dni = document.getElementById('dni').value.trim();
-[11:55 a. m., 3/2/2026] José silvestre:
-    <!-- Supabase SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- ✅ 2) Tu cliente global (debe crear window.supabase) -->
+  <script src="../../assets/js/supabaseClient.js"></script>
 
-<!-- Cliente Supabase global -->
-<script src="../../assets/js/supabaseClient.js"></script>
-
-  <script>
-    let COLEGIO_ID = null;
-    let PROFILE = null;
-
-    function setEstado(t){ document.getElementById('estado').textContent = t; }
-    function hoyAnio(){ return new Date().getFullYear(); }
-
-    async function requireSession() {
-      const { data } = await window.supabase.auth.getSession();
-      if (!data.session) { window.location.href = '../../login.html'; return false; }
-
-      const userId = data.session.user.id;
-
-      const { data: profile, error } = await window.supabase
-        .from('profiles')
-        .select('role, is_active, colegio_id, alumno_id, apoderado_id')
-        .eq('id', userId)
-        .single();
-
-      if (error || !profile || !profile.is_active) {
-        alert('❌ No tienes perfil activo. Contacta al administrador.');
-        await window.supabase.auth.signOut();
-        window.location.href = '../../login.html';
-        return false;
-      }
-
-      PROFILE = profile;
-      COLEGIO_ID = profile.colegio_id;
-
-      setEstado(✅ Sesión activa (${profile.role}) | colegio_id: ${COLEGIO_ID});
-      return true;
-    }
-
-    async function getAlumnoById(alumnoId) {
-      const { data, error } = await window.supabase
-        .from('alumnos')
-        .select('id, dni, nombres, apellidos, nivel, grado, seccion, apoderado_id')
-        .eq('colegio_id', COLEGIO_ID)
-        .eq('id', alumnoId)
-        .single();
-      if (error) throw new Error(error.message);
-      return data;
-    }
-
-    async function getAlumnoByDni(dni) {
-      const dniClean = string(dni).trim();
-      const { data, error } = await window.supabase
-        .from('alumnos')
-        .select('id, dni, nombres, apellidos, nivel, grado, seccion')
-        .eq('colegio_id', COLEGIO_ID)
-        .eq('dni', dni)
-        .maybeSingle();
-      if (error) throw new Error(error.message);
-      return data;
-    }
-
-    async function getHijos(apoderadoId) {
-      const { data, error } = await window.supabase
-        .from('alumnos')
-        .select('id, dni, nombres, apellidos, nivel, grado, seccion')
-        .eq('colegio_id', COLEGIO_ID)
-        .eq('apoderado_id', apoderadoId)
-        .order('apellidos', { ascending: true });
-      if (error) throw new Error(error.message);
-      return data || [];
-    }
-
-    async function cargarNotas(alumnoId) {
-      const { data, error } = await window.supabase
-        .from('notas')
-        .select('curso, periodo, nota_numerica, nota_literal')
-        .eq('colegio_id', COLEGIO_ID)
-        .eq('alumno_id', alumnoId)
-        .order('curso', { ascending: true });
-      if (error) throw new Error(error.message);
-      return data || [];
-    }
-
-    async function cargarAsistencia(alumnoId, anio) {
-      const start = ${anio}-01-01, end = ${anio}-12-31;
-      const { data, error } = await window.supabase
-        .from('asistencia')
-        .select('fecha, estado')
-        .eq('colegio_id', COLEGIO_ID)
-        .eq('alumno_id', alumnoId)
-        .gte('fecha', start)
-        .lte('fecha', end)
-        .order('fecha', { ascending: false });
-      if (error) throw new Error(error.message);
-      return data || [];
-    }
-
-    function renderAlumnoInfo(alumno){
-      document.getElementById('infoAlumno').innerHTML =
-        `<p><b>${alumno.nombres} ${alumno.apellidos}</b> | DNI: ${alumno.dni}</p>
-         <p>${alumno.nivel} ${alumno.grado}${alumno.seccion}</p>`;
-    }
-
-    function renderNotas(notas){
-      const box = document.getElementById('notasBox');
-      if (!notas.length) { box.innerHTML = '<p>No hay notas registradas.</p>'; return; }
-      const map = {};
-      for (const n of notas){ if(!map[n.curso]) map[n.curso]=[]; map[n.curso].push(n); }
-      let html='';
-      for (const curso of Object.keys(map)){
-        html += <h3>${curso}</h3><ul>;
-        for (const n of map[curso]){
-          const val = (n.nota_numerica ?? null) !== null ? n.nota_numerica : (n.nota_literal || '-');
-          html += <li>${n.periodo}: <b>${val}</b></li>;
-        }
-        html += </ul>;
-      }
-      box.innerHTML = html;
-    }
-
-    function renderAsistencia(asis){
-      const box = document.getElementById('asisBox');
-      if (!asis.length) { box.innerHTML = '<p>No hay asistencia registrada.</p>'; return; }
-      const total = asis.length;
-      const asistio = asis.filter(a => a.estado==='asistio').length;
-      const falto = asis.filter(a => a.estado==='falto').length;
-      const tard = asis.filter(a => a.estado==='tardanza').length;
-
-      let html = <p><b>Total registros:</b> ${total}</p>;
-      html += <p>✅ Asistió: ${asistio} | ❌ Faltó: ${falto} | ⏰ Tardanza: ${tard}</p>;
-      html += <h3>Últimos registros</h3><ul>;
-      asis.slice(0, 20).forEach(a => html += <li>${a.fecha}: ${a.estado}</li>);
-      html += </ul>;
-      box.innerHTML = html;
-    }
-
-    async function mostrarBoletaPorAlumnoId(alumnoId){
-      document.getElementById('infoAlumno').textContent = '';
-      document.getElementById('notasBox').textContent = '-';
-      document.getElementById('asisBox').textContent = '-';
-
-      const anio = parseInt(document.getElementById('anio').value, 10);
-      if (!anio) return alert('⚠️ Año inválido');
-
-      const alumno = await getAlumnoById(alumnoId);
-      renderAlumnoInfo(alumno);
-
-      const notas = await cargarNotas(alumno.id);
-      renderNotas(notas);
-
-      const asis = await cargarAsistencia(alumno.id, anio);
-      renderAsistencia(asis);
-    }
-
-    async function initUI(){
-      const role = PROFILE.role;
-
-      // Alumno
-      if (role === 'alumno' && PROFILE.alumno_id){
-        document.getElementById('panelAlumno').style.display = 'block';
-        await mostrarBoletaPorAlumnoId(PROFILE.alumno_id);
-        return;
-      }
-
-      // Apoderado (puede ser role apoderado o superadmin con apoderado_id)
-      if ((role === 'apoderado' || role === 'superadmin' || role === 'director') && PROFILE.apoderado_id){
-        document.getElementById('panelApoderado').style.display = 'block';
-        const hijos = await getHijos(PROFILE.apoderado_id);
-
-        if (!hijos.length){
-          document.getElementById('listaHijos').innerHTML = '<p>No hay alumnos vinculados a este apoderado.</p>';
-        } else {
-          let html = '<ul>';
-          hijos.forEach(h => {
-            html += `<li>
-              <button type="button" data-id="${h.id}">Ver boleta</button>
-              ${h.apellidos}, ${h.nombres} - ${h.nivel} ${h.grado}${h.seccion}
-            </li>`;
-          });
-          html += '</ul>';
-          document.getElementById('listaHijos').innerHTML = html;
-
-          document.querySelectorAll('#listaHijos button').forEach(btn => {
-            btn.addEventListener('click', async () => {
-              const id = btn.getAttribute('data-id');
-              try { await mostrarBoletaPorAlumnoId(id); }
-              catch(e){ alert('❌ ' + e.message); }
-            });
-          });
-        }
-      }
-
-      // Docente/Director (consulta por DNI)
-      if (['docente','director','superadmin'].includes(role)){
-        document.getElementById('panelStaff').style.display = 'block';
-      }
-    }
-
-    document.getElementById('btnVerDni').addEventListener('click', async () => {
-      try{
-        const dni = document.getElementById('dni').value.trim();
-        if (!dni) return alert('⚠️ Ingresa DNI');
-
-        const alumno = await getAlumnoByDni(dni);
-        if (!alumno) return alert('❌ Alumno no encontrado');
-        await mostrarBoletaPorAlumnoId(alumno.id);
-      } catch(e){
-        alert('❌ ' + e.message);
-      }
-    });
-
-    document.getElementById('btnLogout').addEventListener('click', async () => {
-      await window.supabase.auth.signOut();
-      window.location.href = '../../login.html';
-    });
-
-    (async () => {
-      const ok = await requireSession();
-      if (!ok) return;
-      document.getElementById('anio').value = hoyAnio();
-      await initUI();
-    })();
-  </script>
-
+  <!-- ✅ 3) Lógica de boleta -->
+  <script src="./boleta-automatica-v2.js"></script>
 </body>
 </html>
