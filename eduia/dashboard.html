@@ -23,7 +23,10 @@
 
   <p><a href="../index.html">Volver a EduCorp</a></p>
 
+  <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Cliente Supabase -->
   <script src="../assets/js/supabaseClient.js"></script>
 
   <script>
@@ -43,6 +46,7 @@
       }
 
       if (!data.session) {
+        // Si no hay sesión, vuelve al login
         window.location.href = '../login.html';
         return;
       }
@@ -52,6 +56,7 @@
 
     document.getElementById('btnLogout').addEventListener('click', async () => {
       if (!window.supabase) return;
+
       await window.supabase.auth.signOut();
       window.location.href = '../login.html';
     });
