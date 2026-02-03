@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduAdmin | Matrícula</title>
+</head>
+<body>
+
+  <h1>Matrícula (MVP)</h1>
+  <p>Roles permitidos: superadmin / director / secretaria</p>
+
+  <div id="estado">Cargando sesión...</div>
+  <button id="btnLogout" type="button">Cerrar sesión</button>
+  <p><a href="../dashboard.html">⬅ Volver al Dashboard</a></p>
+
+  <hr />
+
+  <h2>1) Buscar alumno por DNI (reingreso)</h2>
+  <input id="buscarDni" type="text" placeholder="DNI del alumno" />
+  <button id="btnBuscar" type="button">Buscar</button>
+
+  <div id="resultadoBusqueda" style="margin-top:10px;"></div>
+
+  <hr />
+
+  <h2>2) Nueva matrícula (crear apoderado + alumno + matrícula)</h2>
+
+  <h3>Datos del Apoderado</h3>
+  <div>
+    <label>DNI apoderado:</label><br />
+    <input id="apodDni" type="text" />
+  </div>
+  <div>
+    <label>Nombres:</label><br />
+    <input id="apodNombres" type="text" />
+  </div>
+  <div>
+    <label>Apellidos:</label><br />
+    <input id="apodApellidos" type="text" />
+  </div>
+  <div>
+    <label>Teléfono (opcional):</label><br />
+    <input id="apodTelefono" type="text" />
+  </div>
+  <div>
+    <label>Email (opcional):</label><br />
+    <input id="apodEmail" type="email" />
+  </div>
+
+  <h3>Datos del Alumno</h3>
+  <div>
+    <label>DNI alumno:</label><br />
+    <input id="aluDni" type="text" />
+  </div>
+  <div>
+    <label>Código alumno (puede ser DNI o código interno):</label><br />
+    <input id="aluCodigo" type="text" placeholder="Ej: 12345678" />
+    <button id="btnAutoCodigo" type="button">Autogenerar</button>
+  </div>
+  <div>
+    <label>Nombres:</label><br />
+    <input id="aluNombres" type="text" />
+  </div>
+  <div>
+    <label>Apellidos:</label><br />
+    <input id="aluApellidos" type="text" />
+  </div>
+
+  <div>
+    <label>Nivel:</label><br />
+    <select id="aluNivel">
+      <option value="inicial">Inicial</option>
+      <option value="primaria">Primaria</option>
+      <option value="secundaria">Secundaria</option>
+    </select>
+  </div>
+
+  <div>
+    <label>Grado:</label><br />
+    <input id="aluGrado" type="text" placeholder="Ej: 5" />
+  </div>
+
+  <div>
+    <label>Sección:</label><br />
+    <input id="aluSeccion" type="text" placeholder="Ej: A" />
+  </div>
+
+  <h3>Datos de Matrícula</h3>
+  <div>
+    <label>Año:</label><br />
+    <input id="matAnio" type="number" />
+  </div>
+
+  <br />
+  <button id="btnRegistrar" type="button">Registrar matrícula</button>
+
+  <div id="mensaje" style="margin-top:12px;"></div>
+
+  <hr />
+
+  <!-- Modal simple -->
+  <div id="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55);">
+    <div style="background:#fff; margin:10% auto; padding:16px; max-width:520px;">
+      <h3>Alumno encontrado</h3>
+      <div id="modalInfo"></div>
+      <hr />
+      <label>Año a matricular:</label><br />
+      <input id="modalAnio" type="number" /><br /><br />
+      <button id="btnConfirmarMatricula" type="button">Confirmar matrícula</button>
+      <button id="btnCerrarModal" type="button">Cerrar</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabaseClient.js"></script>
+
+  <script>
+    let COLEGIO_ID = null;
+    let USER_ID = null;
+    let USER_ROLE = null;
+
+    function setMsg(txt) {
+      document.getElementById('mensaje').textContent = txt;
+    }
+
+    function setEstado(txt) {
+      document.getElementById('estado').textContent = txt;
+    }
+
+    function hoyAnio() {
+      return new Date().getFullYear();
+    }
+
+    function autoCodigo(dni) {
+      // Código simple: ALU- + últimos 6 del DNI + random 2 dígitos
+      const base = (dni || '').toString().slice(-6);
+      const rnd = Math.floor(Math.random() * 90) + 10;
+      return `ALU-${base}-${rnd}`;
+    }
+
+    async function requireSessionAndRole() {
+      if (!window.supabase) {
+        setEstado('❌ Supabase no conectado');
+        return false;
+      }
+
+      const { data } = await window.supabase.auth.getSession();
+      if (!data.session) {
+        window.location.href = '../../login.html';
+        return false;
+      }
+
+      USER_ID = data.session.user.id;
+
+      const { data: profile, error } = await window.supabase
+        .from('profiles')
+        .select('role, is_active, colegio_id')
+        .eq('id', USER_ID)
+        .single();
+
+      if (error || !profile) {
+        alert('❌ No se pudo leer tu perfil');
+        await window.supabase.auth.signOut();
+        window.location.href = '../../login.html';
+        return false;
+      }
+
+      if (!profile.is_active) {
+        alert('❌ Usuario inactivo');
+        await window.supabase.auth.signOut();
+        window.location.href = '../../login.html';
+        return false;
+      }
+
+      USER_ROLE = profile.role;
+      COLEGIO_ID = profile.colegio_id;
+
+      const allowed = ['superadmin','director','secretaria'];
+      if (!allowed.includes(USER_ROLE)) {
+        alert('⛔ No tienes permisos para Matrícula');
+        window.location.href = '../dashboard.html';
+        return false;
+      }
+
+      if (!COLEGIO_ID) {
+        alert('⛔ No tienes colegio asignado.');
+        window.location.href = '../dashboard.html';
+        return false;
+      }
+
+      setEstado(`✅ Sesión activa (${USER_ROLE}) | colegio_id: ${COLEGIO_ID}`);
+      return true;
+    }
+
+    // -----------------------------
+    // BUSCAR ALUMNO (REINGRESO)
+    // -----------------------------
+    async function buscarAlumnoPorDni() {
+      const dni = document.getElementById('buscarDni').value.trim();
+      const out = document.getElementById('resultadoBusqueda');
+      out.textContent = '';
+
+      if (!dni) {
+        out.textContent = '⚠️ Escribe el DNI del alumno.';
+        return;
+      }
+
+      const { data: alumno, error } = await window.supabase
+        .from('alumnos')
+        .select('id, dni, codigo_alumno, nombres, apellidos, nivel, grado, seccion, estado, apoderado_id')
+        .eq('colegio_id', COLEGIO_ID)
+        .eq('dni', dni)
+        .maybeSingle();
+
+      if (error) {
+        out.textContent = '❌ Error buscando alumno: ' + error.message;
+        return;
+      }
+
+      if (!alumno) {
+        out.textContent = '✅ No existe. Puedes registrarlo como nuevo.';
+        return;
+      }
+
+      out.innerHTML =
+        `<b>Encontrado:</b> ${alumno.nombres} ${alumno.apellidos} | ` +
+        `Nivel: ${alumno.nivel} ${alumno.grado}${alumno.seccion} | ` +
+        `Estado: ${alumno.estado} | Código: ${alumno.codigo_alumno} ` +
+        `<br /><button id="btnAbrirModal" type="button">Matricular este alumno</button>`;
+
+      document.getElementById('btnAbrirModal').addEventListener('click', () => abrirModalMatricula(alumno));
+    }
+
+    function abrirModalMatricula(alumno) {
+      document.getElementById('modal').style.display = 'block';
+      document.getElementById('modalAnio').value = hoyAnio();
+      document.getElementById('modalInfo').innerHTML = `
+        <p><b>Alumno:</b> ${alumno.nombres} ${alumno.apellidos}</p>
+        <p><b>DNI:</b> ${alumno.dni} | <b>Código:</b> ${alumno.codigo_alumno}</p>
+        <p><b>Grado:</b> ${alumno.nivel} ${alumno.grado} ${alumno.seccion}</p>
+      `;
+
+      document.getElementById('btnConfirmarMatricula').onclick = async () => {
+        const anio = parseInt(document.getElementById('modalAnio').value, 10);
+        if (!anio) return alert('⚠️ Ingresa un año válido.');
+
+        // Intentar crear matrícula (si ya existe, avisar)
+        const { error } = await window.supabase
+          .from('matriculas')
+          .insert([{
+            colegio_id: COLEGIO_ID,
+            alumno_id: alumno.id,
+            anio: anio
+          }]);
+
+        if (error) {
+          alert('❌ No se pudo matricular: ' + error.message);
+          return;
+        }
+
+        alert('✅ Matrícula creada para el año ' + anio);
+        cerrarModal();
+      };
+    }
+
+    function cerrarModal() {
+      document.getElementById('modal').style.display = 'none';
+    }
+
+    // -----------------------------
+    // REGISTRO NUEVO (APODERADO + ALUMNO + MATRÍCULA)
+    // -----------------------------
+    async function registrarMatriculaNueva() {
+      setMsg('');
+
+      // Apoderado
+      const apDni = document.getElementById('apodDni').value.trim();
+      const apNom = document.getElementById('apodNombres').value.trim();
+      const apApe = document.getElementById('apodApellidos').value.trim();
+      const apTel = document.getElementById('apodTelefono').value.trim();
+      const apEmail = document.getElementById('apodEmail').value.trim();
+
+      // Alumno
+      const alDni = document.getElementById('aluDni').value.trim();
+      const alCod = document.getElementById('aluCodigo').value.trim();
+      const alNom = document.getElementById('aluNombres').value.trim();
+      const alApe = document.getElementById('aluApellidos').value.trim();
+      const alNivel = document.getElementById('aluNivel').value;
+      const alGrado = document.getElementById('aluGrado').value.trim();
+      const alSeccion = document.getElementById('aluSeccion').value.trim();
+
+      const anio = parseInt(document.getElementById('matAnio').value, 10);
+
+      if (!apDni || !apNom || !apApe) return setMsg('⚠️ Completa DNI, nombres y apellidos del apoderado.');
+      if (!alDni || !alCod || !alNom || !alApe) return setMsg('⚠️ Completa DNI, código, nombres y apellidos del alumno.');
+      if (!alGrado || !alSeccion) return setMsg('⚠️ Completa grado y sección.');
+      if (!anio) return setMsg('⚠️ Año inválido.');
+
+      // 1) Crear o reutilizar apoderado (si ya existe por DNI en ese colegio)
+      let apoderadoId = null;
+
+      const { data: apExist, error: apFindErr } = await window.supabase
+        .from('apoderados')
+        .select('id')
+        .eq('colegio_id', COLEGIO_ID)
+        .eq('dni', apDni)
+        .maybeSingle();
+
+      if (apFindErr) return setMsg('❌ Error buscando apoderado: ' + apFindErr.message);
+
+      if (apExist) {
+        apoderadoId = apExist.id;
+      } else {
+        const { data: apInsert, error: apInsErr } = await window.supabase
+          .from('apoderados')
+          .insert([{
+            colegio_id: COLEGIO_ID,
+            dni: apDni,
+            nombres: apNom,
+            apellidos: apApe,
+            telefono: apTel || null,
+            email: apEmail || null
+          }])
+          .select('id')
+          .single();
+
+        if (apInsErr) return setMsg('❌ Error creando apoderado: ' + apInsErr.message);
+        apoderadoId = apInsert.id;
+      }
+
+      // 2) Crear alumno (si ya existe por DNI, no duplicar)
+      const { data: alExist, error: alFindErr } = await window.supabase
+        .from('alumnos')
+        .select('id, nombres, apellidos')
+        .eq('colegio_id', COLEGIO_ID)
+        .eq('dni', alDni)
+        .maybeSingle();
+
+      if (alFindErr) return setMsg('❌ Error buscando alumno: ' + alFindErr.message);
+
+      let alumnoId = null;
+
+      if (alExist) {
+        return setMsg(`⚠️ Ese alumno ya existe: ${alExist.nombres} ${alExist.apellidos}. Usa "Buscar por DNI" arriba para matricularlo.`);
+      } else {
+        const { data: alInsert, error: alInsErr } = await window.supabase
+          .from('alumnos')
+          .insert([{
+            colegio_id: COLEGIO_ID,
+            apoderado_id: apoderadoId,
+            dni: alDni,
+            codigo_alumno: alCod,
+            nombres: alNom,
+            apellidos: alApe,
+            nivel: alNivel,
+            grado: alGrado,
+            seccion: alSeccion,
+            estado: 'activo'
+          }])
+          .select('id')
+          .single();
+
+        if (alInsErr) return setMsg('❌ Error creando alumno: ' + alInsErr.message);
+        alumnoId = alInsert.id;
+      }
+
+      // 3) Crear matrícula
+      const { error: matErr } = await window.supabase
+        .from('matriculas')
+        .insert([{
+          colegio_id: COLEGIO_ID,
+          alumno_id: alumnoId,
+          anio: anio
+        }]);
+
+      if (matErr) return setMsg('❌ Error creando matrícula: ' + matErr.message);
+
+      setMsg('✅ Matrícula registrada correctamente.');
+      // Limpieza mínima
+      document.getElementById('apodDni').value = '';
+      document.getElementById('apodNombres').value = '';
+      document.getElementById('apodApellidos').value = '';
+      document.getElementById('apodTelefono').value = '';
+      document.getElementById('apodEmail').value = '';
+
+      document.getElementById('aluDni').value = '';
+      document.getElementById('aluCodigo').value = '';
+      document.getElementById('aluNombres').value = '';
+      document.getElementById('aluApellidos').value = '';
+      document.getElementById('aluGrado').value = '';
+      document.getElementById('aluSeccion').value = '';
+      document.getElementById('matAnio').value = hoyAnio();
+    }
+
+    // Eventos
+    document.getElementById('btnBuscar').addEventListener('click', buscarAlumnoPorDni);
+    document.getElementById('btnCerrarModal').addEventListener('click', cerrarModal);
+    document.getElementById('btnRegistrar').addEventListener('click', registrarMatriculaNueva);
+
+    document.getElementById('btnAutoCodigo').addEventListener('click', () => {
+      const dni = document.getElementById('aluDni').value.trim();
+      document.getElementById('aluCodigo').value = dni ? dni : autoCodigo('');
+    });
+
+    document.getElementById('btnLogout').addEventListener('click', async () => {
+      await window.supabase.auth.signOut();
+      window.location.href = '../../login.html';
+    });
+
+    // Init
+    (async () => {
+      const ok = await requireSessionAndRole();
+      if (!ok) return;
+      document.getElementById('matAnio').value = hoyAnio();
+    })();
+  </script>
+
+</body>
+</html>
