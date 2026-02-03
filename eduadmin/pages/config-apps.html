@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduAdmin | Configurar Apps</title>
+</head>
+<body>
+
+  <h1>Configurar Apps del Colegio</h1>
+  <p>Solo Director o Superadmin</p>
+
+  <div id="estado">Cargando...</div>
+
+  <hr />
+
+  <label>
+    <input type="checkbox" id="chkEdubank" />
+    Habilitar EduBank
+  </label>
+  <br /><br />
+
+  <label>
+    <input type="checkbox" id="chkEduia" />
+    Habilitar EduIA
+  </label>
+
+  <br /><br />
+  <button id="btnGuardar" type="button">Guardar cambios</button>
+
+  <p><a href="../dashboard.html">Volver al Dashboard EduAdmin</a></p>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabaseClient.js"></script>
+
+  <script>
+    let colegioId = null;
+
+    async function init() {
+      const estado = document.getElementById('estado');
+
+      const { data: sessionData } = await window.supabase.auth.getSession();
+      if (!sessionData.session) {
+        window.location.href = '../../login.html';
+        return;
+      }
+
+      const userId = sessionData.session.user.id;
+
+      // Perfil
+      const { data: profile, error: pe } = await window.supabase
+        .from('profiles')
+        .select('role, is_active, colegio_id')
+        .eq('id', userId)
+        .single();
+
+      if (pe || !profile || !profile.is_active) {
+        await window.supabase.auth.signOut();
+        window.location.href = '../../login.html';
+        return;
+      }
+
+      // Solo director o superadmin
+      if (!['director', 'superadmin'].includes(profile.role)) {
+        alert('⛔ No tienes permisos para esta página');
+        window.location.href = '../dashboard.html';
+        return;
+      }
+
+      if (!profile.colegio_id) {
+        alert('⛔ No tienes colegio asignado.');
+        window.location.href = '../dashboard.html';
+        return;
+      }
+
+      colegioId = profile.colegio_id;
+
+      // Leer flags del colegio
+      const { data: col, error: ce } = await window.supabase
+        .from('colegios')
+        .select('edubank_enabled, eduia_enabled, nombre')
+        .eq('id', colegioId)
+        .single();
+
+      if (ce || !col) {
+        estado.textContent = '❌ No se pudo leer el colegio';
+        return;
+      }
+
+      estado.textContent = 'Colegio: ' + col.nombre;
+
+      document.getElementById('chkEdubank').checked = !!col.edubank_enabled;
+      document.getElementById('chkEduia').checked = !!col.eduia_enabled;
+    }
+
+    document.getElementById('btnGuardar').addEventListener('click', async () => {
+      if (!colegioId) return;
+
+      const edubank = document.getElementById('chkEdubank').checked;
+      const eduia = document.getElementById('chkEduia').checked;
+
+      const { error } = await window.supabase
+        .from('colegios')
+        .update({
+          edubank_enabled: edubank,
+          eduia_enabled: eduia
+        })
+        .eq('id', colegioId);
+
+      if (error) {
+        alert('❌ No se pudo guardar (revisa RLS): ' + error.message);
+        return;
+      }
+
+      alert('✅ Cambios guardados');
+    });
+
+    init();
+  </script>
+</body>
+</html>
