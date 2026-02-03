@@ -16,13 +16,19 @@
 
     <label>Contraseña:</label><br />
     <input type="password" placeholder="Tu DNI o código" /><br /><br />
+<button type="button" id="btnEntrar">Entrar</button>
 
-    <button type="button">Entrar</button>
   </form>
 
   <p>
     <a href="index.html">Volver al inicio</a>
   </p>
+<script>
+  // Login de prueba: por ahora solo redirige a EduAsist
+  document.getElementById('btnEntrar').addEventListener('click', function () {
+    window.location.href = 'eduasist/dashboard.html';
+  });
+</script>
 
 </body>
 </html>
