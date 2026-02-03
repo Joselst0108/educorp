@@ -2,71 +2,67 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Boleta Automática (V2)</title>
 
-  <!-- ✅ Supabase v2 SOLO UNA VEZ -->
+  <!-- Supabase v2 (UNA SOLA VEZ) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- ✅ Tu cliente global (ruta real) -->
+  <!-- Tu cliente global (UNA SOLA VEZ) -->
   <script src="/assets/js/supabaseClient.js"></script>
 
   <style>
-    body { font-family: system-ui, Arial; margin: 24px; }
-    .box { border: 1px solid #ddd; padding: 12px; border-radius: 10px; margin: 12px 0; }
-    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-    input { padding: 10px; font-size: 16px; width: 260px; }
-    button { padding: 10px 14px; font-size: 16px; cursor: pointer; }
-    #msg.ok { color: #15803d; font-weight: 700; }
-    #msg.err { color: #b91c1c; font-weight: 800; }
+    body{font-family:system-ui,Segoe UI,Arial;margin:24px}
+    .box{border:1px solid #ddd;border-radius:12px;padding:16px;margin:12px 0}
+    .ok{color:#1a7f37}
+    .err{color:#d1242f}
+    input,select,button{padding:10px;margin:6px 0;width:100%;max-width:420px}
+    button{width:auto;cursor:pointer}
   </style>
 </head>
 
 <body>
   <h1>Boleta Automática (V2)</h1>
+  <p>
+    Alumno: ve su boleta |
+    Apoderado: consulta por DNI (luego selector de hijos) |
+    Docente/Director: consulta por DNI
+  </p>
 
-  <div class="box">
-    <div id="sessionStatus">Cargando sesión...</div>
-    <button id="btnLogout" type="button">Cerrar sesión</button>
-    <p id="msg"></p>
-  </div>
+  <div class="box" id="sessionBox">⏳ Cargando sesión...</div>
+  <p id="msg"></p>
+
+  <a href="/pages/eduassist/dashboard.html">← Volver al Dashboard EduAsist</a>
+
+  <hr/>
 
   <div class="box">
     <h2>Consultar por DNI del alumno</h2>
-    <div class="row">
-      <div>
-        <label><b>DNI:</b></label><br />
-        <input id="dniInput" placeholder="Ej: 45102911" />
-      </div>
-      <div>
-        <label><b>Año:</b></label><br />
-        <input id="anioInput" value="2026" />
-      </div>
-      <div style="margin-top:22px;">
-        <button id="btnVerBoleta" type="button">Ver boleta</button>
-      </div>
-    </div>
+    <label>DNI:</label>
+    <input id="dniInput" placeholder="Ej: 45102911" />
+    <label>Año:</label>
+    <input id="anioInput" value="2026" />
+    <br/>
+    <button id="btnVerBoleta">Ver boleta</button>
   </div>
-<hr />
 
-<h2>Apoderado: elegir hijo</h2>
-<div id="apoderadoBox" style="padding:10px;border:1px solid #ddd;max-width:520px;">
-  <label for="hijoSelect"><b>Hijo:</b></label><br />
-  <select id="hijoSelect" style="width:100%;padding:8px;margin-top:6px;">
-    <option value="">-- Selecciona un hijo --</option>
-  </select>
+  <div class="box">
+    <h2>Apoderado: elegir hijo</h2>
+    <label>Hijo:</label>
+    <select id="hijoSelect">
+      <option value="">-- Selecciona un hijo --</option>
+    </select>
+    <br/>
+    <button id="btnVerBoletaHijo">Ver boleta del hijo</button>
+  </div>
 
-  <button id="btnVerHijo" style="margin-top:10px;">Ver boleta del hijo</button>
-
-  <p id="apoderadoMsg" style="margin-top:10px;"></p>
-</div>
   <h2>Notas</h2>
   <div id="notasBox">-</div>
 
   <h2>Asistencia</h2>
   <div id="asistenciaBox">-</div>
 
-  <!-- ✅ Tu lógica -->
+  <!-- Lógica -->
   <script src="./boletin-auto.js"></script>
 </body>
 </html>
