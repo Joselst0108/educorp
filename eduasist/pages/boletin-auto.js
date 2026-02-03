@@ -1,303 +1,382 @@
-/* boletin-auto.js */
+/* =========================================================
+   boletin-auto.js  (V2)
+   - Consulta boleta por DNI (docente/director/alumno)
+   - Apoderado: lista hijos desde apoderado_hijos + JOIN alumnos
+   - Render notas y asistencia
+   - Logout redirige a login
+========================================================= */
 
-function $(id) { return document.getElementById(id); }
+// ===== Helpers DOM =====
+const $ = (id) => document.getElementById(id);
 
-const sessionStatus = $("sessionStatus");
+const sessionBox = $("sessionBox");
 const msg = $("msg");
+const notasBox = $("notasBox");
+const asistenciaBox = $("asistenciaBox");
 
 const dniInput = $("dniInput");
 const anioInput = $("anioInput");
 const btnVerBoleta = $("btnVerBoleta");
 const btnLogout = $("btnLogout");
 
-const notasBox = $("notasBox");
-const asistenciaBox = $("asistenciaBox");
+// Apoderado UI (puede no existir en algunas páginas)
+const apoderadoBox = $("apoderadoBox");         // contenedor del bloque apoderado
+const selectHijo = $("selectHijo");             // <select>
+const btnVerBoletaHijo = $("btnVerBoletaHijo"); // botón
 
+// ===== Mensajes =====
 function setMsg(text, type = "") {
   if (!msg) return;
   msg.className = type === "ok" ? "ok" : type === "err" ? "err" : "";
   msg.textContent = text || "";
 }
 
-/**
- * ✅ Detecta el cliente de Supabase en ambos formatos:
- * - window.supabase (si tu supabaseClient.js lo crea así)
- * - window.supabaseClient (si tu supabaseClient.js lo crea así)
- */
-function getSB() {
-  const sb = window.supabase || window.supabaseClient;
-  if (!sb) {
-    throw new Error("Supabase client no encontrado. Revisa /assets/js/supabaseClient.js (window.supabase o window.supabaseClient).");
-  }
-  return sb;
+// ===== Supabase safe loader =====
+async function requireSupabase() {
+  // Tu supabaseClient.js debe setear window.supabase (createClient)
+  if (window.supabase) return window.supabase;
+
+  // Espera un poco por si aún está cargando el script (móvil/netlify)
+  await new Promise((r) => setTimeout(r, 150));
+  if (window.supabase) return window.supabase;
+
+  throw new Error("supabaseClient NO está cargado (window.supabase undefined). Revisa la ruta del script.");
 }
 
-async function loadSession() {
-  try {
-    const sb = getSB();
-    const { data, error } = await sb.auth.getSession();
-    if (error) throw error;
+// ===== Rutas / redirect =====
+// Ajusta si tu login está en otra carpeta
+function goLogin() {
+  // recomendado: ruta absoluta desde raíz del sitio
+  window.location.href = "/login.html";
+}
 
-    const session = data.session;
-    if (!session) {
-      sessionStatus.innerHTML = "❌ <b>Sin sesión.</b> Inicia sesión.";
-      return null;
+// Ajusta si tu dashboard EduAsist está en otra ruta
+function goDashboardEduAsist() {
+  // ejemplo típico:
+  window.location.href = "/pages/eduassist/dashboard.html";
+}
+
+// ===== Render helpers =====
+function safeText(v) {
+  return (v === null || v === undefined) ? "" : String(v);
+}
+
+function renderNotas(notas = []) {
+  if (!notasBox) return;
+  if (!Array.isArray(notas) || notas.length === 0) {
+    notasBox.innerHTML = "<p>-</p>";
+    return;
+  }
+
+  // Tabla simple
+  let html = `
+    <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse; width:100%; max-width:900px;">
+      <thead>
+        <tr>
+          <th>Área</th>
+          <th>Bimestre</th>
+          <th>Nota</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  for (const n of notas) {
+    html += `
+      <tr>
+        <td>${safeText(n.area || n.curso || n.asignatura || "")}</td>
+        <td>${safeText(n.bimestre || n.periodo || "")}</td>
+        <td>${safeText(n.nota || n.valor || n.calificacion || "")}</td>
+      </tr>
+    `;
+  }
+
+  html += `</tbody></table>`;
+  notasBox.innerHTML = html;
+}
+
+function renderAsistencia(asistencia = []) {
+  if (!asistenciaBox) return;
+  if (!Array.isArray(asistencia) || asistencia.length === 0) {
+    asistenciaBox.innerHTML = "<p>-</p>";
+    return;
+  }
+
+  let html = `
+    <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse; width:100%; max-width:900px;">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  for (const a of asistencia) {
+    html += `
+      <tr>
+        <td>${safeText(a.fecha || a.dia || "")}</td>
+        <td>${safeText(a.estado || a.asistio || "")}</td>
+      </tr>
+    `;
+  }
+
+  html += `</tbody></table>`;
+  asistenciaBox.innerHTML = html;
+}
+
+// =========================================================
+//  BOLETA: carga por alumno_id + año
+//  (ajusta nombres de tablas/columnas si difieren)
+// =========================================================
+async function cargarBoletaPorAlumnoId(alumno_id, anio) {
+  const sb = await requireSupabase();
+
+  // --- NOTAS ---
+  // Ajusta: tabla notas y nombres de columnas reales
+  const { data: notas, error: notasErr } = await sb
+    .from("notas")
+    .select("*")
+    .eq("alumno_id", alumno_id)
+    .eq("anio", anio)
+    .order("bimestre", { ascending: true });
+
+  if (notasErr) {
+    console.error("notasErr:", notasErr);
+    // No cortamos todo: solo mostramos vacío
+    renderNotas([]);
+  } else {
+    renderNotas(notas || []);
+  }
+
+  // --- ASISTENCIA ---
+  const { data: asistencia, error: asisErr } = await sb
+    .from("asistencia")
+    .select("*")
+    .eq("alumno_id", alumno_id)
+    .eq("anio", anio)
+    .order("fecha", { ascending: true });
+
+  if (asisErr) {
+    console.error("asisErr:", asisErr);
+    renderAsistencia([]);
+  } else {
+    renderAsistencia(asistencia || []);
+  }
+}
+
+// =========================================================
+//  BUSCAR alumno por DNI
+// =========================================================
+async function buscarAlumnoPorDni(dni) {
+  const sb = await requireSupabase();
+
+  // Ajusta si tu tabla alumnos usa otra columna distinta a "dni"
+  const { data: alumno, error } = await sb
+    .from("alumnos")
+    .select("id, dni, nombres, apellidos, colegio_id")
+    .eq("dni", dni)
+    .maybeSingle();
+
+  if (error) throw error;
+  return alumno; // puede ser null
+}
+
+// =========================================================
+//  Acción: Ver boleta (por DNI)
+// =========================================================
+async function onVerBoleta() {
+  try {
+    setMsg("", "");
+
+    const dni = (dniInput?.value || "").trim();
+    const anio = (anioInput?.value || "").trim();
+
+    if (!dni) return setMsg("❌ Ingresa el DNI.", "err");
+    if (!anio) return setMsg("❌ Ingresa el año.", "err");
+
+    const alumno = await buscarAlumnoPorDni(dni);
+
+    if (!alumno?.id) {
+      renderNotas([]);
+      renderAsistencia([]);
+      return setMsg("❌ Alumno no encontrado.", "err");
     }
 
-    sessionStatus.innerHTML = `✅ <b>Sesión activa</b> (${session.user.email || "usuario"})`;
-    return session;
+    await cargarBoletaPorAlumnoId(alumno.id, anio);
+    setMsg("✅ Boleta cargada.", "ok");
   } catch (e) {
-    console.error("loadSession:", e);
-    sessionStatus.innerHTML = "❌ Error leyendo sesión.";
-    setMsg("Revisa consola: supabaseClient / rutas / CDN", "err");
-    return null;
+    console.error(e);
+    setMsg("❌ Error al cargar boleta. Revisa consola / RLS / tablas.", "err");
   }
 }
 
-async function onLogout() {
-  try {
-    const sb = getSB();
-    await sb.auth.signOut();
-  } catch (e) {
-    console.warn("Logout error:", e);
-  } finally {
-    // ✅ redirige sí o sí
-    window.location.href = "/login.html";
-  }
-}
+// =========================================================
+//  APODERADO: cargar hijos (SOLUCIÓN ACTUAL)
+//  - Lee apoderado_hijos filtrando por apoderado_id = user.id
+//  - JOIN a alumnos para traer nombres/dni y llenar select
+// =========================================================
+async function cargarHijosApoderado(user) {
+  // Si no existe UI de apoderado, no hacemos nada
+  if (!apoderadoBox || !selectHijo || !btnVerBoletaHijo) return;
 
-async function findAlumnoByDni(dni) {
-  const sb = getSB();
+  const sb = await requireSupabase();
+
+  // Reset select
+  selectHijo.innerHTML = `<option value="">-- Selecciona un hijo --</option>`;
+
+  // Traemos hijos con JOIN
   const { data, error } = await sb
-    .from("alumnos")
-    .select("id, dni, colegio_id")
-    .eq("dni", dni)
-    .limit(1)
+    .from("apoderado_hijos")
+    .select(`
+      alumno_id,
+      alumnos (
+        id,
+        dni,
+        nombres,
+        apellidos
+      )
+    `)
+    .eq("apoderado_id", user.id);
+
+  if (error) {
+    console.error("cargarHijosApoderado error:", error);
+    setMsg("❌ Error al cargar hijos del apoderado (RLS/relación).", "err");
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    setMsg("ℹ️ Este apoderado no tiene hijos asociados.", "");
+    return;
+  }
+
+  // Llenar select
+  for (const row of data) {
+    if (!row || !row.alumno_id) continue;
+
+    const a = row.alumnos; // puede venir null si no hay FK/relación
+    const label = a
+      ? `${safeText(a.apellidos)}, ${safeText(a.nombres)} (${safeText(a.dni)})`
+      : `Alumno ${row.alumno_id}`;
+
+    const opt = document.createElement("option");
+    opt.value = row.alumno_id;
+    opt.textContent = label;
+    selectHijo.appendChild(opt);
+  }
+}
+
+// =========================================================
+//  Acción: Ver boleta del hijo seleccionado
+// =========================================================
+async function onVerBoletaHijo() {
+  try {
+    setMsg("", "");
+
+    if (!selectHijo) return setMsg("❌ No existe el selector de hijo.", "err");
+
+    const alumno_id = (selectHijo.value || "").trim();
+    const anio = (anioInput?.value || "").trim();
+
+    if (!alumno_id) return setMsg("❌ Selecciona un hijo.", "err");
+    if (!anio) return setMsg("❌ Ingresa el año.", "err");
+
+    await cargarBoletaPorAlumnoId(alumno_id, anio);
+    setMsg("✅ Boleta del hijo cargada.", "ok");
+  } catch (e) {
+    console.error(e);
+    setMsg("❌ Error inesperado en apoderado.", "err");
+  }
+}
+
+// =========================================================
+//  Sesión / rol
+// =========================================================
+async function getProfileByUserId(userId) {
+  const sb = await requireSupabase();
+
+  // OJO: En tu proyecto "profiles" NO tiene email (ya lo viste)
+  // Traemos role y (si existe) colegio_id u otros campos
+  const { data, error } = await sb
+    .from("profiles")
+    .select("id, role, colegio_id")
+    .eq("id", userId)
     .maybeSingle();
 
   if (error) throw error;
   return data;
 }
 
-async function getNotas(alumno_id, colegio_id, anio) {
-  const sb = getSB();
-  const { data, error } = await sb
-    .from("notas")
-    .select("curso, periodo, nota_numerica, nota_literal")
-    .eq("alumno_id", alumno_id)
-    .eq("colegio_id", colegio_id)
-    .eq("periodo", String(anio))
-    .order("curso", { ascending: true });
+async function renderSessionUI(session) {
+  if (!sessionBox) return;
 
-  if (error) throw error;
-  return data || [];
-}
-
-async function getAsistencia(alumno_id, colegio_id, anio) {
-  const sb = getSB();
-  const from = `${anio}-01-01`;
-  const to = `${anio}-12-31`;
-
-  const { data, error } = await sb
-    .from("asistencia")
-    .select("fecha, estado")
-    .eq("alumno_id", alumno_id)
-    .eq("colegio_id", colegio_id)
-    .gte("fecha", from)
-    .lte("fecha", to)
-    .order("fecha", { ascending: true });
-
-  if (error) throw error;
-  return data || [];
-}
-
-function renderTablaNotas(rows) {
-  if (!rows.length) { notasBox.textContent = "-"; return; }
-  notasBox.innerHTML = `
-    <table border="1" cellpadding="6" cellspacing="0">
-      <tr><th>Curso</th><th>Periodo</th><th>Num</th><th>Literal</th></tr>
-      ${rows.map(r => `
-        <tr>
-          <td>${r.curso ?? ""}</td>
-          <td>${r.periodo ?? ""}</td>
-          <td>${r.nota_numerica ?? ""}</td>
-          <td>${r.nota_literal ?? ""}</td>
-        </tr>
-      `).join("")}
-    </table>
-  `;
-}
-
-function renderTablaAsistencia(rows) {
-  if (!rows.length) { asistenciaBox.textContent = "-"; return; }
-  asistenciaBox.innerHTML = `
-    <table border="1" cellpadding="6" cellspacing="0">
-      <tr><th>Fecha</th><th>Estado</th></tr>
-      ${rows.map(r => `
-        <tr>
-          <td>${r.fecha ?? ""}</td>
-          <td>${r.estado ?? ""}</td>
-        </tr>
-      `).join("")}
-    </table>
-  `;
-}
-
-async function onVerBoleta() {
-  try {
-    setMsg("", "");
-    notasBox.textContent = "-";
-    asistenciaBox.textContent = "-";
-
-    const dni = (dniInput.value || "").trim();
-    const anio = (anioInput.value || "").trim();
-
-    if (!dni || dni.length < 8) return setMsg("❌ DNI inválido", "err");
-    if (!anio || anio.length !== 4) return setMsg("❌ Año inválido (Ej: 2026)", "err");
-
-    const alumno = await findAlumnoByDni(dni);
-    if (!alumno) return setMsg("❌ Alumno no encontrado", "err");
-
-    const notas = await getNotas(alumno.id, alumno.colegio_id, anio);
-    const asistencia = await getAsistencia(alumno.id, alumno.colegio_id, anio);
-
-    renderTablaNotas(notas);
-    renderTablaAsistencia(asistencia);
-
-    setMsg("✅ Boleta cargada", "ok");
-  } catch (e) {
-    console.error("onVerBoleta:", e);
-    setMsg("❌ Error al cargar boleta. Revisa consola / RLS", "err");
-  }
-}
-
-document.addEventListener("DOMContentLoaded", async () => {
-  // ✅ si algún id no existe, mejor fallar con mensaje claro
-  if (!btnVerBoleta || !btnLogout || !dniInput || !anioInput || !notasBox || !asistenciaBox) {
-    console.error("Faltan IDs en el HTML.");
+  if (!session) {
+    sessionBox.innerHTML = "❌ Sin sesión. Inicia sesión.";
     return;
   }
 
-  btnVerBoleta.addEventListener("click", onVerBoleta);
-  btnLogout.addEventListener("click", onLogout);
+  const user = session.user;
+  const email = user?.email || "(sin email)";
 
-  await loadSession();
-});
-// =====================================================
-// APODERADO: LISTAR HIJOS Y CARGAR BOLETA
-// =====================================================
-const hijoSelect = document.getElementById("hijoSelect");
-const btnVerHijo = document.getElementById("btnVerHijo");
-const apoderadoMsg = document.getElementById("apoderadoMsg");
-
-function setApoderadoMsg(text, type = "") {
-  apoderadoMsg.style.color = type === "err" ? "crimson" : "green";
-  apoderadoMsg.textContent = text || "";
+  sessionBox.innerHTML = `
+    ✅ Sesión activa<br>
+    (${email})
+  `;
 }
 
-async function loadHijosApoderado() {
+// =========================================================
+//  Logout
+// =========================================================
+async function onLogout() {
   try {
     const sb = await requireSupabase();
-
-    // 1) Obtener sesión
-    const { data: ses, error: sesErr } = await sb.auth.getSession();
-    if (sesErr || !ses.session) {
-      setApoderadoMsg("❌ Sin sesión (apoderado).", "err");
-      return;
-    }
-
-    const userId = ses.session.user.id;
-
-    // 2) Verificar rol del profile
-    const { data: prof, error: profErr } = await sb
-      .from("profiles")
-      .select("role, colegio_id")
-      .eq("id", userId)
-      .single();
-
-    if (profErr || !prof) {
-      setApoderadoMsg("❌ No se pudo leer tu perfil.", "err");
-      return;
-    }
-
-    if (prof.role !== "apoderado") {
-      // Si no es apoderado, ocultamos el bloque
-      const apBox = document.getElementById("apoderadoBox");
-      if (apBox) apBox.style.display = "none";
-      return;
-    }
-
-    // 3) Traer hijos vinculados
-    const { data: hijos, error: hijosErr } = await sb
-      .from("apoderado_hijos")
-      .select("alumno_id, alumnos:alumno_id(nombres, apellidos, dni)")
-      .eq("apoderado_id", userId);
-
-    if (hijosErr) {
-      console.error(hijosErr);
-      setApoderadoMsg("❌ Error trayendo hijos.", "err");
-      return;
-    }
-
-    // 4) Pintar select
-    hijoSelect.innerHTML = `<option value="">-- Selecciona un hijo --</option>`;
-    (hijos || []).forEach((h) => {
-      const a = h.alumnos;
-      const label = a ? `${a.apellidos || ""} ${a.nombres || ""} (DNI: ${a.dni || ""})` : h.alumno_id;
-      const opt = document.createElement("option");
-      opt.value = h.alumno_id;
-      opt.textContent = label.trim();
-      hijoSelect.appendChild(opt);
-    });
-
-    if (!hijos || hijos.length === 0) {
-      setApoderadoMsg("⚠️ No tienes hijos vinculados aún.", "err");
-    } else {
-      setApoderadoMsg("✅ Selecciona un hijo para ver su boleta.");
-    }
+    await sb.auth.signOut();
+    setMsg("✅ Sesión cerrada.", "ok");
+    // Redirigir sí o sí
+    setTimeout(goLogin, 250);
   } catch (e) {
     console.error(e);
-    setApoderadoMsg("❌ Error inesperado en apoderado.", "err");
+    setMsg("❌ Error al cerrar sesión.", "err");
   }
 }
 
-async function cargarBoletaPorAlumnoId(alumnoId, anio) {
-  // Reutiliza tus funciones existentes:
-  // fetchNotas(alumno_id, anio)
-  // fetchAsistencia(alumno_id, anio)
-  // renderNotas(data)
-  // renderAsistencia(data)
+// =========================================================
+//  INIT
+// =========================================================
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    // Botones
+    btnVerBoleta?.addEventListener("click", onVerBoleta);
+    btnLogout?.addEventListener("click", onLogout);
+    btnVerBoletaHijo?.addEventListener("click", onVerBoletaHijo);
 
-  // Si tus funciones ya existen con otro nombre, dime y lo adapto.
-  const notas = await fetchNotas(alumnoId, anio);
-  const asistencia = await fetchAsistencia(alumnoId, anio);
+    // Cargar sesión
+    const sb = await requireSupabase();
+    const { data } = await sb.auth.getSession();
+    const session = data?.session || null;
 
-  renderNotas(notas);
-  renderAsistencia(asistencia);
-}
+    await renderSessionUI(session);
 
-if (btnVerHijo) {
-  btnVerHijo.addEventListener("click", async () => {
-    const alumnoId = hijoSelect.value;
-    const anio = (document.getElementById("anioInput")?.value || "").trim() || "2026";
-
-    if (!alumnoId) {
-      setApoderadoMsg("❌ Selecciona un hijo.", "err");
+    // Si no hay sesión, igual dejamos usar el DNI (si tu RLS lo permite no, pero al menos no revienta)
+    if (!session) {
+      setMsg("❌ Sin sesión. Inicia sesión.", "err");
       return;
     }
 
-    try {
-      setApoderadoMsg("Cargando boleta del hijo...");
-      await cargarBoletaPorAlumnoId(alumnoId, anio);
-      setApoderadoMsg("✅ Boleta del hijo cargada.");
-    } catch (e) {
-      console.error(e);
-      setApoderadoMsg("❌ No se pudo cargar la boleta del hijo.", "err");
-    }
-  });
-}
+    // Perfil y rol
+    const user = session.user;
+    const profile = await getProfileByUserId(user.id);
 
-// Llamar al inicio (cuando ya hay session)
-document.addEventListener("DOMContentLoaded", () => {
-  loadHijosApoderado();
+    // Mostrar estado OK
+    setMsg("✅ Supabase listo", "ok");
+
+    // Si es apoderado, cargar hijos
+    if (profile?.role === "apoderado") {
+      await cargarHijosApoderado(user);
+    }
+  } catch (e) {
+    console.error(e);
+    setMsg("❌ Error inicializando boleta. Revisa rutas / supabaseClient / consola.", "err");
+  }
 });
