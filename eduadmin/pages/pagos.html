@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduAdmin | Pagos</title>
+</head>
+<body>
+
+  <h1>Pagos (MVP)</h1>
+  <p>Roles permitidos: superadmin / director / secretaria</p>
+
+  <div id="estado">Cargando sesión...</div>
+  <button id="btnLogout" type="button">Cerrar sesión</button>
+  <p><a href="../dashboard.html">⬅ Volver al Dashboard</a></p>
+
+  <hr />
+
+  <h2>1) Buscar alumno por DNI</h2>
+  <input id="dniAlumno" type="text" placeholder="DNI del alumno" />
+  <button id="btnBuscar" type="button">Buscar</button>
+
+  <div id="infoAlumno" style="margin-top:10px;"></div>
+
+  <hr />
+
+  <h2>2) Estado de cuenta (básico)</h2>
+  <p>Selecciona año y mes para ver: Pensión definida vs Pagos registrados.</p>
+
+  <label>Año:</label><br />
+  <input id="anio" type="number" /><br /><br />
+
+  <label>Mes:</label><br />
+  <select id="mes">
+    <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+    <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+    <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+    <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+  </select>
+  <br /><br />
+
+  <button id="btnVerEstado" type="button">Ver estado</button>
+
+  <div id="estadoCuenta" style="margin-top:10px;"></div>
+
+  <hr />
+
+  <h2>3) Registrar pago</h2>
+  <label>Monto pagado:</label><br />
+  <input id="montoPago" type="number" step="0.01" placeholder="Ej: 200" /><br /><br />
+
+  <label>Método:</label><br />
+  <select id="metodo">
+    <option value="efectivo">Efectivo</option>
+    <option value="yape">Yape/Plin</option>
+    <option value="transferencia">Transferencia</option>
+    <option value="tarjeta">Tarjeta</option>
+  </select>
+  <br /><br />
+
+  <label>Concepto en caja:</label><br />
+  <input id="concepto" type="text" placeholder="Ej: Pensión Marzo" />
+  <br /><br />
+
+  <button id="btnPagar" type="button">Registrar pago</button>
+
+  <div id="msg" style="margin-top:12px;"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabaseClient.js"></script>
+
+  <script>
+    let COLEGIO_ID = null;
+    let USER_ID = null;
+    let USER_ROLE = null;
+
+    let ALUMNO = null; // alumno actual seleccionado
+
+    function setEstado(txt){ document.getElementById('estado').textContent = txt; }
+    function setMsg(txt){ document.getElementById('msg').textContent = txt; }
+
+    function hoyAnio(){ return new Date().getFullYear(); }
+    function hoyMes(){ return new Date().getMonth() + 1; }
+
+    async function requireSessionAndRole() {
+      const { data } = await window.supabase.auth.getSession();
+      if (!data.session) {
+        window.location.href = '../../login.html';
+        return false;
+      }
+
+      USER_ID = data.session.user.id;
+
+      const { data: profile, error } = await window.supabase
+        .from('profiles')
+        .select('role, is_active, colegio_id')
+        .eq('id', USER_ID)
+        .single();
+
+      if (error || !profile || !profile.is_active) {
+        await window.supabase.auth.signOut();
+        window.location.href = '../../login.html';
+        return false;
+      }
+
+      USER_ROLE = profile.role;
+      COLEGIO_ID = profile.colegio_id;
+
+      const allowed = ['superadmin','director','secretaria'];
+      if (!allowed.includes(USER_ROLE)) {
+        alert('⛔ No tienes permisos para Pagos');
+        window.location.href = '../dashboard.html';
+        return false;
+      }
+
+      if (!COLEGIO_ID) {
+        alert('⛔ No tienes colegio asignado.');
+        window.location.href = '../dashboard.html';
+        return false;
+      }
+
+      setEstado(`✅ Sesión activa (${USER_ROLE}) | colegio_id: ${COLEGIO_ID}`);
+      return true;
+    }
+
+    async function buscarAlumno() {
+      setMsg('');
+      document.getElementById('infoAlumno').textContent = '';
+      document.getElementById('estadoCuenta').textContent = '';
+      ALUMNO = null;
+
+      const dni = document.getElementById('dniAlumno').value.trim();
+      if (!dni) return;
+
+      const { data: alumno, error } = await window.supabase
+        .from('alumnos')
+        .select('id, dni, codigo_alumno, nombres, apellidos, nivel, grado, seccion, estado')
+        .eq('colegio_id', COLEGIO_ID)
+        .eq('dni', dni)
+        .maybeSingle();
+
+      if (error) {
+        document.getElementById('infoAlumno').textContent = '❌ Error: ' + error.message;
+        return;
+      }
+
+      if (!alumno) {
+        document.getElementById('infoAlumno').textContent = '❌ No existe ese alumno en este colegio.';
+        return;
+      }
+
+      ALUMNO = alumno;
+
+      document.getElementById('infoAlumno').innerHTML =
+        `<b>${alumno.nombres} ${alumno.apellidos}</b> | ${alumno.nivel} ${alumno.grado}${alumno.seccion} | DNI: ${alumno.dni} | Código: ${alumno.codigo_alumno}`;
+    }
+
+    async function verEstadoCuenta() {
+      setMsg('');
+      const out = document.getElementById('estadoCuenta');
+      out.textContent = '';
+
+      if (!ALUMNO) {
+        out.textContent = '⚠️ Primero busca un alumno.';
+        return;
+      }
+
+      const anio = parseInt(document.getElementById('anio').value, 10);
+      const mes = parseInt(document.getElementById('mes').value, 10);
+
+      if (!anio || !mes) {
+        out.textContent = '⚠️ Año o mes inválido.';
+        return;
+      }
+
+      // 1) Leer pensión del mes (si existe)
+      const { data: pen, error: penErr } = await window.supabase
+        .from('pensiones_config')
+        .select('monto')
+        .eq('colegio_id', COLEGIO_ID)
+        .eq('anio', anio)
+        .eq('mes', mes)
+        .maybeSingle();
+
+      if (penErr) {
+        out.textContent = '❌ Error leyendo pensión: ' + penErr.message;
+        return;
+      }
+
+      const pension = pen ? Number(pen.monto) : 0;
+
+      // 2) Sumar pagos del alumno para ese mes
+      const { data: pagos, error: pagosErr } = await window.supabase
+        .from('pagos')
+        .select('monto, fecha_pago, metodo')
+        .eq('colegio_id', COLEGIO_ID)
+        .eq('alumno_id', ALUMNO.id)
+        .eq('anio', anio)
+        .eq('mes', mes);
+
+      if (pagosErr) {
+        out.textContent = '❌ Error leyendo pagos: ' + pagosErr.message;
+        return;
+      }
+
+      const totalPagado = (pagos || []).reduce((acc, p) => acc + Number(p.monto), 0);
+      const saldo = pension - totalPagado;
+
+      let html = `<p><b>Pensión definida:</b> S/ ${pension.toFixed(2)}</p>`;
+      html += `<p><b>Total pagado:</b> S/ ${totalPagado.toFixed(2)}</p>`;
+      html += `<p><b>Saldo:</b> S/ ${saldo.toFixed(2)} ${saldo <= 0 ? '✅ (al día)' : '⚠️ (debe)'}</p>`;
+
+      if (pagos.length > 0) {
+        html += `<h4>Pagos registrados:</h4><ul>`;
+        pagos.forEach(p => {
+          html += `<li>S/ ${Number(p.monto).toFixed(2)} - ${p.metodo} - ${p.fecha_pago}</li>`;
+        });
+        html += `</ul>`;
+      } else {
+        html += `<p>No hay pagos registrados en ese mes.</p>`;
+      }
+
+      out.innerHTML = html;
+
+      // autocompletar concepto sugerido
+      const meses = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      document.getElementById('concepto').value = `Pensión ${meses[mes]} ${anio}`;
+    }
+
+    async function registrarPago() {
+      setMsg('');
+      if (!ALUMNO) return setMsg('⚠️ Primero busca un alumno.');
+
+      const anio = parseInt(document.getElementById('anio').value, 10);
+      const mes = parseInt(document.getElementById('mes').value, 10);
+      const monto = parseFloat(document.getElementById('montoPago').value);
+      const metodo = document.getElementById('metodo').value;
+      const concepto = document.getElementById('concepto').value.trim() || 'Pago';
+
+      if (!anio || !mes) return setMsg('⚠️ Año o mes inválido.');
+      if (!monto || monto <= 0) return setMsg('⚠️ Monto inválido.');
+
+      // 1) Insertar pago
+      const { error: payErr } = await window.supabase
+        .from('pagos')
+        .insert([{
+          colegio_id: COLEGIO_ID,
+          alumno_id: ALUMNO.id,
+          anio,
+          mes,
+          monto,
+          metodo,
+          usuario_cobra: USER_ID
+        }]);
+
+      if (payErr) return setMsg('❌ Error registrando pago: ' + payErr.message);
+
+      // 2) Insertar en caja
+      const { error: cajaErr } = await window.supabase
+        .from('caja')
+        .insert([{
+          colegio_id: COLEGIO_ID,
+          monto,
+          concepto,
+          usuario_id: USER_ID
+        }]);
+
+      if (cajaErr) return setMsg('⚠️ Pago OK, pero caja falló: ' + cajaErr.message);
+
+      setMsg('✅ Pago registrado y caja actualizada.');
+
+      // refrescar estado de cuenta
+      await verEstadoCuenta();
+      document.getElementById('montoPago').value = '';
+    }
+
+    // Eventos
+    document.getElementById('btnBuscar').addEventListener('click', buscarAlumno);
+    document.getElementById('btnVerEstado').addEventListener('click', verEstadoCuenta);
+    document.getElementById('btnPagar').addEventListener('click', registrarPago);
+
+    document.getElementById('btnLogout').addEventListener('click', async () => {
+      await window.supabase.auth.signOut();
+      window.location.href = '../../login.html';
+    });
+
+    (async () => {
+      const ok = await requireSessionAndRole();
+      if (!ok) return;
+      document.getElementById('anio').value = hoyAnio();
+      document.getElementById('mes').value = String(hoyMes());
+    })();
+  </script>
+
+</body>
+</html>
