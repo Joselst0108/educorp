@@ -97,6 +97,7 @@
     }
 
     async function getAlumnoByDni(dni) {
+      const dniClean = string(dni).trim();
       const { data, error } = await window.supabase
         .from('alumnos')
         .select('id, dni, nombres, apellidos, nivel, grado, seccion')
