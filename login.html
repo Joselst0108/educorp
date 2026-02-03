@@ -1,4 +1,4 @@
-Lo<!DOCTYPE html>
+8Lo<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -55,6 +55,27 @@ Lo<!DOCTYPE html>
       '<p style="color:red;">❌ Supabase NO conectado</p>'
     );
   }
+</script>
+<script>
+  async function verificarSesion() {
+    if (!window.supabase) return;
+
+    const { data, error } = await window.supabase.auth.getSession();
+
+    let mensaje = '';
+
+    if (error) {
+      mensaje = '<p style="color:red;">❌ Error al verificar sesión</p>';
+    } else if (data.session) {
+      mensaje = '<p style="color:green;">✅ Sesión activa</p>';
+    } else {
+      mensaje = '<p style="color:orange;">ℹ️ Sesión: NO activa</p>';
+    }
+
+    document.body.insertAdjacentHTML('beforeend', mensaje);
+  }
+
+  verificarSesion();
 </script>
 </body>
 </html>
