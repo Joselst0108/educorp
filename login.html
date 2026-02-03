@@ -8,21 +8,21 @@
 <body>
 
   <h1>Login EduCorp</h1>
-  <p>Ingresa con tu DNI o código institucional y tu contraseña inicial (DNI/código).</p>
+  <p>Ingresa con tu DNI o código institucional.</p>
 
   <form>
     <label>Usuario (DNI o código):</label><br />
-    <input id="usuario" type="text" placeholder="Ej: 71234567 o AMDC-2026-00045" /><br /><br />
+    <input id="usuario" type="text" placeholder="Ej: 12345678" /><br /><br />
 
     <label>Contraseña:</label><br />
     <input id="password" type="password" placeholder="Tu DNI o código" /><br /><br />
 
     <label>Entrar a (modo prueba):</label><br />
     <select id="appDestino">
-      <option value="eduasist/dashboard.html">EduAsist (Docente/Alumno/Apoderado)</option>
-      <option value="eduadmin/dashboard.html">EduAdmin (Director/Secretaria)</option>
-      <option value="edubank/dashboard.html">EduBank (si está habilitado)</option>
-      <option value="eduia/dashboard.html">EduIA (si está habilitado)</option>
+      <option value="eduasist/dashboard.html">EduAsist</option>
+      <option value="eduadmin/dashboard.html">EduAdmin</option>
+      <option value="edubank/dashboard.html">EduBank</option>
+      <option value="eduia/dashboard.html">EduIA</option>
     </select>
     <br /><br />
 
@@ -36,54 +36,55 @@
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Tu cliente Supabase -->
+  <!-- Cliente Supabase -->
   <script src="assets/js/supabaseClient.js"></script>
 
   <script>
     // ============================
-    // Login de prueba (sin Supabase auth todavía)
+    // Login REAL con Supabase
     // ============================
-   
-document.getElementById('btnEntrar').addEventListener('click', async function () {
-  if (!window.supabase) {
-    alert('Supabase no está conectado.');
-    return;
-  }
+    document.getElementById('btnEntrar').addEventListener('click', async function () {
 
-  const userInput = document.getElementById('usuario').value.trim();
-  const passInput = document.getElementById('password').value;
+      if (!window.supabase) {
+        alert('❌ Supabase no está conectado');
+        return;
+      }
 
-  if (!userInput || !passInput) {
-    alert('Completa usuario y contraseña.');
-    return;
-  }
+      const usuario = document.getElementById('usuario').value.trim();
+      const password = document.getElementById('password').value;
+      const destino = document.getElementById('appDestino').value;
 
-  // Si no escriben email, lo convertimos a "dni@educorp.local"
-  const email = userInput.includes('@') ? userInput : `${userInput}@educorp.local`;
+      if (!usuario || !password) {
+        alert('Completa usuario y contraseña');
+        return;
+      }
 
-  const { data, error } = await window.supabase.auth.signInWithPassword({
-    email,
-    password: passInput
-  });
+      // Convertir DNI/código a email virtual
+      const email = usuario.includes('@')
+        ? usuario
+        : `${usuario}@educorp.local`;
 
-  if (error) {
-    alert('❌ Login incorrecto: ' + error.message);
-    return;
-  }
+      const { data, error } = await window.supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
 
-  alert('✅ Login correcto');
+      if (error) {
+        alert('❌ Login incorrecto');
+        return;
+      }
 
-  // Por ahora: redirigir según selector (modo prueba)
-  const destino = document.getElementById('appDestino').value;
-  window.location.href = destino;
-});
+      alert('✅ Login correcto');
+      window.location.href = destino;
+    });
+
     // ============================
-    // Prueba visual: Supabase conectado (útil en celular)
+    // Mensaje visual: Supabase conectado
     // ============================
     if (window.supabase) {
       document.body.insertAdjacentHTML(
         'beforeend',
-        '<p style="color:green;">✅ Supabase conectado correctamente</p>'
+        '<p style="color:green;">✅ Supabase conectado</p>'
       );
     } else {
       document.body.insertAdjacentHTML(
@@ -93,27 +94,27 @@ document.getElementById('btnEntrar').addEventListener('click', async function ()
     }
 
     // ============================
-    // Estado de sesión (solo lectura)
+    // Estado de sesión visible
     // ============================
-    async function verificarSesion() {
+    async function mostrarSesion() {
       if (!window.supabase) return;
 
-      const { data, error } = await window.supabase.auth.getSession();
+      const { data } = await window.supabase.auth.getSession();
 
-      let mensaje = '';
-
-      if (error) {
-        mensaje = '<p style="color:red;">❌ Error al verificar sesión</p>';
-      } else if (data.session) {
-        mensaje = '<p style="color:green;">✅ Sesión activa</p>';
+      if (data.session) {
+        document.body.insertAdjacentHTML(
+          'beforeend',
+          '<p style="color:green;">🔐 Sesión ACTIVA</p>'
+        );
       } else {
-        mensaje = '<p style="color:orange;">ℹ️ Sesión: NO activa</p>';
+        document.body.insertAdjacentHTML(
+          'beforeend',
+          '<p style="color:orange;">🔓 Sesión NO activa</p>'
+        );
       }
-
-      document.body.insertAdjacentHTML('beforeend', mensaje);
     }
 
-    verificarSesion();
+    mostrarSesion();
   </script>
 
 </body>
