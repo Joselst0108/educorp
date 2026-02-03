@@ -1,96 +1,76 @@
-} /* =========================
-   Boleta Automática (V2)
-   - Sin errores de null/addEventListener
-   - Lee perfil (profiles) y luego notas/asistencia
-========================= */
-
 document.addEventListener("DOMContentLoaded", () => {
   main().catch((e) => {
     console.error("Error en main():", e);
-    safeSetText("msg", "Ocurrió un error inesperado. Revisa consola.");
+    safeSetText("sessionBox", "❌ Error en main(): " + (e?.message || e));
   });
 });
 
 async function main() {
-  // Validar que exista el cliente supabase
+  safeSetText("sessionBox", "⏳ Iniciando...");
+
   if (!window.supabaseClient) {
-    safeSetText("msg", "SupabaseClient no está cargado. Revisa supabaseClient.js");
+    safeSetText("sessionBox", "❌ supabaseClient NO está cargado. Revisa la ruta del script: /js/supabaseClient.js");
     return;
   }
 
-  // Elementos (pueden no existir, por eso usamos safeGet)
+  safeSetText("sessionBox", "✅ supabaseClient OK. Cargando sesión...");
+
   const btnBuscar = safeGet("btnBuscar");
   const btnLogout = safeGet("btnLogout");
   const dniInput = safeGet("dniInput");
   const anioInput = safeGet("anioInput");
 
-  // Estados UI iniciales
   safeSetText("msg", "");
   safeSetHTML("notasBox", "-");
   safeSetHTML("asistenciaBox", "-");
 
-  // Cargar sesión y perfil
-  const sessionInfo = await loadSessionAndProfile();
-  if (!sessionInfo) return;
+  const profile = await loadSessionAndProfile();
+  if (!profile) return;
 
-  const { role, colegio_id, alumno_id } = sessionInfo;
+  const { role, colegio_id, alumno_id } = profile;
 
-  // Setup logout
   if (btnLogout) {
     btnLogout.addEventListener("click", async () => {
       await window.supabaseClient.auth.signOut();
-      window.location.href = "../../login.html";
+      window.location.href = "/login.html";
     });
   }
 
-  // Autocargar para alumno (no pide DNI)
+  // Autocargar si es alumno
   if (role === "alumno") {
-    // Poner año por defecto si está vacío
     if (anioInput && !anioInput.value) anioInput.value = new Date().getFullYear();
 
-    // Cargar boleta por su alumno_id
     if (!alumno_id) {
-      safeSetText("msg", "Tu perfil no tiene alumno_id asignado. Contacta al admin.");
+      safeSetText("msg", "Tu perfil no tiene alumno_id. Contacta al admin.");
       return;
     }
 
     await renderBoletaByAlumnoId(alumno_id, colegio_id);
-    // También puedes ocultar DNI si quieres:
-    // if (dniInput) dniInput.disabled = true;
   }
 
-  // Buscar por DNI (docente/director/superadmin/apoderado)
   if (btnBuscar) {
     btnBuscar.addEventListener("click", async () => {
       safeSetText("msg", "");
       safeSetHTML("notasBox", "-");
       safeSetHTML("asistenciaBox", "-");
 
-      // Año
       const anio = anioInput ? (anioInput.value || "").trim() : "";
       if (!anio) {
         safeSetText("msg", "Ingresa un año (ej: 2026).");
         return;
       }
 
-      // Si es alumno, ignoramos DNI y usamos alumno_id
       if (role === "alumno") {
-        if (!alumno_id) {
-          safeSetText("msg", "Tu perfil no tiene alumno_id. Contacta al admin.");
-          return;
-        }
         await renderBoletaByAlumnoId(alumno_id, colegio_id, anio);
         return;
       }
 
-      // Para los otros roles: DNI obligatorio
       const dni = dniInput ? (dniInput.value || "").trim() : "";
       if (!dni) {
         safeSetText("msg", "Ingresa el DNI del alumno.");
         return;
       }
 
-      // Buscar alumno por DNI y colegio (importante)
       const alumno = await findAlumnoByDniAndColegio(dni, colegio_id);
       if (!alumno) return;
 
@@ -99,28 +79,27 @@ async function main() {
   }
 }
 
-/* =========================
-   Sesión y perfil
-========================= */
 async function loadSessionAndProfile() {
+  safeSetText("sessionBox", "⏳ Leyendo sesión de Supabase...");
+
   const { data, error } = await window.supabaseClient.auth.getSession();
 
   if (error) {
     console.error("getSession error:", error);
-    safeSetText("msg", "Error de sesión. Inicia sesión nuevamente.");
-    window.location.href = "../../login.html";
+    safeSetText("sessionBox", "❌ Error getSession: " + error.message);
     return null;
   }
 
   if (!data?.session) {
-    safeSetText("msg", "Sesión no activa. Inicia sesión.");
-    window.location.href = "../../login.html";
+    safeSetText("sessionBox", "❌ No hay sesión. Inicia sesión primero.");
+    // OJO: si estás dentro de /eduasist/pages/... esto debe apuntar a /login.html
+    window.location.href = "/login.html";
     return null;
   }
 
   const user = data.session.user;
+  safeSetText("sessionBox", "✅ Sesión OK. Buscando profile...");
 
-  // Traer profile
   const { data: profile, error: pe } = await window.supabaseClient
     .from("profiles")
     .select("id, role, colegio_id, alumno_id, apoderado_id, is_active")
@@ -129,21 +108,20 @@ async function loadSessionAndProfile() {
 
   if (pe) {
     console.error("profile error:", pe);
-    safeSetText("msg", "No se pudo leer tu perfil (profiles). Revisa RLS/policies.");
+    safeSetText("sessionBox", "❌ No se pudo leer profiles (RLS/policy): " + pe.message);
     return null;
   }
 
   if (!profile) {
-    safeSetText("msg", "No tienes perfil. Contacta al admin.");
+    safeSetText("sessionBox", "❌ No tienes profile. Contacta al admin.");
     return null;
   }
 
   if (!profile.is_active) {
-    safeSetText("msg", "Tu usuario está desactivado. Contacta al admin.");
+    safeSetText("sessionBox", "❌ Usuario desactivado.");
     return null;
   }
 
-  // Mostrar sesión
   safeSetText(
     "sessionBox",
     `✅ Sesión activa (${profile.role}) | colegio_id: ${profile.colegio_id || "N/A"}`
@@ -152,11 +130,7 @@ async function loadSessionAndProfile() {
   return profile;
 }
 
-/* =========================
-   Consultas
-========================= */
 async function findAlumnoByDniAndColegio(dni, colegio_id) {
-  // DNI debe existir en tabla alumnos
   const { data, error } = await window.supabaseClient
     .from("alumnos")
     .select("id, dni, colegio_id")
@@ -166,7 +140,7 @@ async function findAlumnoByDniAndColegio(dni, colegio_id) {
 
   if (error) {
     console.error("findAlumno error:", error);
-    safeSetText("msg", "Error consultando alumno. Revisa RLS/policies.");
+    safeSetText("msg", "Error consultando alumno (RLS/policy): " + error.message);
     return null;
   }
 
@@ -187,13 +161,9 @@ async function renderBoletaByAlumnoId(alumno_id, colegio_id, anioOverride) {
     return;
   }
 
-  // 1) NOTAS
   const notas = await getNotas(alumno_id, colegio_id, anio);
-
-  // 2) ASISTENCIA
   const asistencia = await getAsistencia(alumno_id, colegio_id, anio);
 
-  // Render UI
   renderNotas(notas);
   renderAsistencia(asistencia);
 
@@ -205,11 +175,9 @@ async function renderBoletaByAlumnoId(alumno_id, colegio_id, anioOverride) {
 }
 
 async function getNotas(alumno_id, colegio_id, anio) {
-  // Ajusta si tu campo de periodo ya incluye año.
-  // Aquí asumimos: periodo tiene algo como "2026-B1", "2026-B2", etc.
   const { data, error } = await window.supabaseClient
     .from("notas")
-    .select("id, curso, periodo, nota_numerica, nota_literal, registrado_por, created_at")
+    .select("curso, periodo, nota_numerica, nota_literal, created_at")
     .eq("alumno_id", alumno_id)
     .eq("colegio_id", colegio_id)
     .ilike("periodo", `${anio}%`)
@@ -217,7 +185,7 @@ async function getNotas(alumno_id, colegio_id, anio) {
 
   if (error) {
     console.error("getNotas error:", error);
-    safeSetText("msg", "Error consultando notas. Revisa RLS/policies.");
+    safeSetText("msg", "Error leyendo notas (RLS/policy): " + error.message);
     return [];
   }
 
@@ -225,14 +193,12 @@ async function getNotas(alumno_id, colegio_id, anio) {
 }
 
 async function getAsistencia(alumno_id, colegio_id, anio) {
-  // asistencia.fecha es DATE
-  // Filtramos entre 1 enero y 31 diciembre
   const start = `${anio}-01-01`;
   const end = `${anio}-12-31`;
 
   const { data, error } = await window.supabaseClient
     .from("asistencia")
-    .select("id, fecha, estado, registrado_por, created_at")
+    .select("fecha, estado")
     .eq("alumno_id", alumno_id)
     .eq("colegio_id", colegio_id)
     .gte("fecha", start)
@@ -241,16 +207,13 @@ async function getAsistencia(alumno_id, colegio_id, anio) {
 
   if (error) {
     console.error("getAsistencia error:", error);
-    safeSetText("msg", "Error consultando asistencia. Revisa RLS/policies.");
+    safeSetText("msg", "Error leyendo asistencia (RLS/policy): " + error.message);
     return [];
   }
 
   return data || [];
 }
 
-/* =========================
-   Render
-========================= */
 function renderNotas(rows) {
   if (!rows || rows.length === 0) {
     safeSetHTML("notasBox", "<p>-</p>");
@@ -260,30 +223,20 @@ function renderNotas(rows) {
   const html = `
     <table border="1" cellpadding="6" cellspacing="0">
       <thead>
-        <tr>
-          <th>Curso</th>
-          <th>Periodo</th>
-          <th>Nota Num.</th>
-          <th>Nota Lit.</th>
-        </tr>
+        <tr><th>Curso</th><th>Periodo</th><th>Nota</th><th>Literal</th></tr>
       </thead>
       <tbody>
-        ${rows
-          .map(
-            (r) => `
+        ${rows.map(r => `
           <tr>
             <td>${escapeHtml(r.curso || "")}</td>
             <td>${escapeHtml(r.periodo || "")}</td>
             <td>${r.nota_numerica ?? ""}</td>
             <td>${escapeHtml(r.nota_literal || "")}</td>
           </tr>
-        `
-          )
-          .join("")}
+        `).join("")}
       </tbody>
     </table>
   `;
-
   safeSetHTML("notasBox", html);
 }
 
@@ -293,69 +246,28 @@ function renderAsistencia(rows) {
     return;
   }
 
-  // Contar estados
-  const counts = {};
-  for (const r of rows) {
-    const st = (r.estado || "SIN_ESTADO").toUpperCase();
-    counts[st] = (counts[st] || 0) + 1;
-  }
-
-  const resumen = Object.entries(counts)
-    .map(([k, v]) => `<li>${escapeHtml(k)}: ${v}</li>`)
-    .join("");
-
-  const detalle = rows
-    .map(
-      (r) => `<tr>
-        <td>${escapeHtml(String(r.fecha || ""))}</td>
-        <td>${escapeHtml(r.estado || "")}</td>
-      </tr>`
-    )
-    .join("");
-
   const html = `
-    <h4>Resumen</h4>
-    <ul>${resumen}</ul>
-
-    <h4>Detalle</h4>
     <table border="1" cellpadding="6" cellspacing="0">
-      <thead>
-        <tr>
-          <th>Fecha</th>
-          <th>Estado</th>
-        </tr>
-      </thead>
+      <thead><tr><th>Fecha</th><th>Estado</th></tr></thead>
       <tbody>
-        ${detalle}
+        ${rows.map(r => `
+          <tr>
+            <td>${escapeHtml(String(r.fecha || ""))}</td>
+            <td>${escapeHtml(r.estado || "")}</td>
+          </tr>
+        `).join("")}
       </tbody>
     </table>
   `;
-
   safeSetHTML("asistenciaBox", html);
 }
 
-/* =========================
-   Helpers seguros (no null)
-========================= */
-function safeGet(id) {
-  return document.getElementById(id);
-}
-
-function safeSetText(id, text) {
-  const el = safeGet(id);
-  if (el) el.textContent = text;
-}
-
-function safeSetHTML(id, html) {
-  const el = safeGet(id);
-  if (el) el.innerHTML = html;
-}
-
+function safeGet(id) { return document.getElementById(id); }
+function safeSetText(id, text) { const el = safeGet(id); if (el) el.textContent = text; }
+function safeSetHTML(id, html) { const el = safeGet(id); if (el) el.innerHTML = html; }
 function escapeHtml(str) {
   return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;").replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
