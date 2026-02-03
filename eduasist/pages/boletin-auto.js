@@ -183,3 +183,121 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await loadSession();
 });
+// =====================================================
+// APODERADO: LISTAR HIJOS Y CARGAR BOLETA
+// =====================================================
+const hijoSelect = document.getElementById("hijoSelect");
+const btnVerHijo = document.getElementById("btnVerHijo");
+const apoderadoMsg = document.getElementById("apoderadoMsg");
+
+function setApoderadoMsg(text, type = "") {
+  apoderadoMsg.style.color = type === "err" ? "crimson" : "green";
+  apoderadoMsg.textContent = text || "";
+}
+
+async function loadHijosApoderado() {
+  try {
+    const sb = await requireSupabase();
+
+    // 1) Obtener sesión
+    const { data: ses, error: sesErr } = await sb.auth.getSession();
+    if (sesErr || !ses.session) {
+      setApoderadoMsg("❌ Sin sesión (apoderado).", "err");
+      return;
+    }
+
+    const userId = ses.session.user.id;
+
+    // 2) Verificar rol del profile
+    const { data: prof, error: profErr } = await sb
+      .from("profiles")
+      .select("role, colegio_id")
+      .eq("id", userId)
+      .single();
+
+    if (profErr || !prof) {
+      setApoderadoMsg("❌ No se pudo leer tu perfil.", "err");
+      return;
+    }
+
+    if (prof.role !== "apoderado") {
+      // Si no es apoderado, ocultamos el bloque
+      const apBox = document.getElementById("apoderadoBox");
+      if (apBox) apBox.style.display = "none";
+      return;
+    }
+
+    // 3) Traer hijos vinculados
+    const { data: hijos, error: hijosErr } = await sb
+      .from("apoderado_hijos")
+      .select("alumno_id, alumnos:alumno_id(nombres, apellidos, dni)")
+      .eq("apoderado_id", userId);
+
+    if (hijosErr) {
+      console.error(hijosErr);
+      setApoderadoMsg("❌ Error trayendo hijos.", "err");
+      return;
+    }
+
+    // 4) Pintar select
+    hijoSelect.innerHTML = `<option value="">-- Selecciona un hijo --</option>`;
+    (hijos || []).forEach((h) => {
+      const a = h.alumnos;
+      const label = a ? `${a.apellidos || ""} ${a.nombres || ""} (DNI: ${a.dni || ""})` : h.alumno_id;
+      const opt = document.createElement("option");
+      opt.value = h.alumno_id;
+      opt.textContent = label.trim();
+      hijoSelect.appendChild(opt);
+    });
+
+    if (!hijos || hijos.length === 0) {
+      setApoderadoMsg("⚠️ No tienes hijos vinculados aún.", "err");
+    } else {
+      setApoderadoMsg("✅ Selecciona un hijo para ver su boleta.");
+    }
+  } catch (e) {
+    console.error(e);
+    setApoderadoMsg("❌ Error inesperado en apoderado.", "err");
+  }
+}
+
+async function cargarBoletaPorAlumnoId(alumnoId, anio) {
+  // Reutiliza tus funciones existentes:
+  // fetchNotas(alumno_id, anio)
+  // fetchAsistencia(alumno_id, anio)
+  // renderNotas(data)
+  // renderAsistencia(data)
+
+  // Si tus funciones ya existen con otro nombre, dime y lo adapto.
+  const notas = await fetchNotas(alumnoId, anio);
+  const asistencia = await fetchAsistencia(alumnoId, anio);
+
+  renderNotas(notas);
+  renderAsistencia(asistencia);
+}
+
+if (btnVerHijo) {
+  btnVerHijo.addEventListener("click", async () => {
+    const alumnoId = hijoSelect.value;
+    const anio = (document.getElementById("anioInput")?.value || "").trim() || "2026";
+
+    if (!alumnoId) {
+      setApoderadoMsg("❌ Selecciona un hijo.", "err");
+      return;
+    }
+
+    try {
+      setApoderadoMsg("Cargando boleta del hijo...");
+      await cargarBoletaPorAlumnoId(alumnoId, anio);
+      setApoderadoMsg("✅ Boleta del hijo cargada.");
+    } catch (e) {
+      console.error(e);
+      setApoderadoMsg("❌ No se pudo cargar la boleta del hijo.", "err");
+    }
+  });
+}
+
+// Llamar al inicio (cuando ya hay session)
+document.addEventListener("DOMContentLoaded", () => {
+  loadHijosApoderado();
+});
