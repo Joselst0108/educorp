@@ -1,40 +1,28 @@
-// assets/js/login.js
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCorp | Login</title>
+</head>
+<body>
 
-document.addEventListener("DOMContentLoaded", () => {
-  const form = document.querySelector("form");
-  const dniInput = document.getElementById("dni");
-  const passInput = document.getElementById("password");
-  const status = document.getElementById("status");
+  <h1>Login EduCorp</h1>
+  <p>Ingresa con tu DNI o código institucional y tu contraseña inicial (DNI/código).</p>
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    status.textContent = "Estado: ingresando...";
+  <form>
+    <label>Usuario (DNI o código):</label><br />
+    <input type="text" placeholder="Ej: 71234567 o AMDC-2026-00045" /><br /><br />
 
-    if (!window.supabaseClient) {
-      status.textContent =
-        "❌ Supabase no inicializado. Revisa supabaseClient.js y CDN.";
-      return;
-    }
+    <label>Contraseña:</label><br />
+    <input type="password" placeholder="Tu DNI o código" /><br /><br />
 
-    const dni = dniInput.value.trim();
-    const password = passInput.value;
+    <button type="button">Entrar</button>
+  </form>
 
-    try {
-      const email = `${dni}@educorp.local`;
+  <p>
+    <a href="index.html">Volver al inicio</a>
+  </p>
 
-      const { error } =
-        await window.supabaseClient.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-      if (error) throw error;
-
-      status.textContent = "✅ Sesión iniciada correctamente";
-      window.location.href = "/dashboard.html";
-    } catch (err) {
-      console.error(err);
-      status.textContent = `❌ ${err.message}`;
-    }
-  });
-});
+</body>
+</html>
