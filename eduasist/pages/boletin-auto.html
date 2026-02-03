@@ -5,63 +5,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Boleta Automática (V2)</title>
 
-  <!-- Supabase v2 (solo UNA vez) -->
+  <!-- ✅ Supabase v2 SOLO UNA VEZ -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Tu cliente (asegúrate que exista esa ruta) -->
+  <!-- ✅ Tu cliente global (ruta real) -->
   <script src="/assets/js/supabaseClient.js"></script>
 
   <style>
-    body { font-family: Arial, sans-serif; padding: 16px; max-width: 720px; margin: auto; }
-    .ok { color: #0a7a0a; font-weight: bold; }
-    .err { color: #b00020; font-weight: bold; }
-    input { padding: 8px; width: 100%; max-width: 380px; margin: 6px 0; }
-    button { padding: 10px 14px; margin-top: 8px; cursor: pointer; }
-    hr { margin: 16px 0; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background: #f5f5f5; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    @media (max-width: 640px){ .row{ grid-template-columns: 1fr; } }
+    body { font-family: system-ui, Arial; margin: 24px; }
+    .box { border: 1px solid #ddd; padding: 12px; border-radius: 10px; margin: 12px 0; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    input { padding: 10px; font-size: 16px; width: 260px; }
+    button { padding: 10px 14px; font-size: 16px; cursor: pointer; }
+    #msg.ok { color: #15803d; font-weight: 700; }
+    #msg.err { color: #b91c1c; font-weight: 800; }
   </style>
 </head>
 
 <body>
   <h1>Boleta Automática (V2)</h1>
-  <p>
-    Alumno: ve su boleta |
-    Apoderado: consulta por DNI (luego selector de hijos) |
-    Docente/Director: consulta por DNI
-  </p>
 
-  <div id="sessionBox">Cargando sesión...</div>
-  <button id="btnLogout" type="button">Cerrar sesión</button>
-
-  <p style="margin-top:10px;">
-    <!-- AJUSTA ESTA RUTA a la real de tu dashboard -->
-    <a id="linkDashboard" href="/eduasist/dashboard.html">← Volver al Dashboard EduAsist</a>
-  </p>
-
-  <hr/>
-
-  <h2>Consultar por DNI del alumno</h2>
-
-  <div class="row">
-    <div>
-      <label for="dniInput">DNI:</label>
-      <input id="dniInput" type="text" placeholder="Ej: 45102911" />
-    </div>
-    <div>
-      <label for="anioInput">Año:</label>
-      <input id="anioInput" type="number" value="2026" />
-    </div>
+  <div class="box">
+    <div id="sessionStatus">Cargando sesión...</div>
+    <button id="btnLogout" type="button">Cerrar sesión</button>
+    <p id="msg"></p>
   </div>
 
-  <button id="btnVerBoleta" type="button">Ver boleta</button>
-
-  <p id="msg"></p>
-
-  <hr/>
+  <div class="box">
+    <h2>Consultar por DNI del alumno</h2>
+    <div class="row">
+      <div>
+        <label><b>DNI:</b></label><br />
+        <input id="dniInput" placeholder="Ej: 45102911" />
+      </div>
+      <div>
+        <label><b>Año:</b></label><br />
+        <input id="anioInput" value="2026" />
+      </div>
+      <div style="margin-top:22px;">
+        <button id="btnVerBoleta" type="button">Ver boleta</button>
+      </div>
+    </div>
+  </div>
 
   <h2>Notas</h2>
   <div id="notasBox">-</div>
@@ -69,7 +54,7 @@
   <h2>Asistencia</h2>
   <div id="asistenciaBox">-</div>
 
-  <!-- Lógica -->
+  <!-- ✅ Tu lógica -->
   <script src="./boletin-auto.js"></script>
 </body>
 </html>
