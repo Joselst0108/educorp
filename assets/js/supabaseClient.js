@@ -1,6 +1,7 @@
 // assets/js/supabaseClient.js
-const supabaseUrl = 'https://vvjaizqesjdwektaiowi.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2amFpenFlc2pkd2VrdGFpb3dpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxOTczMDgsImV4cCI6MjA4Mzc3MzMwOH0.-9RkZn4SwK027vSyo5dReSLjbAduVWm3-nXqPyoRFLQ';
+const supabaseUrl = 'https://rvdafufkhyjtauubirkz.supabase.co';
+const supabaseAnonKey =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2ZGFmdWZraHlqdGF1dWJpcmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNzM5MDQsImV4cCI6MjA4NTY0OTkwNH0.Yo0EC8g9v0DHebiFyS445EbLMYHw14U2x3VN1_ZmKAk';
 
 // Usamos el objeto global 'supabase' que provee la librería CDN
 if (typeof supabase !== 'undefined') {
