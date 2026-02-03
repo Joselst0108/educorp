@@ -1,273 +1,116 @@
-document.addEventListener("DOMContentLoaded", () => {
-  main().catch((e) => {
-    console.error("Error en main():", e);
-    safeSetText("sessionBox", "❌ Error en main(): " + (e?.message || e));
-  });
-});
+// boletin-auto.js
+document.addEventListener('DOMContentLoaded', async () => {
+  const msg = document.getElementById('msg');
+  const notasBox = document.getElementById('notasBox');
+  const asistenciaBox = document.getElementById('asistenciaBox');
+  const dniInput = document.getElementById('dni');
+  const anioInput = document.getElementById('anio');
+  const btnVer = document.getElementById('btnVer');
 
-async function main() {
-  safeSetText("sessionBox", "⏳ Iniciando...");
-
-  if (!window.supabaseClient) {
-    safeSetText("sessionBox", "❌ supabaseClient NO está cargado. Revisa la ruta del script: /assets/js/supabaseClient.js");
+  // ===============================
+  // VALIDACIÓN SUPABASE
+  // ===============================
+  if (!window.supabase) {
+    msg.innerHTML = '❌ Supabase NO está inicializado. Revisa que exista <b>/assets/js/supabaseClient.js</b>';
+    msg.style.color = 'red';
     return;
   }
 
-  safeSetText("sessionBox", "✅ supabaseClient OK. Cargando sesión...");
+  msg.innerHTML = '✅ Supabase listo';
+  msg.style.color = 'green';
 
-  const btnBuscar = safeGet("btnBuscar");
-  const btnLogout = safeGet("btnLogout");
-  const dniInput = safeGet("dniInput");
-  const anioInput = safeGet("anioInput");
+  // ===============================
+  // BOTÓN VER BOLETA
+  // ===============================
+  btnVer.addEventListener('click', async () => {
+    const dni = dniInput.value.trim();
+    const anio = anioInput.value.trim();
 
-  safeSetText("msg", "");
-  safeSetHTML("notasBox", "-");
-  safeSetHTML("asistenciaBox", "-");
+    notasBox.innerHTML = '-';
+    asistenciaBox.innerHTML = '-';
+    msg.innerHTML = '';
 
-  const profile = await loadSessionAndProfile();
-  if (!profile) return;
-
-  const { role, colegio_id, alumno_id } = profile;
-
-  if (btnLogout) {
-    btnLogout.addEventListener("click", async () => {
-      await window.supabaseClient.auth.signOut();
-      window.location.href = "/login.html";
-    });
-  }
-
-  // Autocargar si es alumno
-  if (role === "alumno") {
-    if (anioInput && !anioInput.value) anioInput.value = new Date().getFullYear();
-
-    if (!alumno_id) {
-      safeSetText("msg", "Tu perfil no tiene alumno_id. Contacta al admin.");
+    if (!dni || !anio) {
+      msg.innerHTML = '⚠️ Ingresa DNI y año';
+      msg.style.color = 'orange';
       return;
     }
 
-    await renderBoletaByAlumnoId(alumno_id, colegio_id);
-  }
+    try {
+      // ===============================
+      // 1. BUSCAR ALUMNO POR DNI
+      // ===============================
+      const { data: alumno, error: alumnoError } = await window.supabase
+        .from('alumnos')
+        .select('id, colegio_id')
+        .eq('dni', dni)
+        .single();
 
-  if (btnBuscar) {
-    btnBuscar.addEventListener("click", async () => {
-      safeSetText("msg", "");
-      safeSetHTML("notasBox", "-");
-      safeSetHTML("asistenciaBox", "-");
-
-      const anio = anioInput ? (anioInput.value || "").trim() : "";
-      if (!anio) {
-        safeSetText("msg", "Ingresa un año (ej: 2026).");
+      if (alumnoError || !alumno) {
+        msg.innerHTML = '❌ Alumno no encontrado';
+        msg.style.color = 'red';
         return;
       }
 
-      if (role === "alumno") {
-        await renderBoletaByAlumnoId(alumno_id, colegio_id, anio);
-        return;
+      // ===============================
+      // 2. OBTENER NOTAS
+      // ===============================
+      const { data: notas, error: notasError } = await window.supabase
+        .from('notas')
+        .select('curso, periodo, nota_numerica, nota_literal')
+        .eq('alumno_id', alumno.id)
+        .eq('colegio_id', alumno.colegio_id);
+
+      if (notasError) {
+        throw notasError;
       }
 
-      const dni = dniInput ? (dniInput.value || "").trim() : "";
-      if (!dni) {
-        safeSetText("msg", "Ingresa el DNI del alumno.");
-        return;
+      if (!notas || notas.length === 0) {
+        notasBox.innerHTML = '<i>No hay notas registradas</i>';
+      } else {
+        let htmlNotas = '<ul>';
+        notas.forEach(n => {
+          htmlNotas += `
+            <li>
+              <b>${n.curso}</b> (${n.periodo}) :
+              ${n.nota_numerica ?? '-'} ${n.nota_literal ?? ''}
+            </li>`;
+        });
+        htmlNotas += '</ul>';
+        notasBox.innerHTML = htmlNotas;
       }
 
-      const alumno = await findAlumnoByDniAndColegio(dni, colegio_id);
-      if (!alumno) return;
+      // ===============================
+      // 3. OBTENER ASISTENCIA
+      // ===============================
+      const { data: asistencias, error: asisError } = await window.supabase
+        .from('asistencia')
+        .select('fecha, estado')
+        .eq('alumno_id', alumno.id)
+        .eq('colegio_id', alumno.colegio_id);
 
-      await renderBoletaByAlumnoId(alumno.id, colegio_id, anio);
-    });
-  }
-}
+      if (asisError) {
+        throw asisError;
+      }
 
-async function loadSessionAndProfile() {
-  safeSetText("sessionBox", "⏳ Leyendo sesión de Supabase...");
+      if (!asistencias || asistencias.length === 0) {
+        asistenciaBox.innerHTML = '<i>No hay registros de asistencia</i>';
+      } else {
+        let htmlAsis = '<ul>';
+        asistencias.forEach(a => {
+          htmlAsis += `<li>${a.fecha} : ${a.estado}</li>`;
+        });
+        htmlAsis += '</ul>';
+        asistenciaBox.innerHTML = htmlAsis;
+      }
 
-  const { data, error } = await window.supabaseClient.auth.getSession();
+      msg.innerHTML = '✅ Boleta cargada correctamente';
+      msg.style.color = 'green';
 
-  if (error) {
-    console.error("getSession error:", error);
-    safeSetText("sessionBox", "❌ Error getSession: " + error.message);
-    return null;
-  }
-
-  if (!data?.session) {
-    safeSetText("sessionBox", "❌ No hay sesión. Inicia sesión primero.");
-    // OJO: si estás dentro de /eduasist/pages/... esto debe apuntar a /login.html
-    window.location.href = "/login.html";
-    return null;
-  }
-
-  const user = data.session.user;
-  safeSetText("sessionBox", "✅ Sesión OK. Buscando profile...");
-
-  const { data: profile, error: pe } = await window.supabaseClient
-    .from("profiles")
-    .select("id, role, colegio_id, alumno_id, apoderado_id, is_active")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (pe) {
-    console.error("profile error:", pe);
-    safeSetText("sessionBox", "❌ No se pudo leer profiles (RLS/policy): " + pe.message);
-    return null;
-  }
-
-  if (!profile) {
-    safeSetText("sessionBox", "❌ No tienes profile. Contacta al admin.");
-    return null;
-  }
-
-  if (!profile.is_active) {
-    safeSetText("sessionBox", "❌ Usuario desactivado.");
-    return null;
-  }
-
-  safeSetText(
-    "sessionBox",
-    `✅ Sesión activa (${profile.role}) | colegio_id: ${profile.colegio_id || "N/A"}`
-  );
-
-  return profile;
-}
-
-async function findAlumnoByDniAndColegio(dni, colegio_id) {
-  const { data, error } = await window.supabaseClient
-    .from("alumnos")
-    .select("id, dni, colegio_id")
-    .eq("dni", dni)
-    .eq("colegio_id", colegio_id)
-    .maybeSingle();
-
-  if (error) {
-    console.error("findAlumno error:", error);
-    safeSetText("msg", "Error consultando alumno (RLS/policy): " + error.message);
-    return null;
-  }
-
-  if (!data) {
-    safeSetText("msg", "✖ Alumno no encontrado en este colegio.");
-    return null;
-  }
-
-  return data;
-}
-
-async function renderBoletaByAlumnoId(alumno_id, colegio_id, anioOverride) {
-  const anioInput = safeGet("anioInput");
-  const anio = anioOverride || (anioInput ? (anioInput.value || "").trim() : "");
-
-  if (!anio) {
-    safeSetText("msg", "Ingresa un año (ej: 2026).");
-    return;
-  }
-
-  const notas = await getNotas(alumno_id, colegio_id, anio);
-  const asistencia = await getAsistencia(alumno_id, colegio_id, anio);
-
-  renderNotas(notas);
-  renderAsistencia(asistencia);
-
-  if ((!notas || notas.length === 0) && (!asistencia || asistencia.length === 0)) {
-    safeSetText("msg", "No hay registros de notas/asistencia para ese año.");
-  } else {
-    safeSetText("msg", "✅ Boleta cargada.");
-  }
-}
-
-async function getNotas(alumno_id, colegio_id, anio) {
-  const { data, error } = await window.supabaseClient
-    .from("notas")
-    .select("curso, periodo, nota_numerica, nota_literal, created_at")
-    .eq("alumno_id", alumno_id)
-    .eq("colegio_id", colegio_id)
-    .ilike("periodo", `${anio}%`)
-    .order("created_at", { ascending: true });
-
-  if (error) {
-    console.error("getNotas error:", error);
-    safeSetText("msg", "Error leyendo notas (RLS/policy): " + error.message);
-    return [];
-  }
-
-  return data || [];
-}
-
-async function getAsistencia(alumno_id, colegio_id, anio) {
-  const start = `${anio}-01-01`;
-  const end = `${anio}-12-31`;
-
-  const { data, error } = await window.supabaseClient
-    .from("asistencia")
-    .select("fecha, estado")
-    .eq("alumno_id", alumno_id)
-    .eq("colegio_id", colegio_id)
-    .gte("fecha", start)
-    .lte("fecha", end)
-    .order("fecha", { ascending: true });
-
-  if (error) {
-    console.error("getAsistencia error:", error);
-    safeSetText("msg", "Error leyendo asistencia (RLS/policy): " + error.message);
-    return [];
-  }
-
-  return data || [];
-}
-
-function renderNotas(rows) {
-  if (!rows || rows.length === 0) {
-    safeSetHTML("notasBox", "<p>-</p>");
-    return;
-  }
-
-  const html = `
-    <table border="1" cellpadding="6" cellspacing="0">
-      <thead>
-        <tr><th>Curso</th><th>Periodo</th><th>Nota</th><th>Literal</th></tr>
-      </thead>
-      <tbody>
-        ${rows.map(r => `
-          <tr>
-            <td>${escapeHtml(r.curso || "")}</td>
-            <td>${escapeHtml(r.periodo || "")}</td>
-            <td>${r.nota_numerica ?? ""}</td>
-            <td>${escapeHtml(r.nota_literal || "")}</td>
-          </tr>
-        `).join("")}
-      </tbody>
-    </table>
-  `;
-  safeSetHTML("notasBox", html);
-}
-
-function renderAsistencia(rows) {
-  if (!rows || rows.length === 0) {
-    safeSetHTML("asistenciaBox", "<p>-</p>");
-    return;
-  }
-
-  const html = `
-    <table border="1" cellpadding="6" cellspacing="0">
-      <thead><tr><th>Fecha</th><th>Estado</th></tr></thead>
-      <tbody>
-        ${rows.map(r => `
-          <tr>
-            <td>${escapeHtml(String(r.fecha || ""))}</td>
-            <td>${escapeHtml(r.estado || "")}</td>
-          </tr>
-        `).join("")}
-      </tbody>
-    </table>
-  `;
-  safeSetHTML("asistenciaBox", html);
-}
-
-function safeGet(id) { return document.getElementById(id); }
-function safeSetText(id, text) { const el = safeGet(id); if (el) el.textContent = text; }
-function safeSetHTML(id, html) { const el = safeGet(id); if (el) el.innerHTML = html; }
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;").replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
+    } catch (err) {
+      console.error(err);
+      msg.innerHTML = '❌ Error al cargar la boleta';
+      msg.style.color = 'red';
+    }
+  });
+});
