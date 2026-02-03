@@ -1,434 +1,310 @@
-
 /* =========================================================
-   Boleta Automática (V2) - EduAsist
-   - Alumno: ve su boleta
-   - Apoderado: elige hijo
-   - Docente/Director: consulta por DNI
-   Requiere:
-   - <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-   - <script src="../../assets/js/supabaseClient.js"></script> -> debe crear window.supabase
+   BOLETA AUTOMÁTICA (V2) - EduAsist
+   Tablas usadas:
+   - profiles: id, role, colegio_id, alumno_id, apoderado_id, is_active
+   - alumnos: id, dni, colegio_id
+   - notas: colegio_id, alumno_id, curso, periodo, nota_numerica, nota_literal
+   - asistencia: colegio_id, alumno_id, fecha, estado
 ========================================================= */
-
-/** ✅ Ajusta aquí si tus tablas/columnas se llaman distinto */
-const TABLES = {
-  profiles: "profiles",           // public.profiles
-  alumnos: "alumnos",             // public.alumnos (id, dni, colegio_id)
-  // Relación apoderado -> alumnos (si no existe, igual funciona con fallback)
-  apoderadoAlumnos: "apoderado_alumnos", // (apoderado_id, alumno_id) opcional
-  notas: "notas",                 // (alumno_id, anio, curso, nota, bimestre?, etc)
-  asistencias: "asistencias"      // (alumno_id, anio, fecha, estado, etc)
-};
-
-/** Algunas columnas comunes que usamos */
-const COLS = {
-  profiles: {
-    id: "id",
-    role: "role",
-    colegioId: "colegio_id",
-    alumnoId: "alumno_id",
-    apoderadoId: "apoderado_id",
-    isActive: "is_active"
-  },
-  alumnos: {
-    id: "id",
-    dni: "dni",
-    colegioId: "colegio_id",
-    nombres: "nombres",       // opcional
-    apellidos: "apellidos"    // opcional
-  }
-};
 
 const $ = (id) => document.getElementById(id);
 
+let currentSession = null;
+let currentProfile = null;
+
+// Elementos UI
 const sessionStatus = $("sessionStatus");
+const roleText = $("roleText");
+const colegioText = $("colegioText");
+const alumnoText = $("alumnoText");
 const btnLogout = $("btnLogout");
 
-const dniPanel = $("dniPanel");
 const dniInput = $("dniInput");
-const btnBuscarDni = $("btnBuscarDni");
-const dniMsg = $("dniMsg");
-
-const apoderadoPanel = $("apoderadoPanel");
-const selectHijo = $("selectHijo");
-const btnVerHijo = $("btnVerHijo");
-const apoderadoMsg = $("apoderadoMsg");
-
 const anioInput = $("anioInput");
-const anioMsg = $("anioMsg");
+const btnBuscar = $("btnBuscar");
+const msg = $("msg");
 
 const notasBox = $("notasBox");
 const asistenciaBox = $("asistenciaBox");
 
-let currentProfile = null;
-let currentAlumno = null; // objeto alumno (id, dni, colegio_id)
-let selectedAlumnoId = null;
-
-/* =========================================================
-   Helpers UI
-========================================================= */
-function setMsg(el, text, ok = false) {
-  el.textContent = text || "";
-  el.style.color = ok ? "green" : "crimson";
-}
-
-function clearBoxes() {
-  notasBox.innerHTML = "";
-  asistenciaBox.innerHTML = "";
-}
-
-function renderTable(container, rows) {
-  if (!rows || rows.length === 0) {
-    container.innerHTML = "<p><em>Sin registros.</em></p>";
-    return;
-  }
-
-  const cols = Object.keys(rows[0]);
-  const table = document.createElement("table");
-  table.border = "1";
-  table.cellPadding = "6";
-  table.style.borderCollapse = "collapse";
-
-  const thead = document.createElement("thead");
-  const trh = document.createElement("tr");
-  cols.forEach((c) => {
-    const th = document.createElement("th");
-    th.textContent = c;
-    trh.appendChild(th);
-  });
-  thead.appendChild(trh);
-
-  const tbody = document.createElement("tbody");
-  rows.forEach((r) => {
-    const tr = document.createElement("tr");
-    cols.forEach((c) => {
-      const td = document.createElement("td");
-      td.textContent = r[c] ?? "";
-      tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
-  });
-
-  table.appendChild(thead);
-  table.appendChild(tbody);
-
-  container.innerHTML = "";
-  container.appendChild(table);
-}
-
-function parseDniFromEmail(email) {
-  // ejemplo: 45102910@educorp.local -> "45102910"
-  if (!email || typeof email !== "string") return null;
-  const part = email.split("@")[0];
-  return part && /^[0-9]{6,12}$/.test(part) ? part : null;
-}
-
-/* =========================================================
-   Supabase Guard
-========================================================= */
-function getSupabase() {
-  // En tu supabaseClient.js tú creas window.supabase
-  if (!window.supabase) {
-    throw new Error("Supabase no está inicializado. Revisa supabaseClient.js y el orden de scripts.");
-  }
-  return window.supabase;
-}
-
-/* =========================================================
-   Cargar sesión + perfil
-========================================================= */
-async function loadSessionAndProfile() {
-  const supabase = getSupabase();
-
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError || !sessionData?.session) {
-    sessionStatus.textContent = "❌ Sesión no activa. Inicia sesión.";
-    btnLogout.style.display = "none";
-    // redirigir a login
-    setTimeout(() => (window.location.href = "../../login.html"), 700);
-    return null;
-  }
-
-  btnLogout.style.display = "inline-block";
-  const user = sessionData.session.user;
-
-  // Traer perfil
-  const { data: profile, error: profileError } = await supabase
-    .from(TABLES.profiles)
-    .select("*")
-    .eq(COLS.profiles.id, user.id)
-    .maybeSingle();
-
-  if (profileError || !profile) {
-    sessionStatus.textContent = "❌ No tienes perfil. Contacta con el admin.";
-    return null;
-  }
-
-  currentProfile = profile;
-
-  const role = profile[COLS.profiles.role];
-  const colegioId = profile[COLS.profiles.colegioId];
-
-  sessionStatus.textContent = `✅ Sesión activa (${role}) | colegio_id: ${colegioId}`;
-
-  return { user, profile };
-}
-
-/* =========================================================
-   Resolver alumno según rol
-========================================================= */
-async function resolveAlumnoForAlumnoRole(user, profile) {
-  const supabase = getSupabase();
-  const colegioId = profile[COLS.profiles.colegioId];
-
-  // 1) Si el profile ya trae alumno_id, usamos eso
-  const alumnoId = profile[COLS.profiles.alumnoId];
-  if (alumnoId) {
-    const { data: alumno, error } = await supabase
-      .from(TABLES.alumnos)
-      .select("*")
-      .eq(COLS.alumnos.id, alumnoId)
-      .eq(COLS.alumnos.colegioId, colegioId)
-      .maybeSingle();
-
-    if (error) throw error;
-    if (!alumno) throw new Error("Alumno no encontrado en este colegio.");
-    return alumno;
-  }
-
-  // 2) Fallback: intentar por DNI (si el email es dni@educorp.local)
-  const dniFromEmail = parseDniFromEmail(user.email);
-  if (dniFromEmail) {
-    const { data: alumno, error } = await supabase
-      .from(TABLES.alumnos)
-      .select("*")
-      .eq(COLS.alumnos.dni, dniFromEmail)
-      .eq(COLS.alumnos.colegioId, colegioId)
-      .maybeSingle();
-
-    if (error) throw error;
-    if (!alumno) throw new Error("No se encontró alumno por DNI dentro del colegio.");
-    return alumno;
-  }
-
-  throw new Error("No se pudo resolver el alumno (falta alumno_id en profiles y no se pudo leer DNI del email).");
-}
-
-async function loadHijosForApoderado(profile) {
-  const supabase = getSupabase();
-  const colegioId = profile[COLS.profiles.colegioId];
-
-  // Si tienes apoderado_id en profiles, mejor
-  const apoderadoId = profile[COLS.profiles.apoderadoId] || profile.id;
-
-  // 1) Intentar con tabla puente apoderado_alumnos
-  let hijos = [];
-  const { data: links, error: linkError } = await supabase
-    .from(TABLES.apoderadoAlumnos)
-    .select("alumno_id")
-    .eq("apoderado_id", apoderadoId);
-
-  if (!linkError && links && links.length) {
-    const ids = links.map((x) => x.alumno_id).filter(Boolean);
-    if (ids.length) {
-      const { data: alumnos, error: alumnosError } = await supabase
-        .from(TABLES.alumnos)
-        .select("*")
-        .in(COLS.alumnos.id, ids)
-        .eq(COLS.alumnos.colegioId, colegioId);
-
-      if (alumnosError) throw alumnosError;
-      hijos = alumnos || [];
-    }
-  }
-
-  // 2) Si no existe tabla puente o está vacía, fallback (sin romper):
-  //    (No inventamos relación; solo avisamos)
-  return hijos;
-}
-
-/* =========================================================
-   Consultas: notas y asistencia
-========================================================= */
-async function fetchNotas(alumnoId, anio) {
-  const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from(TABLES.notas)
-    .select("*")
-    .eq("alumno_id", alumnoId)
-    .eq("anio", anio)
-    .order("created_at", { ascending: true });
-
-  if (error) throw error;
-  return data || [];
-}
-
-async function fetchAsistencias(alumnoId, anio) {
-  const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from(TABLES.asistencias)
-    .select("*")
-    .eq("alumno_id", alumnoId)
-    .eq("anio", anio)
-    .order("fecha", { ascending: true });
-
-  if (error) throw error;
-  return data || [];
-}
-
-async function loadBoletaForAlumno(alumnoId) {
-  clearBoxes();
-  setMsg(anioMsg, "");
-
-  const anio = parseInt(anioInput.value, 10);
-  if (!anio || anio < 2000) {
-    setMsg(anioMsg, "⚠️ Ingresa el año (ej: 2026).");
-    return;
-  }
-
-  try {
-    const [notas, asistencias] = await Promise.all([
-      fetchNotas(alumnoId, anio),
-      fetchAsistencias(alumnoId, anio)
-    ]);
-
-    renderTable(notasBox, notas);
-    renderTable(asistenciaBox, asistencias);
-  } catch (e) {
-    notasBox.innerHTML = `<p style="color:crimson">Error cargando notas: ${e.message}</p>`;
-    asistenciaBox.innerHTML = `<p style="color:crimson">Error cargando asistencia: ${e.message}</p>`;
-  }
-}
-
-/* =========================================================
-   UI por rol
-========================================================= */
-function showPanelsByRole(role) {
-  dniPanel.style.display = "none";
-  apoderadoPanel.style.display = "none";
-  setMsg(dniMsg, "");
-  setMsg(apoderadoMsg, "");
-
-  if (role === "docente" || role === "director" || role === "superadmin") {
-    dniPanel.style.display = "block";
-  }
-  if (role === "apoderado") {
-    apoderadoPanel.style.display = "block";
-  }
-}
-
-/* =========================================================
-   Main
-========================================================= */
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    // Logout
-    btnLogout.addEventListener("click", async () => {
-      const supabase = getSupabase();
-      await supabase.auth.signOut();
-      window.location.href = "../../login.html";
-    });
+    await loadSessionAndProfile();
+    setupLogout();
+    setupBuscar();
 
-    // Botón buscar por DNI (docente/director/superadmin)
-    btnBuscarDni.addEventListener("click", async () => {
-      clearBoxes();
-      setMsg(dniMsg, "");
-      const supabase = getSupabase();
-
-      const dni = (dniInput.value || "").trim();
-      if (!dni) return setMsg(dniMsg, "Ingresa DNI.");
-
-      const anio = parseInt(anioInput.value, 10);
-      if (!anio || anio < 2000) return setMsg(dniMsg, "Ingresa el año (ej: 2026).");
-
-      const colegioId = currentProfile?.[COLS.profiles.colegioId];
-      if (!colegioId) return setMsg(dniMsg, "No hay colegio_id en tu perfil.");
-
-      // Buscar alumno por DNI dentro del colegio
-      const { data: alumno, error } = await supabase
-        .from(TABLES.alumnos)
-        .select("*")
-        .eq(COLS.alumnos.dni, dni)
-        .eq(COLS.alumnos.colegioId, colegioId)
-        .maybeSingle();
-
-      if (error) return setMsg(dniMsg, error.message);
-      if (!alumno) return setMsg(dniMsg, "Alumno no encontrado en este colegio.");
-
-      selectedAlumnoId = alumno[COLS.alumnos.id];
-      setMsg(dniMsg, `✅ Alumno encontrado. Cargando boleta…`, true);
-      await loadBoletaForAlumno(selectedAlumnoId);
-    });
-
-    // Apoderado: ver hijo seleccionado
-    btnVerHijo.addEventListener("click", async () => {
-      clearBoxes();
-      setMsg(apoderadoMsg, "");
-      const alumnoId = selectHijo.value;
-      if (!alumnoId) return setMsg(apoderadoMsg, "No hay hijo seleccionado.");
-      selectedAlumnoId = alumnoId;
-      setMsg(apoderadoMsg, "✅ Cargando boleta del hijo…", true);
-      await loadBoletaForAlumno(alumnoId);
-    });
-
-    // Si cambia el año y ya hay alumno seleccionado, recargar
-    anioInput.addEventListener("change", async () => {
-      if (selectedAlumnoId) await loadBoletaForAlumno(selectedAlumnoId);
-    });
-
-    // 1) Sesión + perfil
-    const sp = await loadSessionAndProfile();
-    if (!sp) return;
-
-    const { user, profile } = sp;
-    const role = profile[COLS.profiles.role];
-
-    showPanelsByRole(role);
-
-    // 2) Resolver alumno según rol
-    if (role === "alumno") {
-      currentAlumno = await resolveAlumnoForAlumnoRole(user, profile);
-      selectedAlumnoId = currentAlumno[COLS.alumnos.id];
-
-      // Si quieres, autollenar año por defecto con el año actual
-      if (!anioInput.value) anioInput.value = new Date().getFullYear();
-
-      // Autocarga al entrar
-      await loadBoletaForAlumno(selectedAlumnoId);
+    // Si es alumno y tiene alumno_id, cargamos su boleta automática
+    if (currentProfile?.role === "alumno" && currentProfile?.alumno_id) {
+      dniInput.value = ""; // no necesita DNI
+      await renderBoletaByAlumnoId(currentProfile.alumno_id);
+    } else {
+      // roles que consultan por DNI: docente/director/superadmin/secretaria (o cualquiera para probar)
+      sessionStatus.textContent = `Sesión activa (${currentProfile?.role || "?"})`;
     }
-
-    if (role === "apoderado") {
-      // Cargar hijos (si existe relación)
-      const hijos = await loadHijosForApoderado(profile);
-
-      selectHijo.innerHTML = "";
-      if (!hijos.length) {
-        setMsg(apoderadoMsg, "⚠️ No hay hijos vinculados aún. Vincula en BD (apoderado_alumnos).");
-      } else {
-        const opt0 = document.createElement("option");
-        opt0.value = "";
-        opt0.textContent = "— Selecciona —";
-        selectHijo.appendChild(opt0);
-
-        hijos.forEach((h) => {
-          const opt = document.createElement("option");
-          opt.value = h[COLS.alumnos.id];
-
-          const nom = [h[COLS.alumnos.apellidos], h[COLS.alumnos.nombres]].filter(Boolean).join(" ");
-          const label = nom ? `${nom} (DNI ${h[COLS.alumnos.dni]})` : `DNI ${h[COLS.alumnos.dni]}`;
-          opt.textContent = label;
-
-          selectHijo.appendChild(opt);
-        });
-      }
-
-      if (!anioInput.value) anioInput.value = new Date().getFullYear();
-    }
-
-    // Docente/Director/Superadmin: no autocarga, esperan DNI
-    if (!anioInput.value) anioInput.value = new Date().getFullYear();
-
   } catch (e) {
-    sessionStatus.textContent = `❌ Error: ${e.message}`;
     console.error(e);
+    msg.textContent = "Error cargando sesión/perfil. Revisa consola.";
   }
 });
+
+/* =========================================================
+   SESIÓN + PERFIL
+========================================================= */
+async function loadSessionAndProfile() {
+  // 1) Sesión
+  const { data: sData, error: sError } = await window.supabaseClient.auth.getSession();
+  if (sError || !sData.session) {
+    sessionStatus.textContent = "Sesión no activa. Inicia sesión.";
+    window.location.href = "../../login.html";
+    return;
+  }
+  currentSession = sData.session;
+
+  // 2) Perfil
+  const { data: pData, error: pError } = await window.supabaseClient
+    .from("profiles")
+    .select("id, role, colegio_id, alumno_id, apoderado_id, is_active")
+    .eq("id", currentSession.user.id)
+    .single();
+
+  if (pError || !pData) {
+    sessionStatus.textContent = "No tienes perfil. Contacta con el admin.";
+    throw new Error("Perfil no encontrado en profiles");
+  }
+
+  if (pData.is_active === false) {
+    sessionStatus.textContent = "Usuario inactivo. Contacta con el admin.";
+    throw new Error("Perfil inactivo");
+  }
+
+  currentProfile = pData;
+
+  // UI info
+  roleText.textContent = `Rol: ${pData.role} | `;
+  colegioText.textContent = `colegio_id: ${pData.colegio_id || "NULL"} | `;
+  alumnoText.textContent = `alumno_id: ${pData.alumno_id || "NULL"}`;
+
+  sessionStatus.textContent = `Sesión activa (${pData.role})`;
+}
+
+/* =========================================================
+   LOGOUT
+========================================================= */
+function setupLogout() {
+  btnLogout.addEventListener("click", async () => {
+    await window.supabaseClient.auth.signOut();
+    window.location.href = "../../login.html";
+  });
+}
+
+/* =========================================================
+   BUSCAR POR DNI
+========================================================= */
+function setupBuscar() {
+  btnBuscar.addEventListener("click", async () => {
+    msg.textContent = "";
+    notasBox.textContent = "-";
+    asistenciaBox.textContent = "-";
+
+    const dni = (dniInput.value || "").trim();
+    if (!dni) {
+      msg.textContent = "Ingresa un DNI.";
+      return;
+    }
+
+    // Buscar alumno por DNI (y por colegio si NO es superadmin)
+    const alumno = await findAlumnoByDni(dni);
+    if (!alumno) return;
+
+    await renderBoletaByAlumnoId(alumno.id);
+  });
+}
+
+async function findAlumnoByDni(dni) {
+  try {
+    // Base query
+    let q = window.supabaseClient
+      .from("alumnos")
+      .select("id, dni, colegio_id")
+      .eq("dni", dni)
+      .limit(1);
+
+    // Regla multi-colegio:
+    // - superadmin puede consultar cualquier colegio
+    // - los demás deben consultar SOLO su colegio_id
+    if (currentProfile?.role !== "superadmin") {
+      if (!currentProfile?.colegio_id) {
+        msg.textContent = "Tu perfil no tiene colegio_id. Contacta con el admin.";
+        return null;
+      }
+      q = q.eq("colegio_id", currentProfile.colegio_id);
+    }
+
+    const { data, error } = await q;
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      msg.textContent = "❌ Alumno no encontrado (o no pertenece a tu colegio).";
+      return null;
+    }
+
+    return data[0];
+  } catch (e) {
+    console.error(e);
+    msg.textContent = "Error buscando alumno por DNI. Revisa consola.";
+    return null;
+  }
+}
+
+/* =========================================================
+   RENDER BOLETA
+========================================================= */
+async function renderBoletaByAlumnoId(alumnoId) {
+  msg.textContent = "";
+  notasBox.textContent = "Cargando...";
+  asistenciaBox.textContent = "Cargando...";
+
+  // Determinar año/periodo
+  const anio = parseInt(anioInput.value || "0", 10);
+  const periodo = isNaN(anio) || anio <= 0 ? null : String(anio);
+
+  // Para alumno: debe pertenecer a su colegio (validación extra)
+  // (si es alumno y su alumno_id es el mismo, ok)
+  // (si no es alumno, igual ya filtramos por colegio en la búsqueda)
+
+  await loadNotas(alumnoId, periodo);
+  await loadAsistencia(alumnoId, periodo);
+}
+
+/* =========================================================
+   NOTAS
+========================================================= */
+async function loadNotas(alumnoId, periodo) {
+  try {
+    if (!currentProfile?.colegio_id && currentProfile?.role !== "superadmin") {
+      notasBox.textContent = "-";
+      msg.textContent = "Tu perfil no tiene colegio_id. Contacta con el admin.";
+      return;
+    }
+
+    let q = window.supabaseClient
+      .from("notas")
+      .select("id, colegio_id, alumno_id, curso, periodo, nota_numerica, nota_literal, created_at")
+      .eq("alumno_id", alumnoId)
+      .order("curso", { ascending: true });
+
+    // Multi-colegio: si no es superadmin filtramos por colegio_id
+    if (currentProfile.role !== "superadmin") {
+      q = q.eq("colegio_id", currentProfile.colegio_id);
+    }
+
+    // Filtrar por periodo si se ingresó
+    if (periodo) q = q.eq("periodo", periodo);
+
+    const { data, error } = await q;
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      notasBox.innerHTML = "<i>No hay notas registradas para este alumno (en este año/periodo).</i>";
+      return;
+    }
+
+    // Render simple
+    const rows = data.map((n) => {
+      const nota = n.nota_numerica ?? n.nota_literal ?? "-";
+      return `<tr>
+        <td>${escapeHtml(n.curso || "-")}</td>
+        <td>${escapeHtml(n.periodo || "-")}</td>
+        <td>${escapeHtml(String(nota))}</td>
+      </tr>`;
+    }).join("");
+
+    notasBox.innerHTML = `
+      <table border="1" cellpadding="6" cellspacing="0">
+        <thead>
+          <tr><th>Curso</th><th>Periodo</th><th>Nota</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  } catch (e) {
+    console.error(e);
+    notasBox.textContent = "-";
+    msg.textContent = "Error cargando notas. Revisa RLS o consola.";
+  }
+}
+
+/* =========================================================
+   ASISTENCIA
+========================================================= */
+async function loadAsistencia(alumnoId, periodo) {
+  try {
+    if (!currentProfile?.colegio_id && currentProfile?.role !== "superadmin") {
+      asistenciaBox.textContent = "-";
+      msg.textContent = "Tu perfil no tiene colegio_id. Contacta con el admin.";
+      return;
+    }
+
+    // En tu caso la tabla se llama "asistencia" (singular)
+    let q = window.supabaseClient
+      .from("asistencia")
+      .select("id, colegio_id, alumno_id, fecha, estado, created_at")
+      .eq("alumno_id", alumnoId)
+      .order("fecha", { ascending: false });
+
+    if (currentProfile.role !== "superadmin") {
+      q = q.eq("colegio_id", currentProfile.colegio_id);
+    }
+
+    // Si quieres filtrar por año, hacemos rango por fecha:
+    // periodo viene como "2026"
+    if (periodo) {
+      const y = parseInt(periodo, 10);
+      if (!isNaN(y)) {
+        const from = `${y}-01-01`;
+        const to = `${y}-12-31`;
+        q = q.gte("fecha", from).lte("fecha", to);
+      }
+    }
+
+    const { data, error } = await q;
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      asistenciaBox.innerHTML = "<i>No hay asistencias registradas para este alumno (en este año).</i>";
+      return;
+    }
+
+    const rows = data.map((a) => {
+      return `<tr>
+        <td>${escapeHtml(String(a.fecha || "-"))}</td>
+        <td>${escapeHtml(a.estado || "-")}</td>
+      </tr>`;
+    }).join("");
+
+    asistenciaBox.innerHTML = `
+      <table border="1" cellpadding="6" cellspacing="0">
+        <thead>
+          <tr><th>Fecha</th><th>Estado</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  } catch (e) {
+    console.error(e);
+    asistenciaBox.textContent = "-";
+    msg.textContent = "Error cargando asistencia. Revisa RLS o consola.";
+  }
+}
+
+/* =========================================================
+   UTILS
+========================================================= */
+function escapeHtml(str) {
+  return String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
