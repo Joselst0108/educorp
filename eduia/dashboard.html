@@ -6,8 +6,14 @@
   <title>EduIA | Dashboard</title>
 </head>
 <body>
+
   <h1>Dashboard - EduIA</h1>
-  <p>Rol esperado: Docente (si está habilitado por el Director)</p>
+  <p>Rol esperado: Docente (si está habilitado)</p>
+
+  <div id="estadoSesion">Verificando sesión...</div>
+  <button type="button" id="btnLogout">Cerrar sesión</button>
+
+  <hr />
 
   <ul>
     <li><a href="pages/sesiones.html">Sesiones</a></li>
@@ -16,5 +22,42 @@
   </ul>
 
   <p><a href="../index.html">Volver a EduCorp</a></p>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabaseClient.js"></script>
+
+  <script>
+    async function protegerPorSesion() {
+      const estado = document.getElementById('estadoSesion');
+
+      if (!window.supabase) {
+        estado.innerHTML = '❌ Supabase no conectado';
+        return;
+      }
+
+      const { data, error } = await window.supabase.auth.getSession();
+
+      if (error) {
+        estado.innerHTML = '❌ Error al leer sesión';
+        return;
+      }
+
+      if (!data.session) {
+        window.location.href = '../login.html';
+        return;
+      }
+
+      estado.innerHTML = '✅ Sesión activa';
+    }
+
+    document.getElementById('btnLogout').addEventListener('click', async () => {
+      if (!window.supabase) return;
+      await window.supabase.auth.signOut();
+      window.location.href = '../login.html';
+    });
+
+    protegerPorSesion();
+  </script>
+
 </body>
 </html>
