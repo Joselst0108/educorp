@@ -1,4 +1,4 @@
-// assets/js/login.js
+O// assets/js/login.js
 
 const form = document.getElementById("loginForm");
 const emailEl = document.getElementById("email");
@@ -35,7 +35,7 @@ async function getProfile(userId) {
   // en tu proyecto profiles NO tiene email (ya lo vimos)
   const { data, error } = await sb
     .from("profiles")
-    .select("id, role, colegio_id, app_access")
+    .select("id, role, colegio_id")
     .eq("id", userId)
     .maybeSingle();
 
