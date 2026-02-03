@@ -1,305 +1,356 @@
-/* =========================================================
-   BOLETA AUTOMÁTICA (V2) - EduAsist
-   Tablas usadas:
-   - profiles: id, role, colegio_id, alumno_id, apoderado_id, is_active
-   - alumnos: id, dni, colegio_id
-   - notas: colegio_id, alumno_id, curso, periodo, nota_numerica, nota_literal
-   - asistencia: colegio_id, alumno_id, fecha, estado
-========================================================= */
+} /* =========================
+   Boleta Automática (V2)
+   - Sin errores de null/addEventListener
+   - Lee perfil (profiles) y luego notas/asistencia
+========================= */
 
-const $ = (id) => document.getElementById(id);
-
-let currentSession = null;
-let currentProfile = null;
-
-// Elementos UI
-const sessionStatus = $("sessionStatus");
-const roleText = $("roleText");
-const colegioText = $("colegioText");
-const alumnoText = $("alumnoText");
-const btnLogout = $("btnLogout");
-
-const dniInput = $("dniInput");
-const anioInput = $("anioInput");
-const btnBuscar = $("btnBuscar");
-const msg = $("msg");
-
-const notasBox = $("notasBox");
-const asistenciaBox = $("asistenciaBox");
-
-document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    await loadSessionAndProfile();
-    setupLogout();
-    setupBuscar();
-
-    // Si es alumno y tiene alumno_id, cargamos su boleta automática
-    if (currentProfile?.role === "alumno" && currentProfile?.alumno_id) {
-      dniInput.value = ""; // no necesita DNI
-      await renderBoletaByAlumnoId(currentProfile.alumno_id);
-    } else {
-      // roles que consultan por DNI: docente/director/superadmin/secretaria (o cualquiera para probar)
-      sessionStatus.textContent = `Sesión activa (${currentProfile?.role || "?"})`;
-    }
-  } catch (e) {
-    console.error(e);
-    msg.textContent = "Error cargando sesión/perfil. Revisa consola.";
-  }
+document.addEventListener("DOMContentLoaded", () => {
+  main().catch((e) => {
+    console.error("Error en main():", e);
+    safeSetText("msg", "Ocurrió un error inesperado. Revisa consola.");
+  });
 });
 
-/* =========================================================
-   SESIÓN + PERFIL
-========================================================= */
-async function loadSessionAndProfile() {
-  // 1) Sesión
-  const { data: sData, error: sError } = await window.supabaseClient.auth.getSession();
-  if (sError || !sData.session) {
-    sessionStatus.textContent = "Sesión no activa. Inicia sesión.";
-    window.location.href = "../../login.html";
+async function main() {
+  // Validar que exista el cliente supabase
+  if (!window.supabaseClient) {
+    safeSetText("msg", "SupabaseClient no está cargado. Revisa supabaseClient.js");
     return;
   }
-  currentSession = sData.session;
 
-  // 2) Perfil
-  const { data: pData, error: pError } = await window.supabaseClient
-    .from("profiles")
-    .select("id, role, colegio_id, alumno_id, apoderado_id, is_active")
-    .eq("id", currentSession.user.id)
-    .single();
+  // Elementos (pueden no existir, por eso usamos safeGet)
+  const btnBuscar = safeGet("btnBuscar");
+  const btnLogout = safeGet("btnLogout");
+  const dniInput = safeGet("dniInput");
+  const anioInput = safeGet("anioInput");
 
-  if (pError || !pData) {
-    sessionStatus.textContent = "No tienes perfil. Contacta con el admin.";
-    throw new Error("Perfil no encontrado en profiles");
+  // Estados UI iniciales
+  safeSetText("msg", "");
+  safeSetHTML("notasBox", "-");
+  safeSetHTML("asistenciaBox", "-");
+
+  // Cargar sesión y perfil
+  const sessionInfo = await loadSessionAndProfile();
+  if (!sessionInfo) return;
+
+  const { role, colegio_id, alumno_id } = sessionInfo;
+
+  // Setup logout
+  if (btnLogout) {
+    btnLogout.addEventListener("click", async () => {
+      await window.supabaseClient.auth.signOut();
+      window.location.href = "../../login.html";
+    });
   }
 
-  if (pData.is_active === false) {
-    sessionStatus.textContent = "Usuario inactivo. Contacta con el admin.";
-    throw new Error("Perfil inactivo");
-  }
+  // Autocargar para alumno (no pide DNI)
+  if (role === "alumno") {
+    // Poner año por defecto si está vacío
+    if (anioInput && !anioInput.value) anioInput.value = new Date().getFullYear();
 
-  currentProfile = pData;
-
-  // UI info
-  roleText.textContent = `Rol: ${pData.role} | `;
-  colegioText.textContent = `colegio_id: ${pData.colegio_id || "NULL"} | `;
-  alumnoText.textContent = `alumno_id: ${pData.alumno_id || "NULL"}`;
-
-  sessionStatus.textContent = `Sesión activa (${pData.role})`;
-}
-
-/* =========================================================
-   LOGOUT
-========================================================= */
-function setupLogout() {
-  btnLogout.addEventListener("click", async () => {
-    await window.supabaseClient.auth.signOut();
-    window.location.href = "../../login.html";
-  });
-}
-
-/* =========================================================
-   BUSCAR POR DNI
-========================================================= */
-function setupBuscar() {
-  btnBuscar.addEventListener("click", async () => {
-    msg.textContent = "";
-    notasBox.textContent = "-";
-    asistenciaBox.textContent = "-";
-
-    const dni = (dniInput.value || "").trim();
-    if (!dni) {
-      msg.textContent = "Ingresa un DNI.";
+    // Cargar boleta por su alumno_id
+    if (!alumno_id) {
+      safeSetText("msg", "Tu perfil no tiene alumno_id asignado. Contacta al admin.");
       return;
     }
 
-    // Buscar alumno por DNI (y por colegio si NO es superadmin)
-    const alumno = await findAlumnoByDni(dni);
-    if (!alumno) return;
+    await renderBoletaByAlumnoId(alumno_id, colegio_id);
+    // También puedes ocultar DNI si quieres:
+    // if (dniInput) dniInput.disabled = true;
+  }
 
-    await renderBoletaByAlumnoId(alumno.id);
-  });
+  // Buscar por DNI (docente/director/superadmin/apoderado)
+  if (btnBuscar) {
+    btnBuscar.addEventListener("click", async () => {
+      safeSetText("msg", "");
+      safeSetHTML("notasBox", "-");
+      safeSetHTML("asistenciaBox", "-");
+
+      // Año
+      const anio = anioInput ? (anioInput.value || "").trim() : "";
+      if (!anio) {
+        safeSetText("msg", "Ingresa un año (ej: 2026).");
+        return;
+      }
+
+      // Si es alumno, ignoramos DNI y usamos alumno_id
+      if (role === "alumno") {
+        if (!alumno_id) {
+          safeSetText("msg", "Tu perfil no tiene alumno_id. Contacta al admin.");
+          return;
+        }
+        await renderBoletaByAlumnoId(alumno_id, colegio_id, anio);
+        return;
+      }
+
+      // Para los otros roles: DNI obligatorio
+      const dni = dniInput ? (dniInput.value || "").trim() : "";
+      if (!dni) {
+        safeSetText("msg", "Ingresa el DNI del alumno.");
+        return;
+      }
+
+      // Buscar alumno por DNI y colegio (importante)
+      const alumno = await findAlumnoByDniAndColegio(dni, colegio_id);
+      if (!alumno) return;
+
+      await renderBoletaByAlumnoId(alumno.id, colegio_id, anio);
+    });
+  }
 }
 
-async function findAlumnoByDni(dni) {
-  try {
-    // Base query
-    let q = window.supabaseClient
-      .from("alumnos")
-      .select("id, dni, colegio_id")
-      .eq("dni", dni)
-      .limit(1);
+/* =========================
+   Sesión y perfil
+========================= */
+async function loadSessionAndProfile() {
+  const { data, error } = await window.supabaseClient.auth.getSession();
 
-    // Regla multi-colegio:
-    // - superadmin puede consultar cualquier colegio
-    // - los demás deben consultar SOLO su colegio_id
-    if (currentProfile?.role !== "superadmin") {
-      if (!currentProfile?.colegio_id) {
-        msg.textContent = "Tu perfil no tiene colegio_id. Contacta con el admin.";
-        return null;
-      }
-      q = q.eq("colegio_id", currentProfile.colegio_id);
-    }
-
-    const { data, error } = await q;
-    if (error) throw error;
-
-    if (!data || data.length === 0) {
-      msg.textContent = "❌ Alumno no encontrado (o no pertenece a tu colegio).";
-      return null;
-    }
-
-    return data[0];
-  } catch (e) {
-    console.error(e);
-    msg.textContent = "Error buscando alumno por DNI. Revisa consola.";
+  if (error) {
+    console.error("getSession error:", error);
+    safeSetText("msg", "Error de sesión. Inicia sesión nuevamente.");
+    window.location.href = "../../login.html";
     return null;
   }
+
+  if (!data?.session) {
+    safeSetText("msg", "Sesión no activa. Inicia sesión.");
+    window.location.href = "../../login.html";
+    return null;
+  }
+
+  const user = data.session.user;
+
+  // Traer profile
+  const { data: profile, error: pe } = await window.supabaseClient
+    .from("profiles")
+    .select("id, role, colegio_id, alumno_id, apoderado_id, is_active")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (pe) {
+    console.error("profile error:", pe);
+    safeSetText("msg", "No se pudo leer tu perfil (profiles). Revisa RLS/policies.");
+    return null;
+  }
+
+  if (!profile) {
+    safeSetText("msg", "No tienes perfil. Contacta al admin.");
+    return null;
+  }
+
+  if (!profile.is_active) {
+    safeSetText("msg", "Tu usuario está desactivado. Contacta al admin.");
+    return null;
+  }
+
+  // Mostrar sesión
+  safeSetText(
+    "sessionBox",
+    `✅ Sesión activa (${profile.role}) | colegio_id: ${profile.colegio_id || "N/A"}`
+  );
+
+  return profile;
 }
 
-/* =========================================================
-   RENDER BOLETA
-========================================================= */
-async function renderBoletaByAlumnoId(alumnoId) {
-  msg.textContent = "";
-  notasBox.textContent = "Cargando...";
-  asistenciaBox.textContent = "Cargando...";
+/* =========================
+   Consultas
+========================= */
+async function findAlumnoByDniAndColegio(dni, colegio_id) {
+  // DNI debe existir en tabla alumnos
+  const { data, error } = await window.supabaseClient
+    .from("alumnos")
+    .select("id, dni, colegio_id")
+    .eq("dni", dni)
+    .eq("colegio_id", colegio_id)
+    .maybeSingle();
 
-  // Determinar año/periodo
-  const anio = parseInt(anioInput.value || "0", 10);
-  const periodo = isNaN(anio) || anio <= 0 ? null : String(anio);
+  if (error) {
+    console.error("findAlumno error:", error);
+    safeSetText("msg", "Error consultando alumno. Revisa RLS/policies.");
+    return null;
+  }
 
-  // Para alumno: debe pertenecer a su colegio (validación extra)
-  // (si es alumno y su alumno_id es el mismo, ok)
-  // (si no es alumno, igual ya filtramos por colegio en la búsqueda)
+  if (!data) {
+    safeSetText("msg", "✖ Alumno no encontrado en este colegio.");
+    return null;
+  }
 
-  await loadNotas(alumnoId, periodo);
-  await loadAsistencia(alumnoId, periodo);
+  return data;
 }
 
-/* =========================================================
-   NOTAS
-========================================================= */
-async function loadNotas(alumnoId, periodo) {
-  try {
-    if (!currentProfile?.colegio_id && currentProfile?.role !== "superadmin") {
-      notasBox.textContent = "-";
-      msg.textContent = "Tu perfil no tiene colegio_id. Contacta con el admin.";
-      return;
-    }
+async function renderBoletaByAlumnoId(alumno_id, colegio_id, anioOverride) {
+  const anioInput = safeGet("anioInput");
+  const anio = anioOverride || (anioInput ? (anioInput.value || "").trim() : "");
 
-    let q = window.supabaseClient
-      .from("notas")
-      .select("id, colegio_id, alumno_id, curso, periodo, nota_numerica, nota_literal, created_at")
-      .eq("alumno_id", alumnoId)
-      .order("curso", { ascending: true });
+  if (!anio) {
+    safeSetText("msg", "Ingresa un año (ej: 2026).");
+    return;
+  }
 
-    // Multi-colegio: si no es superadmin filtramos por colegio_id
-    if (currentProfile.role !== "superadmin") {
-      q = q.eq("colegio_id", currentProfile.colegio_id);
-    }
+  // 1) NOTAS
+  const notas = await getNotas(alumno_id, colegio_id, anio);
 
-    // Filtrar por periodo si se ingresó
-    if (periodo) q = q.eq("periodo", periodo);
+  // 2) ASISTENCIA
+  const asistencia = await getAsistencia(alumno_id, colegio_id, anio);
 
-    const { data, error } = await q;
-    if (error) throw error;
+  // Render UI
+  renderNotas(notas);
+  renderAsistencia(asistencia);
 
-    if (!data || data.length === 0) {
-      notasBox.innerHTML = "<i>No hay notas registradas para este alumno (en este año/periodo).</i>";
-      return;
-    }
-
-    // Render simple
-    const rows = data.map((n) => {
-      const nota = n.nota_numerica ?? n.nota_literal ?? "-";
-      return `<tr>
-        <td>${escapeHtml(n.curso || "-")}</td>
-        <td>${escapeHtml(n.periodo || "-")}</td>
-        <td>${escapeHtml(String(nota))}</td>
-      </tr>`;
-    }).join("");
-
-    notasBox.innerHTML = `
-      <table border="1" cellpadding="6" cellspacing="0">
-        <thead>
-          <tr><th>Curso</th><th>Periodo</th><th>Nota</th></tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
-  } catch (e) {
-    console.error(e);
-    notasBox.textContent = "-";
-    msg.textContent = "Error cargando notas. Revisa RLS o consola.";
+  if ((!notas || notas.length === 0) && (!asistencia || asistencia.length === 0)) {
+    safeSetText("msg", "No hay registros de notas/asistencia para ese año.");
+  } else {
+    safeSetText("msg", "✅ Boleta cargada.");
   }
 }
 
-/* =========================================================
-   ASISTENCIA
-========================================================= */
-async function loadAsistencia(alumnoId, periodo) {
-  try {
-    if (!currentProfile?.colegio_id && currentProfile?.role !== "superadmin") {
-      asistenciaBox.textContent = "-";
-      msg.textContent = "Tu perfil no tiene colegio_id. Contacta con el admin.";
-      return;
-    }
+async function getNotas(alumno_id, colegio_id, anio) {
+  // Ajusta si tu campo de periodo ya incluye año.
+  // Aquí asumimos: periodo tiene algo como "2026-B1", "2026-B2", etc.
+  const { data, error } = await window.supabaseClient
+    .from("notas")
+    .select("id, curso, periodo, nota_numerica, nota_literal, registrado_por, created_at")
+    .eq("alumno_id", alumno_id)
+    .eq("colegio_id", colegio_id)
+    .ilike("periodo", `${anio}%`)
+    .order("created_at", { ascending: true });
 
-    // En tu caso la tabla se llama "asistencia" (singular)
-    let q = window.supabaseClient
-      .from("asistencia")
-      .select("id, colegio_id, alumno_id, fecha, estado, created_at")
-      .eq("alumno_id", alumnoId)
-      .order("fecha", { ascending: false });
-
-    if (currentProfile.role !== "superadmin") {
-      q = q.eq("colegio_id", currentProfile.colegio_id);
-    }
-
-    // Si quieres filtrar por año, hacemos rango por fecha:
-    // periodo viene como "2026"
-    if (periodo) {
-      const y = parseInt(periodo, 10);
-      if (!isNaN(y)) {
-        const from = `${y}-01-01`;
-        const to = `${y}-12-31`;
-        q = q.gte("fecha", from).lte("fecha", to);
-      }
-    }
-
-    const { data, error } = await q;
-    if (error) throw error;
-
-    if (!data || data.length === 0) {
-      asistenciaBox.innerHTML = "<i>No hay asistencias registradas para este alumno (en este año).</i>";
-      return;
-    }
-
-    const rows = data.map((a) => {
-      return `<tr>
-        <td>${escapeHtml(String(a.fecha || "-"))}</td>
-        <td>${escapeHtml(a.estado || "-")}</td>
-      </tr>`;
-    }).join("");
-
-    asistenciaBox.innerHTML = `
-      <table border="1" cellpadding="6" cellspacing="0">
-        <thead>
-          <tr><th>Fecha</th><th>Estado</th></tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
-  } catch (e) {
-    console.error(e);
-    asistenciaBox.textContent = "-";
-    msg.textContent = "Error cargando asistencia. Revisa RLS o consola.";
+  if (error) {
+    console.error("getNotas error:", error);
+    safeSetText("msg", "Error consultando notas. Revisa RLS/policies.");
+    return [];
   }
+
+  return data || [];
 }
 
-/* =========================================================
-   UTILS
-========================================================= */
+async function getAsistencia(alumno_id, colegio_id, anio) {
+  // asistencia.fecha es DATE
+  // Filtramos entre 1 enero y 31 diciembre
+  const start = `${anio}-01-01`;
+  const end = `${anio}-12-31`;
+
+  const { data, error } = await window.supabaseClient
+    .from("asistencia")
+    .select("id, fecha, estado, registrado_por, created_at")
+    .eq("alumno_id", alumno_id)
+    .eq("colegio_id", colegio_id)
+    .gte("fecha", start)
+    .lte("fecha", end)
+    .order("fecha", { ascending: true });
+
+  if (error) {
+    console.error("getAsistencia error:", error);
+    safeSetText("msg", "Error consultando asistencia. Revisa RLS/policies.");
+    return [];
+  }
+
+  return data || [];
+}
+
+/* =========================
+   Render
+========================= */
+function renderNotas(rows) {
+  if (!rows || rows.length === 0) {
+    safeSetHTML("notasBox", "<p>-</p>");
+    return;
+  }
+
+  const html = `
+    <table border="1" cellpadding="6" cellspacing="0">
+      <thead>
+        <tr>
+          <th>Curso</th>
+          <th>Periodo</th>
+          <th>Nota Num.</th>
+          <th>Nota Lit.</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows
+          .map(
+            (r) => `
+          <tr>
+            <td>${escapeHtml(r.curso || "")}</td>
+            <td>${escapeHtml(r.periodo || "")}</td>
+            <td>${r.nota_numerica ?? ""}</td>
+            <td>${escapeHtml(r.nota_literal || "")}</td>
+          </tr>
+        `
+          )
+          .join("")}
+      </tbody>
+    </table>
+  `;
+
+  safeSetHTML("notasBox", html);
+}
+
+function renderAsistencia(rows) {
+  if (!rows || rows.length === 0) {
+    safeSetHTML("asistenciaBox", "<p>-</p>");
+    return;
+  }
+
+  // Contar estados
+  const counts = {};
+  for (const r of rows) {
+    const st = (r.estado || "SIN_ESTADO").toUpperCase();
+    counts[st] = (counts[st] || 0) + 1;
+  }
+
+  const resumen = Object.entries(counts)
+    .map(([k, v]) => `<li>${escapeHtml(k)}: ${v}</li>`)
+    .join("");
+
+  const detalle = rows
+    .map(
+      (r) => `<tr>
+        <td>${escapeHtml(String(r.fecha || ""))}</td>
+        <td>${escapeHtml(r.estado || "")}</td>
+      </tr>`
+    )
+    .join("");
+
+  const html = `
+    <h4>Resumen</h4>
+    <ul>${resumen}</ul>
+
+    <h4>Detalle</h4>
+    <table border="1" cellpadding="6" cellspacing="0">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${detalle}
+      </tbody>
+    </table>
+  `;
+
+  safeSetHTML("asistenciaBox", html);
+}
+
+/* =========================
+   Helpers seguros (no null)
+========================= */
+function safeGet(id) {
+  return document.getElementById(id);
+}
+
+function safeSetText(id, text) {
+  const el = safeGet(id);
+  if (el) el.textContent = text;
+}
+
+function safeSetHTML(id, html) {
+  const el = safeGet(id);
+  if (el) el.innerHTML = html;
+}
+
 function escapeHtml(str) {
   return String(str)
     .replaceAll("&", "&amp;")
