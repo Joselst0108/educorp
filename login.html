@@ -1,4 +1,4 @@
-8Lo<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -12,70 +12,80 @@
 
   <form>
     <label>Usuario (DNI o código):</label><br />
-    <input type="text" placeholder="Ej: 71234567 o AMDC-2026-00045" /><br /><br />
+    <input id="usuario" type="text" placeholder="Ej: 71234567 o AMDC-2026-00045" /><br /><br />
 
     <label>Contraseña:</label><br />
-    <input type="password" placeholder="Tu DNI o código" /><br /><br />
-<br>
-<label>Entrar a (modo prueba):</label><br />
-<select id="appDestino">
-  <option value="eduasist/dashboard.html">EduAsist (Docente/Alumno/Apoderado)</option>
-  <option value="eduadmin/dashboard.html">EduAdmin (Director/Secretaria)</option>
-  <option value="edubank/dashboard.html">EduBank (si está habilitado)</option>
-  <option value="eduia/dashboard.html">EduIA (si está habilitado)</option>
-</select>
-<br><br>
-   <button type="button" id="btnEntrar">Entrar</button>
+    <input id="password" type="password" placeholder="Tu DNI o código" /><br /><br />
 
+    <label>Entrar a (modo prueba):</label><br />
+    <select id="appDestino">
+      <option value="eduasist/dashboard.html">EduAsist (Docente/Alumno/Apoderado)</option>
+      <option value="eduadmin/dashboard.html">EduAdmin (Director/Secretaria)</option>
+      <option value="edubank/dashboard.html">EduBank (si está habilitado)</option>
+      <option value="eduia/dashboard.html">EduIA (si está habilitado)</option>
+    </select>
+    <br /><br />
+
+    <button type="button" id="btnEntrar">Entrar</button>
   </form>
 
   <p>
     <a href="index.html">Volver al inicio</a>
   </p>
-<script>
-  // Login de prueba: redirección según selector (sin Supabase aún)
-  document.getElementById('btnEntrar').addEventListener('click', function () {
-    const destino = document.getElementById('appDestino').value;
-    window.location.href = destino;
-  });
-</script>
-<!-- Supabase CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<!-- Supabase Client -->
-<script>
-  if (window.supabase) {
-    document.body.insertAdjacentHTML(
-      'beforeend',
-      '<p style="color:green;">✅ Supabase conectado correctamente</p>'
-    );
-  } else {
-    document.body.insertAdjacentHTML(
-      'beforeend',
-      '<p style="color:red;">❌ Supabase NO conectado</p>'
-    );
-  }
-</script>
-<script>
-  async function verificarSesion() {
-    if (!window.supabase) return;
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    const { data, error } = await window.supabase.auth.getSession();
+  <!-- Tu cliente Supabase -->
+  <script src="assets/js/supabaseClient.js"></script>
 
-    let mensaje = '';
+  <script>
+    // ============================
+    // Login de prueba (sin Supabase auth todavía)
+    // ============================
+    document.getElementById('btnEntrar').addEventListener('click', function () {
+      const destino = document.getElementById('appDestino').value;
+      window.location.href = destino;
+    });
 
-    if (error) {
-      mensaje = '<p style="color:red;">❌ Error al verificar sesión</p>';
-    } else if (data.session) {
-      mensaje = '<p style="color:green;">✅ Sesión activa</p>';
+    // ============================
+    // Prueba visual: Supabase conectado (útil en celular)
+    // ============================
+    if (window.supabase) {
+      document.body.insertAdjacentHTML(
+        'beforeend',
+        '<p style="color:green;">✅ Supabase conectado correctamente</p>'
+      );
     } else {
-      mensaje = '<p style="color:orange;">ℹ️ Sesión: NO activa</p>';
+      document.body.insertAdjacentHTML(
+        'beforeend',
+        '<p style="color:red;">❌ Supabase NO conectado</p>'
+      );
     }
 
-    document.body.insertAdjacentHTML('beforeend', mensaje);
-  }
+    // ============================
+    // Estado de sesión (solo lectura)
+    // ============================
+    async function verificarSesion() {
+      if (!window.supabase) return;
 
-  verificarSesion();
-</script>
+      const { data, error } = await window.supabase.auth.getSession();
+
+      let mensaje = '';
+
+      if (error) {
+        mensaje = '<p style="color:red;">❌ Error al verificar sesión</p>';
+      } else if (data.session) {
+        mensaje = '<p style="color:green;">✅ Sesión activa</p>';
+      } else {
+        mensaje = '<p style="color:orange;">ℹ️ Sesión: NO activa</p>';
+      }
+
+      document.body.insertAdjacentHTML('beforeend', mensaje);
+    }
+
+    verificarSesion();
+  </script>
+
 </body>
 </html>
