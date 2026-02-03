@@ -1,157 +1,47 @@
-O// assets/js/login.js
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EduCorp | Iniciar sesión</title>
 
-const form = document.getElementById("loginForm");
-const emailEl = document.getElementById("email");
-const passEl = document.getElementById("password");
-const btnLogin = document.getElementById("btnLogin");
-const msg = document.getElementById("msg");
-const debugBox = document.getElementById("debugBox");
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/assets/js/supabaseClient.js"></script>
 
-function setDebug(text) {
-  if (debugBox) debugBox.textContent = "Estado: " + text;
-}
+  <style>
+    body { font-family: system-ui, Arial; background:#f5f6f8; margin:0; }
+    .wrap { max-width:420px; margin:60px auto; background:#fff; padding:22px; border-radius:14px; border:1px solid #e5e7eb; }
+    h1 { margin:0 0 10px; }
+    label { display:block; margin-top:12px; font-weight:600; }
+    input, button { width:100%; padding:12px; margin-top:6px; border-radius:10px; border:1px solid #d1d5db; font-size:16px; }
+    button { cursor:pointer; border:none; background:#111827; color:#fff; margin-top:14px; }
+    button:disabled { opacity:.6; cursor:not-allowed; }
+    .msg { margin-top:14px; padding:10px; border-radius:10px; display:none; }
+    .ok { background:#ecfdf3; color:#0f5132; border:1px solid #a3e635; }
+    .err { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
+    .mini { font-size:12px; color:#6b7280; margin-top:10px; }
+  </style>
+</head>
 
-function showMsg(text, type = "err") {
-  msg.style.display = "block";
-  msg.className = "msg " + (type === "ok" ? "ok" : "err");
-  msg.textContent = text;
-}
+<body>
+  <div class="wrap">
+    <h1>EduCorp</h1>
+    <p class="mini">Inicia sesión con tu DNI.</p>
 
-function hideMsg() {
-  msg.style.display = "none";
-  msg.textContent = "";
-}
+    <form id="loginForm">
+      <label for="dni">DNI</label>
+      <input id="dni" type="text" inputmode="numeric" placeholder="Ej: 45102911" required />
 
-async function getSB() {
-  // tu supabaseClient.js debe crear window.supabase
-  if (!window.supabase || !window.supabase.auth) {
-    throw new Error("Supabase no está inicializado. Revisa CDN y /assets/js/supabaseClient.js");
-  }
-  return window.supabase;
-}
+      <label for="password">Contraseña</label>
+      <input id="password" type="password" placeholder="********" required />
 
-async function getProfile(userId) {
-  const sb = await getSB();
-  // en tu proyecto profiles NO tiene email (ya lo vimos)
-  const { data, error } = await sb
-    .from("profiles")
-    .select("id, role, colegio_id")
-    .eq("id", userId)
-    .maybeSingle();
+      <button id="btnLogin" type="submit">Ingresar</button>
 
-  if (error) throw error;
-  return data;
-}
+      <div id="msg" class="msg"></div>
+      <p class="mini" id="debugBox">Estado: esperando…</p>
+    </form>
+  </div>
 
-function routeByRole(profile) {
-  // Ajusta rutas si tu estructura es diferente
-  const role = profile?.role;
-
-  if (role === "superadmin") return "/pages/superadmin/dashboard.html";
-  if (role === "director") return "/pages/director/dashboard.html";
-  if (role === "secretaria") return "/pages/secretaria/dashboard.html";
-  if (role === "docente") return "/pages/docente/dashboard.html";
-  if (role === "apoderado") return "/pages/eduassist/boletin-auto.html";
-  if (role === "alumno") return "/pages/eduassist/boletin-auto.html";
-
-  // fallback: dashboard general
-  return "/pages/dashboard.html";
-}
-
-async function ensureSession() {
-  const sb = await getSB();
-  const { data, error } = await sb.auth.getSession();
-  if (error) throw error;
-  return data.session;
-}
-
-// Si ya hay sesión, redirige
-(async function init() {
-  try {
-    setDebug("verificando sesión…");
-    const session = await ensureSession();
-
-    if (session?.user) {
-      setDebug("sesión activa, leyendo perfil…");
-      const profile = await getProfile(session.user.id);
-
-      if (!profile) {
-        showMsg("❌ No tienes perfil. Contacta al administrador.", "err");
-        setDebug("perfil no encontrado");
-        return;
-      }
-
-      const target = routeByRole(profile);
-      setDebug("redirigiendo…");
-      window.location.href = target;
-    } else {
-      setDebug("sin sesión");
-    }
-  } catch (e) {
-    console.error(e);
-    setDebug("error en init");
-    // no bloqueamos el login por esto
-  }
-})();
-
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  hideMsg();
-  btnLogin.disabled = true;
-
-  try {
-    setDebug("validando supabase…");
-    const sb = await getSB();
-
-    const email = (emailEl.value || "").trim();
-    const password = (passEl.value || "").trim();
-
-    if (!email || !password) {
-      showMsg("❌ Completa correo y contraseña.", "err");
-      setDebug("faltan datos");
-      btnLogin.disabled = false;
-      return;
-    }
-
-    setDebug("iniciando sesión…");
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      showMsg("❌ " + error.message, "err");
-      setDebug("error: " + error.message);
-      btnLogin.disabled = false;
-      return;
-    }
-
-    const user = data?.user;
-    if (!user) {
-      showMsg("❌ No se obtuvo usuario. Intenta otra vez.", "err");
-      setDebug("user null");
-      btnLogin.disabled = false;
-      return;
-    }
-
-    setDebug("leyendo perfil…");
-    const profile = await getProfile(user.id);
-
-    if (!profile) {
-      // Esto es el error que tú viste: "no tiene perfil"
-      showMsg("❌ Contacta al admin: tu usuario no tiene perfil.", "err");
-      setDebug("perfil no encontrado");
-      btnLogin.disabled = false;
-      return;
-    }
-
-    showMsg("✅ Login correcto. Redirigiendo…", "ok");
-
-    const target = routeByRole(profile);
-    setDebug("redirigiendo a " + target);
-    window.location.href = target;
-
-  } catch (e) {
-    console.error(e);
-    showMsg("❌ Error inesperado: " + (e?.message || e), "err");
-    setDebug("catch: " + (e?.message || e));
-    btnLogin.disabled = false;
-  }
-});
+  <script src="/assets/js/login-dni.js"></script>
+</body>
+</html>
