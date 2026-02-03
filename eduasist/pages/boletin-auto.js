@@ -9,7 +9,7 @@ async function main() {
   safeSetText("sessionBox", "⏳ Iniciando...");
 
   if (!window.supabaseClient) {
-    safeSetText("sessionBox", "❌ supabaseClient NO está cargado. Revisa la ruta del script: /js/supabaseClient.js");
+    safeSetText("sessionBox", "❌ supabaseClient NO está cargado. Revisa la ruta del script: /assets/js/supabaseClient.js");
     return;
   }
 
