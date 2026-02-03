@@ -49,8 +49,42 @@
   <h2>Asistencia</h2>
   <div id="asisBox">-</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../../assets/js/supabaseClient.js"></script>
+  [11:10 a. m., 3/2/2026] José silvestre: <!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduAsist | Boleta Automática</title>
+</head>
+<body>
+
+  <h1>Boleta Automática (V2)</h1>
+  <p>Alumno: ve su boleta | Apoderado: elige hijo | Docente/Director: consulta por DNI</p>
+
+  <div id="estado">Cargando sesión...</div>
+  <button id="btnLogout" type="button">Cerrar sesión</button>
+  <p><a href="../dashboard.html">⬅ Volver al Dashboard EduAsist</a></p>
+
+  <hr />
+
+  <!-- Panel apoderado -->
+  <div id="panelApoderado" style="display:none;">
+    <h2>Mis hijos</h2>
+    <div id="listaHijos">Cargando...</div>
+  </div>
+
+  <!-- Panel alumno -->
+  <div id="panelAlumno" style="display:none;">
+    <h2>Mi boleta</h2>
+  …
+[11:12 a. m., 3/2/2026] José silvestre: <li><a href="pages/boletin-auto.html">Boleta Automática (V2)</a></li>
+[11:30 a. m., 3/2/2026] José silvestre: const dni = document.getElementById('dni').value.trim();
+[11:55 a. m., 3/2/2026] José silvestre:
+    <!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- Cliente Supabase global -->
+<script src="../../assets/js/supabaseClient.js"></script>
 
   <script>
     let COLEGIO_ID = null;
