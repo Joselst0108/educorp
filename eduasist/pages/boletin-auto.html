@@ -2,47 +2,46 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Boleta Automática (V2)</title>
+
+  <!-- Supabase v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Tu supabaseClient global -->
+  <!-- Ajusta la ruta si tu proyecto lo tiene en otro lugar -->
+  <script src="../../js/supabaseClient.js"></script>
 </head>
 
 <body>
   <h1>Boleta Automática (V2)</h1>
-
   <p>
     Alumno: ve su boleta |
-    Apoderado: elige hijo |
+    Apoderado: consulta por DNI (luego selector de hijos) |
     Docente/Director: consulta por DNI
   </p>
 
-  <div id="sessionBox" style="margin: 8px 0; padding: 6px; border: 1px solid #ccc;">
-    <b id="sessionStatus">Cargando sesión...</b>
-    <button id="btnLogout" style="margin-left: 10px;">Cerrar sesión</button>
-    <div style="margin-top:6px;">
-      <small>
-        <span id="roleText"></span>
-        <span id="colegioText"></span>
-        <span id="alumnoText"></span>
-      </small>
-    </div>
-  </div>
+  <div id="sessionBox">Cargando sesión...</div>
 
-  <p><a href="../dashboard">← Volver al Dashboard EduAsist</a></p>
-  <hr />
+  <button id="btnLogout">Cerrar sesión</button>
+  <p><a href="../dashboard.html">← Volver al Dashboard EduAsist</a></p>
 
-  <!-- CONSULTA POR DNI (para doc/director/superadmin o para probar) -->
-  <h3>Consultar por DNI del alumno</h3>
-  <input id="dniInput" type="text" placeholder="DNI (8 dígitos)" />
+  <hr/>
+
+  <h2>Consultar por DNI del alumno</h2>
+
+  <label for="dniInput">DNI:</label>
+  <input id="dniInput" type="text" inputmode="numeric" placeholder="Ej: 45102911" />
   <button id="btnBuscar">Ver boleta</button>
 
-  <div style="margin-top:10px;">
-    <label>Año:</label>
-    <input id="anioInput" type="number" value="2026" />
-  </div>
+  <br/><br/>
 
-  <div id="msg" style="margin:10px 0; color:#b00;"></div>
+  <label for="anioInput">Año:</label>
+  <input id="anioInput" type="number" placeholder="2026" />
 
-  <hr />
+  <p id="msg" style="margin-top:10px;"></p>
+
+  <hr/>
 
   <h2>Notas</h2>
   <div id="notasBox">-</div>
@@ -50,13 +49,7 @@
   <h2>Asistencia</h2>
   <div id="asistenciaBox">-</div>
 
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- OJO: Ajusta esta ruta si tu supabaseClient.js está en otro lugar -->
-  <script src="../../js/supabaseClient.js"></script>
-
-  <!-- Tu lógica -->
-  <script src="./boletin-auto.js"></script>
+  <!-- JS de esta página -->
+  <script src="boletin-auto.js"></script>
 </body>
 </html>
