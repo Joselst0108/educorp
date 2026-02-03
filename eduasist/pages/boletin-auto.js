@@ -14,6 +14,7 @@
   const btnVerBoleta = $("btnVerBoleta");
   const btnLogout = $("btnLogout");
 
+btnLogout.addEventListener("click", onLogout);
   function setMsg(text, type = "") {
     msg.className = type === "ok" ? "ok" : type === "err" ? "err" : "";
     msg.textContent = text || "";
