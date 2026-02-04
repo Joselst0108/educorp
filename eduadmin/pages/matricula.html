@@ -1,4 +1,4 @@
-7<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -112,9 +112,11 @@
     </div>
   </div>
 
+  <!-- Librerías -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../../assets/js/supabaseClient.js"></script>
 
+  <!-- Lógica de Matrícula (tu código tal cual, SOLO ordenado y sin basura al final) -->
   <script>
     let COLEGIO_ID = null;
     let USER_ID = null;
@@ -474,24 +476,7 @@
       if (!ok) return;
       document.getElementById('matAnio').value = hoyAnio();
     })();
-    
-  
-</body>
-</script>
-fetch('/.netlify/functions/create-auth-and-links', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    email: 'test@correo.com',
-    password: '12345678'
-  })
-})
-.then(r => r.json())
-.then(console.log)
-.catch(console.error);
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../assets/js/supabaseClient.js"></script>
-<script src="../js/matricula.js"></script>
- 
+  </script>
 
+</body>
 </html>
