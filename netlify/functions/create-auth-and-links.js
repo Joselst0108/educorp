@@ -31,9 +31,9 @@ exports.handler = async (event) => {
     }
 
     // Variables de entorno (Netlify > Site settings > Environment variables)
-const supabaseUrl = 'https://rvdafufkhyjtaubirkz.supabase.co';
+const supabaseUrl = process.env. 'https://rvdafufkhyjtaubirkz.supabase.co';
 
-const serviceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2ZGFmdWZraHlqdGF1dWJpcmt6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDA3MzkxNCwiZXhwIjoxOTg1NjQ1MDg0fQ.te_K1t1P0JkJqMRJvYqNc4Vg5T5EEC5yjUNkQoykebA';
+const serviceKey = .Ño. 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2ZGFmdWZraHlqdGF1dWJpcmt6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDA3MzkxNCwiZXhwIjoxOTg1NjQ1MDg0fQ.te_K1t1P0JkJqMRJvYqNc4Vg5T5EEC5yjUNkQoykebA';
 
     if (!supabaseUrl || !serviceKey) {
       return {
