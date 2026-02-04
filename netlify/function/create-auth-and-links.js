@@ -1,95 +1,92 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
-
-const DEFAULT_PASS = "0502000323";
-const DOMAIN = "educorp.local"; // si tú usas efucorp.local cámbialo aquí
-
-async function createOrGetUser(email, role) {
-  // Busca por email (listUsers)
-  const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  if (error) throw error;
-
-  const found = data.users.find((u) => (u.email || "").toLowerCase() === email.toLowerCase());
-  if (found) return found.id;
-
-  const { data: created, error: e2 } = await admin.auth.admin.createUser({
-    email,
-    password: DEFAULT_PASS,
-    email_confirm: true,
-    user_metadata: { role },
-  });
-  if (e2) throw e2;
-  return created.user.id;
-}
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 export const handler = async (event) => {
   try {
-    const body = JSON.parse(event.body || "{}");
+    if (event.httpMethod !== 'POST') {
+      return { statusCode: 405, body: 'Method Not Allowed' };
+    }
 
     const {
+      dni,
+      role,            // 'alumno' | 'apoderado'
       colegio_id,
-      alumno_id,         // id de tu tabla public.alumnos
-      apoderado_id,      // id de tu tabla public.apoderados
-      dni_alumno,
-      dni_apoderado,
-    } = body;
+      alumno_id = null,
+      apoderado_id = null
+    } = JSON.parse(event.body);
 
-    if (!colegio_id || !alumno_id || !apoderado_id || !dni_alumno || !dni_apoderado) {
+    if (!dni || !role || !colegio_id) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ ok: false, error: "Faltan datos obligatorios" }),
+        body: JSON.stringify({ error: 'Datos incompletos' })
       };
     }
 
-    const emailAlumno = `${String(dni_alumno).trim()}@${DOMAIN}`;
-    const emailApoderado = `${String(dni_apoderado).trim()}@${DOMAIN}`;
+    const email = `${dni}@educorp.local`;
+    const password = dni; // 🔑 contraseña = DNI
 
-    // 1) Crear/obtener Auth users
-    const authAlumno = await createOrGetUser(emailAlumno, "alumno");
-    const authApoderado = await createOrGetUser(emailApoderado, "apoderado");
+    /* 1️⃣ Crear usuario AUTH */
+    const { data: authUser, error: authError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true
+      });
 
-    // 2) Upsert profiles (link a tablas dominio)
-    const { error: p1 } = await admin.from("profiles").upsert({
-      id: authApoderado,
-      role: "apoderado",
-      colegio_id,
-      apoderado_id, // apunta a tu tabla public.apoderados
-    }, { onConflict: "id" });
-    if (p1) throw p1;
+    if (authError) throw authError;
 
-    const { error: p2 } = await admin.from("profiles").upsert({
-      id: authAlumno,
-      role: "alumno",
-      colegio_id,
-      alumno_id, // apunta a tu tabla public.alumnos
-    }, { onConflict: "id" });
-    if (p2) throw p2;
+    const auth_id = authUser.user.id;
 
-    // 3) Vincular apoderado -> hijo en apoderado_hijos
-    // IMPORTANTÍSIMO: apoderado_id aquí debe ser el AUTH UID del apoderado si tu RLS usa auth.uid()
-    const { error: relErr } = await admin.from("apoderado_hijos").upsert({
-      colegio_id,
-      apoderado_id: authApoderado,
-      alumno_id,
-    }, { onConflict: "apoderado_id,alumno_id" });
-    if (relErr) throw relErr;
+    /* 2️⃣ Crear PROFILE */
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: auth_id,
+        role,
+        colegio_id,
+        alumno_id,
+        apoderado_id,
+        created_at: new Date()
+      });
+
+    if (profileError) throw profileError;
+
+    /* 3️⃣ Vincular APODERADO → HIJO */
+    if (role === 'apoderado' && alumno_id && apoderado_id) {
+      const { error: linkError } = await supabaseAdmin
+        .from('apoderado_hijos')
+        .insert({
+          colegio_id,
+          apoderado_id,
+          alumno_id
+        });
+
+      if (linkError && !linkError.message.includes('duplicate')) {
+        throw linkError;
+      }
+    }
 
     return {
       statusCode: 200,
       body: JSON.stringify({
-        ok: true,
-        auth_apoderado: authApoderado,
-        auth_alumno: authAlumno,
-        password_inicial: DEFAULT_PASS,
-      }),
+        success: true,
+        auth_id,
+        email,
+        password
+      })
     };
-  } catch (e) {
-    return { statusCode: 500, body: JSON.stringify({ ok: false, error: e.message }) };
+
+  } catch (error) {
+    console.error('❌ ERROR:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        error: error.message
+      })
+    };
   }
 };
