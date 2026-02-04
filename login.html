@@ -43,10 +43,39 @@
     // ============================
     // Login de prueba (sin Supabase auth todavía)
     // ============================
-    document.getElementById('btnEntrar').addEventListener('click', function () {
-      const destino = document.getElementById('appDestino').value;
-      window.location.href = destino;
-    });
+document.getElementById('btnEntrar').addEventListener('click', async function () {
+  if (!window.supabase) {
+    alert('Supabase no está conectado.');
+    return;
+  }
+
+  const userInput = document.getElementById('usuario').value.trim();
+  const passInput = document.getElementById('password').value;
+
+  if (!userInput || !passInput) {
+    alert('Completa usuario y contraseña.');
+    return;
+  }
+
+  // Si no escriben email, lo convertimos a "dni@educorp.local"
+  const email = userInput.includes('@') ? userInput : `${userInput}@educorp.local`;
+
+  const { data, error } = await window.supabase.auth.signInWithPassword({
+    email,
+    password: passInput
+  });
+
+  if (error) {
+    alert('❌ Login incorrecto: ' + error.message);
+    return;
+  }
+
+  alert('✅ Login correcto');
+
+  // Por ahora: redirigir según selector (modo prueba)
+  const destino = document.getElementById('appDestino').value;
+  window.location.href = destino;
+});
 
     // ============================
     // Prueba visual: Supabase conectado (útil en celular)
