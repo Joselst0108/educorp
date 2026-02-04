@@ -2,7 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseAdmin = createClient(
   process.env.'https://rvdafufkhyjtauubirkz.supabase.co',
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2ZGFmdWZraHlqdGF1dWJpcmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNzM5MDQsImV4cCI6MjA4NTY0OTkwNH0.Yo0EC8g9v0DHebiFyS445EbLMYHw14U2x3VN1_ZmKAk'
+
 );
 
 export const handler = async (event) => {
@@ -90,4 +91,5 @@ export const handler = async (event) => {
     };
   }
 };
+
 
