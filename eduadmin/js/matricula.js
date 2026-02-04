@@ -1,4 +1,4 @@
-// ================================
+I90// ================================
 // MATRICULA - EduAdmin (con apoderado_id + Netlify Function opcional)
 // Ruta: eduadmin/js/matricula.js
 // ================================
@@ -481,3 +481,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (formNuevo) formNuevo.addEventListener("submit", onGuardarNuevo);
 });
+// 4) Crear Auth + profiles + apoderado_hijos (backend)
+const resp = await fetch("/.netlify/functions/create-auth-and-links", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    colegio_id: colegioId,
+    apoderado_id: apoderado.id,
+    apoderado_dni: dniApoderado,
+    alumno_id: alumno.id,
+    alumno_dni: dniAlumno,
+    password: "0502000323"
+  })
+});
+
+const j = await resp.json();
+if (!resp.ok || !j.ok) {
+  console.error("Auth/Profiles link error:", j);
+  alert("⚠️ Matrícula creada, pero falló Auth/Profiles/Vínculo: " + (j.error || "error"));
+} else {
+  alert("✅ Matrícula + Auth + Profiles + Vínculo creados.");
+}
