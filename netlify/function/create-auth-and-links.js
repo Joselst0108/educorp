@@ -1,4 +1,4 @@
-// netlify/functions/create-auth-and-links.js
+// netlify/function/create-auth-and-links.js
 const { createClient } = require('@supabase/supabase-js');
 
 exports.handler = async (event) => {
