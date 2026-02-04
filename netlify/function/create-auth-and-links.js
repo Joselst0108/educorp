@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
+  process.env.'https://rvdafufkhyjtauubirkz.supabase.co',
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
@@ -90,3 +90,4 @@ export const handler = async (event) => {
     };
   }
 };
+
