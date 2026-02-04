@@ -20,8 +20,8 @@ exports.handler = async (event) => {
       return { statusCode: 400, body: JSON.stringify({ error: 'Faltan datos requeridos.' }) };
     }
 
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseUrl = https://rvdafufkhyjtauubirkz.supabase.co;
+    const serviceKey = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2ZGFmdWZraHlqdGF1dWJpcmt6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDA3MzkwNCwiZXhwIjoyMDg1NjQ5OTA0fQ.te_K1t1POJkJqMRJvYqNc4Vg5T5EEC5yjUNkQoykebA;
 
     if (!supabaseUrl || !serviceKey) {
       return { statusCode: 500, body: JSON.stringify({ error: 'Faltan variables SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY' }) };
