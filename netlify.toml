@@ -2,3 +2,7 @@
 [build]
   publish = "educorp"
   functions = "netlify/functions"
+
+[build]
+  publish = "."
+  functions = "netlify/functions"
