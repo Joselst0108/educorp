@@ -139,6 +139,24 @@
       return `ALU-${base}-${rnd}`;
     }
 
+    // ✅ NUEVO: Crear Auth + Profiles + Apoderado_Hijos (Netlify Function)
+    async function crearAuthYPerfil(payload) {
+      const res = await fetch('/.netlify/functions/create-auth-and-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        console.error('❌ create-auth-and-links:', data);
+        throw new Error(data?.error || 'Error creando Auth/Profile');
+      }
+
+      return data;
+    }
+
     async function requireSessionAndRole() {
       if (!window.supabase) {
         setEstado('❌ Supabase no conectado');
@@ -270,6 +288,7 @@
 
     // -----------------------------
     // REGISTRO NUEVO (APODERADO + ALUMNO + MATRÍCULA)
+    // + ✅ NUEVO: Auth + profiles + apoderado_hijos
     // -----------------------------
     async function registrarMatriculaNueva() {
       setMsg('');
@@ -329,6 +348,19 @@
         apoderadoId = apInsert.id;
       }
 
+      // ✅ NUEVO (apoderado): crear auth/profile (si ya existe, no detiene)
+      try {
+        await crearAuthYPerfil({
+          dni: apDni,
+          role: 'apoderado',
+          colegio_id: COLEGIO_ID,
+          apoderado_id: apoderadoId,
+          alumno_id: null
+        });
+      } catch (e) {
+        console.warn('⚠️ Auth/Profile apoderado no creado (posible ya existe):', e.message);
+      }
+
       // 2) Crear alumno (si ya existe por DNI, no duplicar)
       const { data: alExist, error: alFindErr } = await window.supabase
         .from('alumnos')
@@ -365,6 +397,19 @@
         alumnoId = alInsert.id;
       }
 
+      // ✅ NUEVO (alumno): crear auth/profile (si ya existe, no detiene)
+      try {
+        await crearAuthYPerfil({
+          dni: alDni,
+          role: 'alumno',
+          colegio_id: COLEGIO_ID,
+          alumno_id: alumnoId,
+          apoderado_id: null
+        });
+      } catch (e) {
+        console.warn('⚠️ Auth/Profile alumno no creado (posible ya existe):', e.message);
+      }
+
       // 3) Crear matrícula
       const { error: matErr } = await window.supabase
         .from('matriculas')
@@ -376,7 +421,22 @@
 
       if (matErr) return setMsg('❌ Error creando matrícula: ' + matErr.message);
 
+      // ✅ NUEVO: vincular apoderado_hijos (lo hace la function)
+      // Esto asegura vínculo incluso si el auth ya existía antes.
+      try {
+        await crearAuthYPerfil({
+          dni: apDni,
+          role: 'apoderado',
+          colegio_id: COLEGIO_ID,
+          apoderado_id: apoderadoId,
+          alumno_id: alumnoId
+        });
+      } catch (e) {
+        console.warn('⚠️ Vínculo apoderado_hijos no creado (posible ya existe):', e.message);
+      }
+
       setMsg('✅ Matrícula registrada correctamente.');
+
       // Limpieza mínima
       document.getElementById('apodDni').value = '';
       document.getElementById('apodNombres').value = '';
@@ -416,6 +476,7 @@
     })();
     
   </script>
-<script src="../assets/js/matricula.js"></script>
+
+  <script src="../assets/js/matricula.js"></script>
 </body>
 </html>
