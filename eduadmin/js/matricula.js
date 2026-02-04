@@ -1,29 +1,43 @@
 // ================================
-// MATRICULA - EduAdmin (sin Auth)
+// MATRICULA - EduAdmin (con apoderado_id + Netlify Function opcional)
+// Ruta: eduadmin/js/matricula.js
 // ================================
 
 document.addEventListener("DOMContentLoaded", () => {
   const sb = window.supabaseClient || window.supabase;
   if (!sb) {
-    alert("❌ Supabase no inicializado. Revisa supabaseClient.js");
+    alert("❌ Supabase no inicializado. Revisa supabaseClient.js y el CDN.");
     return;
   }
 
-  // ==== CONFIG (ajusta según tu HTML) ====
-  const colegioId = window.COLEgio_ID || localStorage.getItem("colegio_id") || ""; // si lo guardas en sesión
-  const anioAcademicoId =
-    localStorage.getItem("anio_academico_id") || ""; // si ya lo tienes
-  // Si no tienes anioAcademicoId todavía, el sistema igual matricula sin esa columna (ver insert)
+  // ==========================================
+  // CONFIG
+  // ==========================================
+  const colegioId =
+    window.COLEGIO_ID ||
+    window.COLEgio_ID ||
+    localStorage.getItem("colegio_id") ||
+    "";
 
-  // ==== ELEMENTOS HTML (IDs esperados) ====
+  const anioAcademicoId = localStorage.getItem("anio_academico_id") || "";
+
+  // ✅ Activa/desactiva automatización Auth + profiles + apoderado_hijos
+  const AUTO_CREATE_AUTH = true;
+
+  // Password inicial requerido
+  const INITIAL_PASSWORD = "0502000323";
+
+  // ==========================================
+  // ELEMENTOS HTML (IDs esperados)
+  // ==========================================
   const formBuscar = document.getElementById("formBuscarDni");
   const inputDniBuscar = document.getElementById("dniBuscar");
   const btnBuscar = document.getElementById("btnBuscar");
 
-  const boxNuevo = document.getElementById("boxNuevo"); // contenedor formulario nuevo alumno
+  const boxNuevo = document.getElementById("boxNuevo");
   const formNuevo = document.getElementById("formNuevo");
 
-  const boxExistente = document.getElementById("boxExistente"); // contenedor info alumno existente
+  const boxExistente = document.getElementById("boxExistente");
   const txtExistente = document.getElementById("txtExistente");
 
   const modal = document.getElementById("modalExistente");
@@ -34,11 +48,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnRetiro = document.getElementById("btnRetiro");
   const btnCerrarModal = document.getElementById("btnCerrarModal");
 
-  // ==== ESTADO LOCAL ====
+  // ==========================================
+  // ESTADO LOCAL
+  // ==========================================
   let alumnoEncontrado = null;
   let apoderadoEncontrado = null;
 
-  // ==== Helpers UI ====
+  // ==========================================
+  // HELPERS UI
+  // ==========================================
   function show(el) {
     if (el) el.style.display = "block";
   }
@@ -58,64 +76,156 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (btnCerrarModal) btnCerrarModal.addEventListener("click", closeModal);
 
-  // ==============================
-  // 1) BUSCAR ALUMNO POR DNI
-  // ==============================
+  // ==========================================
+  // HELPERS VALIDACIÓN / NORMALIZACIÓN
+  // ==========================================
+  function onlyDigits(str) {
+    return String(str || "").replace(/\D/g, "");
+  }
+
+  function isValidDni(dni) {
+    const d = onlyDigits(dni);
+    return d.length === 8;
+  }
+
+  function toInternalEmailByDni(dni) {
+    return `${onlyDigits(dni)}@educorp.local`;
+  }
+
+  async function safeFetchJson(url, options) {
+    const res = await fetch(url, options);
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (_) {
+      data = null;
+    }
+    return { res, data };
+  }
+
+  // ==========================================
+  // ✅ Netlify Function (Auth + profiles + apoderado_hijos)
+  // ==========================================
+  async function ensureAuthProfilesAndLink({ colegio_id, apoderado, alumno }) {
+    if (!AUTO_CREATE_AUTH) return { ok: true, skipped: true };
+
+    if (!colegio_id) return { ok: false, error: "Falta colegio_id para crear Auth/perfiles." };
+    if (!apoderado?.dni || !alumno?.dni) return { ok: false, error: "Faltan DNI de apoderado/alumno." };
+
+    const payload = {
+      colegio_id,
+      initial_password: INITIAL_PASSWORD,
+      apoderado: {
+        id: apoderado.id || null,          // public.apoderados.id
+        dni: onlyDigits(apoderado.dni),
+        nombres: apoderado.nombres || "",
+        apellidos: apoderado.apellidos || "",
+        email: toInternalEmailByDni(apoderado.dni),
+      },
+      alumno: {
+        id: alumno.id || null,             // public.alumnos.id
+        dni: onlyDigits(alumno.dni),
+        nombres: alumno.nombres || "",
+        apellidos: alumno.apellidos || "",
+        email: toInternalEmailByDni(alumno.dni),
+      }
+    };
+
+    const { res, data } = await safeFetchJson("/.netlify/functions/create-auth-and-links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok || !data?.ok) {
+      const errMsg = data?.error || `HTTP ${res.status} al llamar a create-auth-and-links`;
+      return { ok: false, error: errMsg };
+    }
+
+    return {
+      ok: true,
+      apoderado_auth_id: data.apoderado_auth_id,
+      alumno_auth_id: data.alumno_auth_id
+    };
+  }
+
+  // ==========================================
+  // 1) BUSCAR ALUMNO POR DNI (incluye apoderado_id)
+  // ==========================================
   async function buscarAlumnoPorDni(dni) {
     if (!colegioId) {
-      alert("⚠️ Falta colegio_id en sesión. Guarda colegio_id en localStorage o define COLEGio_ID.");
+      alert("⚠️ Falta colegio_id en sesión. Guarda colegio_id en localStorage o define COLEGIO_ID.");
       return null;
     }
 
+    const dniClean = onlyDigits(dni);
+
     const { data, error } = await sb
       .from("alumnos")
-      .select("id, dni, nombres, apellidos, colegio_id, estado")
+      .select("id, dni, nombres, apellidos, colegio_id, estado, apoderado_id")
       .eq("colegio_id", colegioId)
-      .eq("dni", dni)
+      .eq("dni", dniClean)
       .maybeSingle();
 
     if (error) throw error;
     return data || null;
   }
 
-  // ==============================
-  // 2) BUSCAR APODERADO POR DNI (opcional)
-  // ==============================
+  // ==========================================
+  // 2) TRAER APODERADO POR ID (para alumno existente)
+  // ==========================================
+  async function buscarApoderadoPorId(apoderadoId) {
+    if (!apoderadoId) return null;
+
+    const { data, error } = await sb
+      .from("apoderados")
+      .select("id, dni, nombres, apellidos, colegio_id")
+      .eq("id", apoderadoId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data || null;
+  }
+
+  // ==========================================
+  // 3) BUSCAR APODERADO POR DNI (nuevo)
+  // ==========================================
   async function buscarApoderadoPorDni(dni) {
     if (!colegioId) return null;
+
+    const dniClean = onlyDigits(dni);
 
     const { data, error } = await sb
       .from("apoderados")
       .select("id, dni, nombres, apellidos, colegio_id")
       .eq("colegio_id", colegioId)
-      .eq("dni", dni)
+      .eq("dni", dniClean)
       .maybeSingle();
 
     if (error) throw error;
     return data || null;
   }
 
-  // ==============================
-  // 3) CREAR / OBTENER ALUMNO (sin duplicados)
-  // ==============================
+  // ==========================================
+  // 4) CREAR / OBTENER ALUMNO (sin duplicados)
+  // ==========================================
   async function upsertAlumno(payload) {
-    // Si ya existe por dni+colegio, lo retornamos.
     const existente = await buscarAlumnoPorDni(payload.dni);
     if (existente) return existente;
 
     const { data, error } = await sb
       .from("alumnos")
       .insert(payload)
-      .select("id, dni, nombres, apellidos, colegio_id, estado")
+      .select("id, dni, nombres, apellidos, colegio_id, estado, apoderado_id")
       .single();
 
     if (error) throw error;
     return data;
   }
 
-  // ==============================
-  // 4) CREAR / OBTENER APODERADO
-  // ==============================
+  // ==========================================
+  // 5) CREAR / OBTENER APODERADO
+  // ==========================================
   async function upsertApoderado(payload) {
     const existente = await buscarApoderadoPorDni(payload.dni);
     if (existente) return existente;
@@ -130,33 +240,29 @@ document.addEventListener("DOMContentLoaded", () => {
     return data;
   }
 
-  // ==============================
-  // 5) CREAR MATRICULA (evitar duplicado por alumno+anio)
-  // ==============================
+  // ==========================================
+  // 6) CREAR MATRICULA (evitar duplicado)
+  // ==========================================
   async function crearMatricula({ alumno_id, apoderado_id, tipo }) {
-    // tipo: 'nuevo' | 'reingreso' | 'traslado' | 'retiro' | 'confirmacion'
     const payload = {
       colegio_id: colegioId,
       alumno_id,
-      apoderado_id,
+      apoderado_id: apoderado_id || null,
       tipo: tipo || "nuevo",
-      fecha: new Date().toISOString()
+      fecha: new Date().toISOString(),
     };
 
-    // Si tu tabla tiene anio_academico_id, lo agregamos si existe
     if (anioAcademicoId) payload.anio_academico_id = anioAcademicoId;
 
-    // Intentar insertar y si ya existe, no reventar
     const { data, error } = await sb
       .from("matriculas")
       .insert(payload)
       .select("id")
       .maybeSingle();
 
-    // Si tu tabla tiene UNIQUE alumno+anio y da error de duplicado:
     if (error) {
-      const msg = String(error.message || "");
-      if (msg.toLowerCase().includes("duplicate") || msg.toLowerCase().includes("unique")) {
+      const msg = String(error.message || "").toLowerCase();
+      if (msg.includes("duplicate") || msg.includes("unique")) {
         return { duplicated: true };
       }
       throw error;
@@ -165,61 +271,71 @@ document.addEventListener("DOMContentLoaded", () => {
     return { duplicated: false, id: data?.id || null };
   }
 
-  // ==============================
-  // 6) MOSTRAR MODAL EXISTENTE
-  // ==============================
-  function renderModalAlumnoExistente(alumno) {
+  // ==========================================
+  // 7) MODAL EXISTENTE
+  // ==========================================
+  function renderModalAlumnoExistente(alumno, apoderado) {
     const estado = alumno.estado || "activo";
     const nombre = `${alumno.nombres || ""} ${alumno.apellidos || ""}`.trim();
+
+    const apNombre = apoderado
+      ? `${apoderado.nombres || ""} ${apoderado.apellidos || ""}`.trim()
+      : "(sin apoderado)";
+    const apDni = apoderado?.dni || "-";
 
     if (modalBody) {
       modalBody.innerHTML = `
         <p><b>DNI:</b> ${alumno.dni}</p>
         <p><b>Alumno:</b> ${nombre || "(sin nombre)"}</p>
         <p><b>Estado:</b> ${estado}</p>
+        <hr/>
+        <p><b>Apoderado:</b> ${apNombre}</p>
+        <p><b>DNI Apoderado:</b> ${apDni}</p>
         <p>✅ El alumno ya está registrado en este colegio. ¿Qué deseas hacer?</p>
       `;
     }
     openModal();
   }
 
-  // ==============================
+  // ==========================================
   // EVENTO BUSCAR
-  // ==============================
+  // ==========================================
   async function onBuscar(e) {
-    e.preventDefault();
-    const dni = (inputDniBuscar?.value || "").trim();
+    if (e) e.preventDefault();
 
-    if (!dni) {
-      alert("⚠️ Ingresa DNI.");
-      return;
-    }
+    const dni = (inputDniBuscar?.value || "").trim();
+    const dniClean = onlyDigits(dni);
+
+    if (!dniClean) return alert("⚠️ Ingresa DNI.");
+    if (!isValidDni(dniClean)) return alert("⚠️ DNI inválido. Debe tener 8 dígitos.");
 
     try {
-      alumnoEncontrado = await buscarAlumnoPorDni(dni);
+      alumnoEncontrado = await buscarAlumnoPorDni(dniClean);
 
       if (!alumnoEncontrado) {
-        // NO existe -> habilitar formulario nuevo
         hide(boxExistente);
         show(boxNuevo);
         if (formNuevo) formNuevo.reset();
 
-        // si tienes un input dni en el formulario nuevo:
         const dniNuevo = document.getElementById("dniAlumno");
-        if (dniNuevo) dniNuevo.value = dni;
+        if (dniNuevo) dniNuevo.value = dniClean;
 
         alert("✅ DNI no registrado. Completa datos para matricular.");
         return;
       }
 
-      // Existe -> mostrar modal
+      // ✅ Si existe, traemos el apoderado por alumnos.apoderado_id
+      apoderadoEncontrado = await buscarApoderadoPorId(alumnoEncontrado.apoderado_id);
+
       hide(boxNuevo);
       show(boxExistente);
+
       if (txtExistente) {
-        txtExistente.textContent = `Alumno encontrado: ${alumnoEncontrado.dni} - ${(alumnoEncontrado.nombres || "")} ${(alumnoEncontrado.apellidos || "")}`;
+        txtExistente.textContent =
+          `Alumno encontrado: ${alumnoEncontrado.dni} - ${(alumnoEncontrado.nombres || "")} ${(alumnoEncontrado.apellidos || "")}`;
       }
 
-      renderModalAlumnoExistente(alumnoEncontrado);
+      renderModalAlumnoExistente(alumnoEncontrado, apoderadoEncontrado);
     } catch (err) {
       console.error(err);
       alert("❌ Error al buscar DNI: " + (err.message || err));
@@ -229,28 +345,48 @@ document.addEventListener("DOMContentLoaded", () => {
   if (formBuscar) formBuscar.addEventListener("submit", onBuscar);
   if (btnBuscar) btnBuscar.addEventListener("click", onBuscar);
 
-  // ==============================
-  // EVENTO: CONFIRMAR MATRICULA EXISTENTE
-  // ==============================
+  // ==========================================
+  // CONFIRMAR (EXISTENTE) -> ahora sí usa apoderado_id
+  // y opcionalmente crea Auth+profiles+apoderado_hijos
+  // ==========================================
   async function confirmar(tipo) {
     if (!alumnoEncontrado) return;
+
     try {
-      // Aquí puedes pedir el apoderado_id si corresponde.
-      // Si ya lo guardas en otra tabla, puedes buscarlo por relación.
-      // Por ahora: matrícula sin apoderado si no se define.
+      const apoderadoId = apoderadoEncontrado?.id || alumnoEncontrado.apoderado_id || null;
+
       const r = await crearMatricula({
         alumno_id: alumnoEncontrado.id,
-        apoderado_id: null,
+        apoderado_id: apoderadoId,
         tipo
       });
+
+      // ✅ Intentar crear Auth/perfiles/vínculo si tenemos apoderado
+      let link = { ok: true, skipped: true };
+      if (apoderadoEncontrado && apoderadoId) {
+        link = await ensureAuthProfilesAndLink({
+          colegio_id: colegioId,
+          apoderado: apoderadoEncontrado,
+          alumno: alumnoEncontrado
+        });
+      }
 
       closeModal();
 
       if (r.duplicated) {
         alert("⚠️ Ya existe matrícula para este alumno (año actual).");
-      } else {
-        alert(`✅ Matrícula registrada (${tipo}).`);
+        return;
       }
+
+      if (!link.ok) {
+        alert(
+          `✅ Matrícula registrada (${tipo}), pero falló Auth/Profiles/Vínculo.\n` +
+          `Error: ${link.error}`
+        );
+        return;
+      }
+
+      alert(`✅ Matrícula registrada (${tipo}).`);
     } catch (err) {
       console.error(err);
       alert("❌ Error registrando matrícula: " + (err.message || err));
@@ -262,19 +398,15 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnTraslado) btnTraslado.addEventListener("click", () => confirmar("traslado"));
   if (btnRetiro) btnRetiro.addEventListener("click", () => confirmar("retiro"));
 
-  // ==============================
-  // EVENTO: GUARDAR NUEVO (alumno + apoderado + matrícula)
-  // ==============================
+  // ==========================================
+  // GUARDAR NUEVO (alumno + apoderado + matrícula + Auth/Profiles/Vínculo)
+  // ==========================================
   async function onGuardarNuevo(e) {
     e.preventDefault();
 
-    if (!colegioId) {
-      alert("⚠️ Falta colegio_id en sesión.");
-      return;
-    }
+    if (!colegioId) return alert("⚠️ Falta colegio_id en sesión.");
 
     try {
-      // ====== LEE CAMPOS (ajusta IDs según tu HTML) ======
       const dniAlumno = (document.getElementById("dniAlumno")?.value || "").trim();
       const nombresAlumno = (document.getElementById("nombresAlumno")?.value || "").trim();
       const apellidosAlumno = (document.getElementById("apellidosAlumno")?.value || "").trim();
@@ -283,46 +415,64 @@ document.addEventListener("DOMContentLoaded", () => {
       const nombresApoderado = (document.getElementById("nombresApoderado")?.value || "").trim();
       const apellidosApoderado = (document.getElementById("apellidosApoderado")?.value || "").trim();
 
-      if (!dniAlumno || !dniApoderado) {
-        alert("⚠️ DNI de alumno y apoderado son obligatorios.");
-        return;
-      }
+      const dniAl = onlyDigits(dniAlumno);
+      const dniAp = onlyDigits(dniApoderado);
 
-      // ====== 1) Crear/obtener alumno ======
-      const alumno = await upsertAlumno({
-        colegio_id: colegioId,
-        dni: dniAlumno,
-        nombres: nombresAlumno,
-        apellidos: apellidosAlumno,
-        estado: "activo"
-      });
+      if (!dniAl || !dniAp) return alert("⚠️ DNI de alumno y apoderado son obligatorios.");
+      if (!isValidDni(dniAl) || !isValidDni(dniAp)) return alert("⚠️ DNI inválido. Debe tener 8 dígitos.");
 
-      // ====== 2) Crear/obtener apoderado ======
+      // 1) Crear/obtener apoderado
       const apoderado = await upsertApoderado({
         colegio_id: colegioId,
-        dni: dniApoderado,
+        dni: dniAp,
         nombres: nombresApoderado,
         apellidos: apellidosApoderado
       });
 
-      // ====== 3) Crear matrícula ======
+      // 2) Crear/obtener alumno con apoderado_id
+      const alumno = await upsertAlumno({
+        colegio_id: colegioId,
+        dni: dniAl,
+        nombres: nombresAlumno,
+        apellidos: apellidosAlumno,
+        estado: "activo",
+        apoderado_id: apoderado.id
+      });
+
+      // 3) Crear matrícula
       const mat = await crearMatricula({
         alumno_id: alumno.id,
         apoderado_id: apoderado.id,
         tipo: "nuevo"
       });
 
+      // 4) ✅ Auth + profiles + apoderado_hijos
+      const link = await ensureAuthProfilesAndLink({
+        colegio_id: colegioId,
+        apoderado,
+        alumno
+      });
+
       if (mat.duplicated) {
         alert("⚠️ Ya existía matrícula para este alumno (año actual).");
+      } else if (!link.ok) {
+        alert(
+          "✅ Matrícula creada, pero falló la creación de Auth/Profiles/Vínculo.\n" +
+          "Error: " + link.error + "\n\n" +
+          "Revisa Netlify Function y variables SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY."
+        );
       } else {
-        alert("✅ Matrícula creada correctamente.");
+        alert(
+          "✅ Matrícula creada y usuarios generados.\n\n" +
+          `Alumno: ${toInternalEmailByDni(dniAl)}\n` +
+          `Apoderado: ${toInternalEmailByDni(dniAp)}\n` +
+          `Clave inicial: ${INITIAL_PASSWORD}`
+        );
       }
-
-      // IMPORTANTE: NO hacemos Auth todavía (tú dijiste después)
-      // Luego (cuando quieras) aquí se llamará la Netlify Function.
 
       formNuevo.reset();
       hide(boxNuevo);
+      show(boxExistente);
     } catch (err) {
       console.error(err);
       alert("❌ Error guardando matrícula: " + (err.message || err));
