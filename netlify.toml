@@ -1,0 +1,3 @@
+select *
+from apoderado_hijos
+where apoderado_id = '041d5f4e-ca20-49d2-b1fc-babd59eab808';
