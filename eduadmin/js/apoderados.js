@@ -26,4 +26,28 @@ async function createAuthProfileAndLink(payload) {
   }
   return data;
 }
+// 1) INSERT alumno
+const { data: alumnoRow, error: alumnoErr } = await window.supabase
+  .from('alumnos')
+  .insert({
+    colegio_id,
+    dni,
+    // otros campos...
+  })
+  .select('id, dni')
+  .single();
+
+if (alumnoErr) throw alumnoErr;
+
+// 2) NETLIFY FUNCTION (crear auth + profile)
+await createAuthProfileAndLink({
+  dni: alumnoRow.dni,
+  role: 'alumno',
+  colegio_id,
+  alumno_id: alumnoRow.id,
+  apoderado_id: null
+});
+
+// 3) Mensaje final / refrescar tabla
+alert(`✅ Alumno creado + Auth/Profile OK (${dni}@educorp.local)`);
 
