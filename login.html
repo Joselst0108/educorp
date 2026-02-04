@@ -2,83 +2,91 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>EduCorp | Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <style>
-    body {
-      font-family: system-ui, sans-serif;
-      background: #f4f6f9;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-    }
-    .card {
-      background: #fff;
-      padding: 24px;
-      width: 100%;
-      max-width: 400px;
-      border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(0,0,0,.08);
-    }
-    h1 { margin-top: 0; }
-    label { display: block; margin-top: 12px; }
-    input {
-      width: 100%;
-      padding: 10px;
-      margin-top: 4px;
-      font-size: 16px;
-    }
-    button {
-      width: 100%;
-      margin-top: 20px;
-      padding: 12px;
-      font-size: 16px;
-      background: #0f172a;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    #status {
-      margin-top: 16px;
-      font-size: 14px;
-    }
-  </style>
+  <title>EduCorp | Login</title>
 </head>
-
 <body>
-  <div class="card">
-    <h1>EduCorp</h1>
-    <p>Inicia sesión con tu DNI.</p>
 
-    <form>
-      <label for="dni">DNI</label>
-      <input id="dni" type="text" placeholder="Ej: 45102911" required />
+  <h1>Login EduCorp</h1>
+  <p>Ingresa con tu DNI o código institucional y tu contraseña inicial (DNI/código).</p>
 
-      <label for="password">Contraseña</label>
-      <input id="password" type="password" required />
+  <form>
+    <label>Usuario (DNI o código):</label><br />
+    <input id="usuario" type="text" placeholder="Ej: 71234567 o AMDC-2026-00045" /><br /><br />
 
-      <button type="submit">Ingresar</button>
-    </form>
+    <label>Contraseña:</label><br />
+    <input id="password" type="password" placeholder="Tu DNI o código" /><br /><br />
 
-    <div id="status">Estado: esperando...</div>
-  </div>
+    <label>Entrar a (modo prueba):</label><br />
+    <select id="appDestino">
+      <option value="eduasist/dashboard.html">EduAsist (Docente/Alumno/Apoderado)</option>
+      <option value="eduadmin/dashboard.html">EduAdmin (Director/Secretaria)</option>
+      <option value="edubank/dashboard.html">EduBank (si está habilitado)</option>
+      <option value="eduia/dashboard.html">EduIA (si está habilitado)</option>
+    </select>
+    <br /><br />
 
-  <!-- 1️⃣ SUPABASE CDN (OBLIGATORIO PRIMERO) -->
+    <button type="button" id="btnEntrar">Entrar</button>
+  </form>
+
+  <p>
+    <a href="index.html">Volver al inicio</a>
+  </p>
+
+  <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- 2️⃣ CLIENTE SUPABASE -->
-  <script src="/assets/js/supabaseClient.js"></script>
+  <!-- Tu cliente Supabase -->
+  <script src="assets/js/supabaseClient.js"></script>
 
-  <!-- 3️⃣ LOGIN -->
-  <script src="/assets/js/login.js"></script>
-  <!-- Supabase CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // ============================
+    // Login de prueba (sin Supabase auth todavía)
+    // ============================
+    document.getElementById('btnEntrar').addEventListener('click', function () {
+      const destino = document.getElementById('appDestino').value;
+      window.location.href = destino;
+    });
 
-<!-- Tu cliente -->
-<script src="assets/js/supabaseClient.js"></script>
+    // ============================
+    // Prueba visual: Supabase conectado (útil en celular)
+    // ============================
+    if (window.supabase) {
+      document.body.insertAdjacentHTML(
+        'beforeend',
+        '<p style="color:green;">✅ Supabase conectado correctamente</p>'
+      );
+    } else {
+      document.body.insertAdjacentHTML(
+        'beforeend',
+        '<p style="color:red;">❌ Supabase NO conectado</p>'
+      );
+    }
+
+    // ============================
+    // Estado de sesión (solo lectura)
+    // ============================
+    async function verificarSesion() {
+      if (!window.supabase) return;
+
+      const { data, error } = await window.supabase.auth.getSession();
+
+      let mensaje = '';
+
+      if (error) {
+        mensaje = '<p style="color:red;">❌ Error al verificar sesión</p>';
+      } else if (data.session) {
+        mensaje = '<p style="color:green;">✅ Sesión activa</p>';
+      } else {
+        mensaje = '<p style="color:orange;">ℹ️ Sesión: NO activa</p>';
+      }
+
+      document.body.insertAdjacentHTML('beforeend', mensaje);
+    }
+
+    verificarSesion();
+  </script>
 
 </body>
 </html>
+
