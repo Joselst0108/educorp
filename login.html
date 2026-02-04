@@ -8,7 +8,7 @@
 <body>
 
   <h1>Login EduCorp</h1>
-  <p>Ingresa con tu DNI o código institucional.</p>
+  <p>Ingresa con tu DNI o código institucional</p>
 
   <form>
     <label>Usuario (DNI o código):</label><br />
@@ -16,15 +16,6 @@
 
     <label>Contraseña:</label><br />
     <input id="password" type="password" placeholder="Tu DNI o código" /><br /><br />
-
-    <label>Entrar a (modo prueba):</label><br />
-    <select id="appDestino">
-      <option value="eduasist/dashboard.html">EduAsist</option>
-      <option value="eduadmin/dashboard.html">EduAdmin</option>
-      <option value="edubank/dashboard.html">EduBank</option>
-      <option value="eduia/dashboard.html">EduIA</option>
-    </select>
-    <br /><br />
 
     <button type="button" id="btnEntrar">Entrar</button>
   </form>
@@ -40,83 +31,82 @@
   <script src="assets/js/supabaseClient.js"></script>
 
   <script>
-    // ============================
-    // Login REAL con Supabase
-    // ============================
     document.getElementById('btnEntrar').addEventListener('click', async function () {
 
       if (!window.supabase) {
-        alert('❌ Supabase no está conectado');
+        alert('❌ Supabase no conectado');
         return;
       }
 
       const usuario = document.getElementById('usuario').value.trim();
       const password = document.getElementById('password').value;
-      const destino = document.getElementById('appDestino').value;
 
       if (!usuario || !password) {
         alert('Completa usuario y contraseña');
         return;
       }
 
-      // Convertir DNI/código a email virtual
+      // DNI o código → email virtual
       const email = usuario.includes('@')
         ? usuario
         : `${usuario}@educorp.local`;
 
-      const { data, error } = await window.supabase.auth.signInWithPassword({
-        email: email,
-        password: password
-      });
+      // 1️⃣ Login
+      const { data: loginData, error: loginError } =
+        await window.supabase.auth.signInWithPassword({
+          email,
+          password
+        });
 
-      if (error) {
-        alert('❌ Login incorrecto');
+      if (loginError || !loginData.user) {
+        alert('❌ Usuario o contraseña incorrectos');
         return;
       }
 
-      alert('✅ Login correcto');
+      // 2️⃣ Leer perfil (rol)
+      const userId = loginData.user.id;
+
+      const { data: profile, error: profileError } =
+        await window.supabase
+          .from('profiles')
+          .select('role, is_active')
+          .eq('id', userId)
+          .single();
+
+      if (profileError || !profile) {
+        alert('❌ Usuario sin perfil. Contacta al administrador.');
+        await window.supabase.auth.signOut();
+        return;
+      }
+
+      if (!profile.is_active) {
+        alert('❌ Usuario inactivo.');
+        await window.supabase.auth.signOut();
+        return;
+      }
+
+      // 3️⃣ Redirección automática por rol
+      const rutas = {
+        superadmin: 'eduadmin/dashboard.html',
+        director: 'eduadmin/dashboard.html',
+        secretaria: 'eduadmin/dashboard.html',
+        docente: 'eduasist/dashboard.html',
+        alumno: 'eduasist/dashboard.html',
+        apoderado: 'eduasist/dashboard.html'
+      };
+
+      const destino = rutas[profile.role];
+
+      if (!destino) {
+        alert('❌ Rol no reconocido: ' + profile.role);
+        await window.supabase.auth.signOut();
+        return;
+      }
+
+      // 4️⃣ Ir al dashboard correcto
       window.location.href = destino;
     });
-
-    // ============================
-    // Mensaje visual: Supabase conectado
-    // ============================
-    if (window.supabase) {
-      document.body.insertAdjacentHTML(
-        'beforeend',
-        '<p style="color:green;">✅ Supabase conectado</p>'
-      );
-    } else {
-      document.body.insertAdjacentHTML(
-        'beforeend',
-        '<p style="color:red;">❌ Supabase NO conectado</p>'
-      );
-    }
-
-    // ============================
-    // Estado de sesión visible
-    // ============================
-    async function mostrarSesion() {
-      if (!window.supabase) return;
-
-      const { data } = await window.supabase.auth.getSession();
-
-      if (data.session) {
-        document.body.insertAdjacentHTML(
-          'beforeend',
-          '<p style="color:green;">🔐 Sesión ACTIVA</p>'
-        );
-      } else {
-        document.body.insertAdjacentHTML(
-          'beforeend',
-          '<p style="color:orange;">🔓 Sesión NO activa</p>'
-        );
-      }
-    }
-
-    mostrarSesion();
   </script>
 
 </body>
 </html>
-
