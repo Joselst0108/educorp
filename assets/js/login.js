@@ -1,44 +1,59 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduCorp | Login</title>
-</head>
-<body>
+// assets/js/login.js
 
-  <h1>Login EduCorp</h1>
-  <p>Ingresa con tu DNI o código institucional y tu contraseña inicial (DNI/código).</p>
+function toInternalEmail(usuario) {
+  // Quita espacios
+  const u = (usuario || "").trim();
 
-  <form>
-    <label>Usuario (DNI o código):</label><br />
-    <input type="text" placeholder="Ej: 71234567 o AMDC-2026-00045" /><br /><br />
+  // Si parece email real, lo dejamos (por si en el futuro usas emails)
+  if (u.includes("@")) return u.toLowerCase();
 
-    <label>Contraseña:</label><br />
-    <input type="password" placeholder="Tu DNI o código" /><br /><br />
-  <br>
-<label>Entrar a (modo prueba):</label><br />
-<select id="appDestino">
-  <option value="eduasist/dashboard.html">EduAsist (Docente/Alumno/Apoderado)</option>
-  <option value="eduadmin/dashboard.html">EduAdmin (Director/Secretaria)</option>
-  <option value="edubank/dashboard.html">EduBank (si está habilitado)</option>
-  <option value="eduia/dashboard.html">EduIA (si está habilitado)</option>
-</select>
-<br><br>
+  // Convertimos DNI/código a email interno
+  // Ej: 71234567 -> 71234567@educorp.local
+  // Ej: AMDC-2026-00045 -> amdc-2026-00045@educorp.local
+  return `${u.toLowerCase()}@educorp.local`;
+}
 
-<button type="button" id="btnEntrar">Entrar</button>
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("btnEntrar");
+  const txtUsuario = document.getElementById("txtUsuario");
+  const txtPassword = document.getElementById("txtPassword");
+  const appDestino = document.getElementById("appDestino");
 
-  </form>
+  if (!btn || !txtUsuario || !txtPassword) {
+    console.error("Faltan elementos del login (btnEntrar/txtUsuario/txtPassword)");
+    return;
+  }
 
-  <p>
-    <a href="index.html">Volver al inicio</a>
-  </p>
-<script>
-  // Login de prueba: por ahora solo redirige a EduAsist
-  document.getElementById('btnEntrar').addEventListener('click', function () {
-    window.location.href = 'eduasist/dashboard.html';
+  btn.addEventListener("click", async () => {
+    const usuario = txtUsuario.value.trim();
+    const password = txtPassword.value;
+
+    if (!usuario || !password) {
+      alert("⚠️ Escribe tu usuario (DNI/código) y contraseña.");
+      return;
+    }
+
+    const email = toInternalEmail(usuario);
+
+    try {
+      // Login con Supabase Auth
+      const { data, error } = await window.supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        alert("❌ " + error.message);
+        return;
+      }
+
+      // Si logueó, redirige a lo que eligió
+      const destino = appDestino?.value || "eduasist/dashboard.html";
+      window.location.href = destino;
+
+    } catch (e) {
+      console.error(e);
+      alert("❌ Error inesperado al iniciar sesión.");
+    }
   });
-</script>
-
-</body>
-</html>
+});
