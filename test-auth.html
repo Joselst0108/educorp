@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Test create-auth-and-links</title>
+  <style>
+    body { font-family: system-ui, Arial; padding: 16px; }
+    input { width: 100%; padding: 10px; margin: 6px 0; }
+    button { padding: 12px 14px; }
+    pre { background: #111; color: #0f0; padding: 12px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h2>Probar Netlify Function: create-auth-and-links</h2>
+
+  <label>Colegio ID (si no sabes, deja vacío)</label>
+  <input id="colegio" placeholder="UUID del colegio (opcional)" />
+
+  <label>DNI Apoderado</label>
+  <input id="dniAp" placeholder="71234567" />
+
+  <label>DNI Alumno</label>
+  <input id="dniAl" placeholder="70112233" />
+
+  <label>Password inicial</label>
+  <input id="pass" value="0502000323" />
+
+  <label>link_mode</label>
+  <input id="linkMode" value="auth" placeholder="auth o public" />
+
+  <button id="btn">Probar (POST)</button>
+
+  <h3>Respuesta</h3>
+  <pre id="out">Esperando...</pre>
+
+  <script>
+    const out = document.getElementById('out');
+
+    document.getElementById('btn').addEventListener('click', async () => {
+      out.textContent = 'Enviando...';
+
+      const colegio_id =
+        document.getElementById('colegio').value.trim() ||
+        localStorage.getItem('colegio_id') ||
+        '';
+
+      const dniAp = document.getElementById('dniAp').value.trim();
+      const dniAl = document.getElementById('dniAl').value.trim();
+      const initial_password = document.getElementById('pass').value;
+      const link_mode = document.getElementById('linkMode').value.trim() || 'auth';
+
+      if (!colegio_id) {
+        out.textContent = '⚠️ Falta colegio_id. Ponlo manual o asegúrate que exista en localStorage (colegio_id).';
+        return;
+      }
+      if (!dniAp || !dniAl) {
+        out.textContent = '⚠️ Ingresa DNI de apoderado y alumno.';
+        return;
+      }
+
+      const payload = {
+        colegio_id,
+        initial_password,
+        link_mode,
+        apoderado: { id: null, dni: dniAp, nombres: 'APO', apellidos: 'TEST' },
+        alumno: { id: null, dni: dniAl, nombres: 'ALU', apellidos: 'TEST' }
+      };
+
+      try {
+        const res = await fetch('/.netlify/functions/create-auth-and-links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json().catch(() => ({}));
+        out.textContent = JSON.stringify({ status: res.status, data }, null, 2);
+      } catch (e) {
+        out.textContent = '❌ Error: ' + e.message;
+      }
+    });
+  </script>
+</body>
+</html>
