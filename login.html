@@ -8,14 +8,24 @@
 <body>
 
   <h1>Login EduCorp</h1>
-  <p>Ingresa con tu DNI o código institucional</p>
+  <p>Ingresa con tu DNI o código institucional y tu contraseña inicial (DNI/código).</p>
 
   <form>
     <label>Usuario (DNI o código):</label><br />
-    <input id="usuario" type="text" placeholder="Ej: 12345678" /><br /><br />
+    <input id="txtUsuario" type="text" placeholder="Ej: 71234567 o AMDC-2026-00045" /><br /><br />
 
     <label>Contraseña:</label><br />
-    <input id="password" type="password" placeholder="Tu DNI o código" /><br /><br />
+    <input id="txtPassword" type="password" placeholder="Tu DNI o código" /><br /><br />
+
+    <br>
+    <label>Entrar a (modo prueba):</label><br />
+    <select id="appDestino">
+      <option value="eduasist/dashboard.html">EduAsist (Docente/Alumno/Apoderado)</option>
+      <option value="eduadmin/dashboard.html">EduAdmin (Director/Secretaria)</option>
+      <option value="edubank/dashboard.html">EduBank (si está habilitado)</option>
+      <option value="eduia/dashboard.html">EduIA (si está habilitado)</option>
+    </select>
+    <br><br>
 
     <button type="button" id="btnEntrar">Entrar</button>
   </form>
@@ -24,99 +34,12 @@
     <a href="index.html">Volver al inicio</a>
   </p>
 
-  <!-- Supabase CDN -->
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- Cliente Supabase -->
   <script src="assets/js/supabaseClient.js"></script>
 
-  <script>
-    document.getElementById('btnEntrar').addEventListener('click', async function () {
-
-      if (!window.supabase) {
-        alert('❌ Supabase no conectado');
-        return;
-      }
-
-      const usuario = document.getElementById('usuario').value.trim();
-      const password = document.getElementById('password').value;
-
-      if (!usuario || !password) {
-        alert('Completa usuario y contraseña');
-        return;
-      }
-
-      // DNI o código → email virtual
-      const email = usuario.includes('@')
-        ? usuario
-        : `${usuario}@educorp.local`;
-
-      // 1️⃣ Login
-      const { data: loginData, error: loginError } =
-        await window.supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-
-      if (loginError || !loginData.user) {
-        alert('❌ Usuario o contraseña incorrectos');
-        return;
-      }
-
-      // 2️⃣ Leer perfil (rol)
-      const userId = loginData.user.id;
-
-      const { data: profile, error: profileError } =
-        await window.supabase
-          .from('profiles')
-          .select('role, is_active')
-          .eq('id', userId)
-          .single();
-
-      if (profileError || !profile) {
-        alert('❌ Usuario sin perfil. Contacta al administrador.');
-        await window.supabase.auth.signOut();
-        return;
-      }
-
-      if (!profile.is_active) {
-        alert('❌ Usuario inactivo.');
-        await window.supabase.auth.signOut();
-        return;
-      }
-
-      // 3️⃣ Redirección automática por rol
-      const rutas = {
-        superadmin: 'eduadmin/dashboard.html',
-        director: 'eduadmin/dashboard.html',
-        secretaria: 'eduadmin/dashboard.html',
-        docente: 'eduasist/dashboard.html',
-        alumno: 'eduasist/dashboard.html',
-        apoderado: 'eduasist/dashboard.html'
-      };
-
-      const destino = rutas[profile.role];
-
-      if (!destino) {
-        alert('❌ Rol no reconocido: ' + profile.role);
-        await window.supabase.auth.signOut();
-        return;
-      }
-
-      // 4️⃣ Ir al dashboard correcto
-      window.location.href = destino;
-    });
-fetch('/.netlify/functions/create-auth-and-links', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    email: 'nuevo@correo.com',
-    password: '12345678'
-  })
-})
-.then(r => r.json())
-.then(console.log)
-.catch(console.error);  </script>
+  <!-- Login real -->
+  <script src="assets/js/login.js"></script>
 
 </body>
 </html>
