@@ -1,59 +1,38 @@
 // assets/js/login.js
-
-function toInternalEmail(usuario) {
-  // Quita espacios
-  const u = (usuario || "").trim();
-
-  // Si parece email real, lo dejamos (por si en el futuro usas emails)
-  if (u.includes("@")) return u.toLowerCase();
-
-  // Convertimos DNI/código a email interno
-  // Ej: 71234567 -> 71234567@educorp.local
-  // Ej: AMDC-2026-00045 -> amdc-2026-00045@educorp.local
-  return `${u.toLowerCase()}@educorp.local`;
-}
-
 document.addEventListener("DOMContentLoaded", () => {
+  const sb = window.supabaseClient || window.supabase;
   const btn = document.getElementById("btnEntrar");
-  const txtUsuario = document.getElementById("txtUsuario");
-  const txtPassword = document.getElementById("txtPassword");
-  const appDestino = document.getElementById("appDestino");
+  const sel = document.getElementById("appDestino");
 
-  if (!btn || !txtUsuario || !txtPassword) {
-    console.error("Faltan elementos del login (btnEntrar/txtUsuario/txtPassword)");
-    return;
-  }
+  const inputUser = document.querySelector('input[type="text"]');
+  const inputPass = document.querySelector('input[type="password"]');
+
+  const cleanDigits = (v) => String(v || "").replace(/\D/g, "");
+  const toInternalEmail = (dni) => `${cleanDigits(dni)}@educorp.local`;
 
   btn.addEventListener("click", async () => {
-    const usuario = txtUsuario.value.trim();
-    const password = txtPassword.value;
+    const rawUser = (inputUser?.value || "").trim();
+    const pass = (inputPass?.value || "").trim();
 
-    if (!usuario || !password) {
-      alert("⚠️ Escribe tu usuario (DNI/código) y contraseña.");
-      return;
+    if (!rawUser || !pass) return alert("Completa usuario y contraseña.");
+
+    // Si parece DNI (8 dígitos), lo convertimos a email interno
+    let email = rawUser;
+    const dni = cleanDigits(rawUser);
+    if (dni.length === 8) email = toInternalEmail(dni);
+
+    const { data, error } = await sb.auth.signInWithPassword({
+      email,
+      password: pass,
+    });
+
+    if (error || !data?.session) {
+      console.error(error);
+      return alert("❌ Login falló: " + (error?.message || "sin sesión"));
     }
 
-    const email = toInternalEmail(usuario);
-
-    try {
-      // Login con Supabase Auth
-      const { data, error } = await window.supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        alert("❌ " + error.message);
-        return;
-      }
-
-      // Si logueó, redirige a lo que eligió
-      const destino = appDestino?.value || "eduasist/dashboard.html";
-      window.location.href = destino;
-
-    } catch (e) {
-      console.error(e);
-      alert("❌ Error inesperado al iniciar sesión.");
-    }
+    // Redirigir
+    const destino = sel?.value || "eduadmin/dashboard.html";
+    window.location.href = destino;
   });
 });
