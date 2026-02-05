@@ -3,28 +3,20 @@ const { createClient } = require("@supabase/supabase-js");
 
 exports.handler = async (event) => {
   try {
-    if (event.httpMethod !== "POST") {
-      return json(405, { error: "Method Not Allowed. Use POST." });
-    }
+    if (event.httpMethod !== "POST") return json(405, { error: "Use POST" });
 
     const body = JSON.parse(event.body || "{}");
 
-    // ✅ Acepta 2 formatos:
-    // A) { colegio_id, apoderado:{dni,id,...}, alumno:{dni,id,...}, initial_password }
-    // B) { colegio_id, dni_apoderado, dni_alumno, password_inicial }
     const colegio_id = body.colegio_id || body.colegioId || null;
 
-    const initial_password =
-      body.initial_password ||
-      body.password_inicial ||
-      body.password ||
-      "0502000323";
-
+    // Formato A: { apoderado:{dni,id,password?}, alumno:{dni,id,password?}, ... }
+    // Formato B: { dni_apoderado, dni_alumno, password_apoderado, password_alumno, ... }
     const apoderado = body.apoderado || {
       dni: body.dni_apoderado || body.apoderado_dni || body.dniApoderado,
       id: body.apoderado_id || null,
       nombres: body.apoderado_nombres || "",
       apellidos: body.apoderado_apellidos || "",
+      password: body.password_apoderado || body.apoderado_password || "",
     };
 
     const alumno = body.alumno || {
@@ -32,48 +24,61 @@ exports.handler = async (event) => {
       id: body.alumno_id || null,
       nombres: body.alumno_nombres || "",
       apellidos: body.alumno_apellidos || "",
+      password: body.password_alumno || body.alumno_password || "",
     };
+
+    // Password por defecto (si no mandas nada)
+    const initial_password =
+      body.initial_password ||
+      body.password_inicial ||
+      body.password ||
+      "0502000323";
 
     if (!colegio_id || !apoderado?.dni || !alumno?.dni) {
       return json(400, {
         error:
-          "Faltan datos requeridos: colegio_id y DNI de apoderado/alumno (apoderado.dni y alumno.dni o dni_apoderado/dni_alumno).",
+          "Faltan datos: colegio_id y dni de apoderado/alumno",
         received: { colegio_id, apoderado, alumno },
       });
     }
 
-    // ✅ Variables Netlify (Environment variables)
+    // ENV vars Netlify
     const supabaseUrl = process.env.SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !serviceKey) {
       return json(500, {
         error:
-          "Faltan variables SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en Netlify (Environment variables).",
+          "Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en Netlify Environment variables",
       });
     }
 
     const sb = createClient(supabaseUrl, serviceKey);
 
-    // ✅ Verifica que sea supabase-js v2 (admin API existe)
-    if (!sb?.auth?.admin?.createUser) {
+    // Verificar admin disponible (supabase-js v2)
+    if (!sb?.auth?.admin?.createUser || !sb?.auth?.admin?.getUserByEmail) {
       return json(500, {
         error:
-          "Tu Netlify está usando una versión antigua de @supabase/supabase-js. Debes actualizarla a v2.",
-        hint:
-          "En package.json pon: @supabase/supabase-js: ^2.x y vuelve a deploy.",
+          "Supabase admin API no disponible. Netlify está usando @supabase/supabase-js antiguo (v1).",
+        fix:
+          "Actualiza @supabase/supabase-js a v2 en package.json y redeploy.",
       });
     }
 
     const clean = (x) => String(x || "").replace(/\D/g, "");
     const toEmail = (dni) => `${clean(dni)}@educorp.local`;
 
-    const apEmail = toEmail(apoderado.dni);
-    const alEmail = toEmail(alumno.dni);
+    const apDni = clean(apoderado.dni);
+    const alDni = clean(alumno.dni);
 
-    // -----------------------------
-    // 1) OBTENER O CREAR AUTH (APODERADO)
-    // -----------------------------
+    const apEmail = toEmail(apDni);
+    const alEmail = toEmail(alDni);
+
+    // Si no te dan password, usamos DNI como clave (rápido y fácil)
+    const apPass = String(apoderado.password || "").trim() || apDni || initial_password;
+    const alPass = String(alumno.password || "").trim() || alDni || initial_password;
+
+    // 1) APODERADO AUTH
     let apUserId = null;
     const apGet = await sb.auth.admin.getUserByEmail(apEmail);
     if (apGet?.data?.user?.id) {
@@ -81,18 +86,15 @@ exports.handler = async (event) => {
     } else {
       const { data, error } = await sb.auth.admin.createUser({
         email: apEmail,
-        password: initial_password,
+        password: apPass,
         email_confirm: true,
-        user_metadata: { role: "apoderado", dni: clean(apoderado.dni) },
+        user_metadata: { role: "apoderado", dni: apDni },
       });
       if (error) return json(500, { error: "createUser apoderado: " + error.message });
-      if (!data?.user?.id) return json(500, { error: "No se pudo crear user apoderado (user null)." });
       apUserId = data.user.id;
     }
 
-    // -----------------------------
-    // 2) OBTENER O CREAR AUTH (ALUMNO)
-    // -----------------------------
+    // 2) ALUMNO AUTH
     let alUserId = null;
     const alGet = await sb.auth.admin.getUserByEmail(alEmail);
     if (alGet?.data?.user?.id) {
@@ -100,63 +102,48 @@ exports.handler = async (event) => {
     } else {
       const { data, error } = await sb.auth.admin.createUser({
         email: alEmail,
-        password: initial_password,
+        password: alPass,
         email_confirm: true,
-        user_metadata: { role: "alumno", dni: clean(alumno.dni) },
+        user_metadata: { role: "alumno", dni: alDni },
       });
       if (error) return json(500, { error: "createUser alumno: " + error.message });
-      if (!data?.user?.id) return json(500, { error: "No se pudo crear user alumno (user null)." });
       alUserId = data.user.id;
     }
 
-    // -----------------------------
-    // 3) UPSERT PROFILES (id = auth uid)
-    // -----------------------------
-    const prof1 = await sb
-      .from("profiles")
-      .upsert(
-        {
-          id: apUserId,
-          role: "apoderado",
-          colegio_id,
-          is_active: true,
-          apoderado_id: apoderado.id ?? null,
-        },
-        { onConflict: "id" }
-      );
+    // 3) PROFILES (id = auth uid)
+    const profAp = await sb.from("profiles").upsert(
+      {
+        id: apUserId,
+        role: "apoderado",
+        colegio_id,
+        is_active: true,
+        apoderado_id: apoderado.id ?? null,
+      },
+      { onConflict: "id" }
+    );
+    if (profAp.error) return json(500, { error: "profiles apoderado: " + profAp.error.message });
 
-    if (prof1.error) return json(500, { error: "profiles apoderado: " + prof1.error.message });
+    const profAl = await sb.from("profiles").upsert(
+      {
+        id: alUserId,
+        role: "alumno",
+        colegio_id,
+        is_active: true,
+        alumno_id: alumno.id ?? null,
+      },
+      { onConflict: "id" }
+    );
+    if (profAl.error) return json(500, { error: "profiles alumno: " + profAl.error.message });
 
-    const prof2 = await sb
-      .from("profiles")
-      .upsert(
-        {
-          id: alUserId,
-          role: "alumno",
-          colegio_id,
-          is_active: true,
-          alumno_id: alumno.id ?? null,
-        },
-        { onConflict: "id" }
-      );
-
-    if (prof2.error) return json(500, { error: "profiles alumno: " + prof2.error.message });
-
-    // -----------------------------
-    // 4) VINCULAR apoderado_hijos
-    // (aquí estás usando AUTH UID, tal como venías trabajando)
-    // -----------------------------
-    const link = await sb
-      .from("apoderado_hijos")
-      .upsert(
-        {
-          colegio_id,
-          apoderado_id: apUserId,
-          alumno_id: alUserId,
-        },
-        { onConflict: "apoderado_id,alumno_id" }
-      );
-
+    // 4) VÍNCULO apoderado_hijos (AUTH UID)
+    const link = await sb.from("apoderado_hijos").upsert(
+      {
+        colegio_id,
+        apoderado_id: apUserId,
+        alumno_id: alUserId,
+      },
+      { onConflict: "apoderado_id,alumno_id" }
+    );
     if (link.error) return json(500, { error: "apoderado_hijos: " + link.error.message });
 
     return json(200, {
@@ -165,7 +152,8 @@ exports.handler = async (event) => {
       alumno_auth_id: alUserId,
       apoderado_email: apEmail,
       alumno_email: alEmail,
-      initial_password,
+      apoderado_password_used: apPass,
+      alumno_password_used: alPass,
     });
   } catch (e) {
     return json(500, { error: e.message || String(e) });
