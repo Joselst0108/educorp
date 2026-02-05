@@ -15,7 +15,16 @@
   <p><a href="../dashboard.html">⬅ Volver al Dashboard</a></p>
 
   <hr />
+<!-- ✅ Panel de estado / diagnóstico -->
+<div id="diagPanel" style="margin:12px 0; padding:12px; border:1px solid #ddd; border-radius:10px;">
+  <b>Estado de Matrícula</b>
+  <div id="diagStatus" style="margin-top:8px; font-family:system-ui,Segoe UI; font-size:14px;"></div>
 
+  <details style="margin-top:10px;">
+    <summary>Ver detalles técnicos</summary>
+    <pre id="diagRaw" style="white-space:pre-wrap; word-break:break-word; background:#f7f7f7; padding:10px; border-radius:8px;"></pre>
+  </details>
+</div>
   <h2>1) Buscar alumno por DNI (reingreso)</h2>
   <input id="buscarDni" type="text" placeholder="DNI del alumno" />
   <button id="btnBuscar" type="button">Buscar</button>
