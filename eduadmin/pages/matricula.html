@@ -1,97 +1,358 @@
+<!-- Ruta: eduadmin/pages/matricula.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>EduAdmin | Matrícula</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../../assets/js/supabaseClient.js"></script>
 
   <style>
-    body{font-family:Arial;padding:20px}
-    input,select{margin-bottom:8px;width:100%;padding:6px}
-    button{padding:10px;margin-top:10px}
-    .box{border:1px solid #ccc;padding:15px;margin-bottom:20px}
-    .ok{color:green}
-    .error{color:red}
+    body { font-family: Arial, sans-serif; padding: 14px; }
+    h1,h2,h3 { margin: 10px 0; }
+    .topbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom: 10px; }
+    .pill { padding:6px 10px; border-radius: 999px; background:#eef; display:inline-block; }
+    .btn { padding:7px 12px; border:1px solid #999; background:#f7f7f7; cursor:pointer; border-radius:6px; }
+    .btn.primary { background:#e8fff0; border-color:#5cb85c; }
+    .btn.danger { background:#ffecec; border-color:#d9534f; }
+    .btn.small { padding:6px 10px; font-size: 12px; border-radius: 6px; }
+    .card { border:1px solid #ddd; border-radius:10px; padding:12px; margin: 10px 0; }
+    .grid { display:grid; grid-template-columns: 1fr; gap:10px; }
+    .row { display:grid; grid-template-columns: 1fr; gap:6px; }
+    label { font-weight: 600; }
+    input, select { width: 100%; padding:8px; border:1px solid #bbb; border-radius:6px; box-sizing:border-box; }
+    .muted { color:#666; font-size: 13px; }
+    .ok { color:#1a7f37; font-weight: 700; }
+    .bad { color:#b42318; font-weight: 700; }
+    .warn { color:#b54708; font-weight: 700; }
+    .line { height:1px; background:#eee; margin:10px 0; }
+
+    /* Modal */
+    #modalExistente {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      display: none;
+      padding: 16px;
+      box-sizing: border-box;
+      z-index: 9999;
+    }
+    .modal-card {
+      max-width: 520px;
+      background: #fff;
+      margin: 40px auto;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #ddd;
+    }
+    .modal-head { padding: 12px 14px; background:#f7f7f7; display:flex; justify-content:space-between; align-items:center; }
+    .modal-body { padding: 12px 14px; }
+    .modal-actions { padding: 12px 14px; display:flex; gap:8px; flex-wrap:wrap; background:#fafafa; }
+    .modal-actions .btn { flex: 1 1 auto; }
+
+    /* Status table */
+    .status-grid { display:grid; grid-template-columns: 1fr; gap:8px; }
+    .status-item { display:flex; justify-content:space-between; gap:10px; padding:8px; border:1px dashed #ddd; border-radius:10px; }
+    .status-item small { color:#666; }
+    .status-tag { min-width: 90px; text-align:right; font-weight: 800; }
+    .status-tag.ok { color:#1a7f37; }
+    .status-tag.bad { color:#b42318; }
+    .status-tag.warn { color:#b54708; }
+
+    @media (min-width: 820px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+      .row.two { grid-template-columns: 1fr 1fr; }
+      .row.three { grid-template-columns: 1fr 1fr 1fr; }
+      .row.inline { grid-template-columns: 2fr 1fr; align-items:end; gap:10px; }
+    }
   </style>
 </head>
 
 <body>
 
-<h2>🎓 Matrícula</h2>
-
-<!-- ===================== -->
-<!-- BUSCAR EXISTENTE -->
-<!-- ===================== -->
-<div class="box">
-  <h3>1) Buscar alumno por DNI</h3>
-
-  <form id="formBuscarDni">
-    <input id="dniBuscar" placeholder="DNI alumno">
-    <button type="submit" id="btnBuscar">Buscar</button>
-  </form>
-
-  <div id="boxExistente" style="display:none">
-    <p id="txtExistente"></p>
+  <div class="topbar">
+    <span class="pill" id="sessionInfo">Sesión: (cargando...)</span>
+    <button class="btn danger small" id="btnLogout">Cerrar sesión</button>
+    <a class="btn small" href="../dashboard.html">Volver al Dashboard</a>
   </div>
-</div>
 
-<!-- ===================== -->
-<!-- NUEVO -->
-<!-- ===================== -->
-<div class="box" id="boxNuevo" style="display:none">
+  <h1>EduAdmin | Matrícula</h1>
+  <p class="muted">Registra matrícula, reingreso, traslado o retiro. Además, crea credenciales (Auth) usando DNI → <b>DNI@educorp.local</b>.</p>
 
-<h3>2) Nueva matrícula</h3>
+  <!-- =========================
+       ESTADO / DEBUG
+  ========================== -->
+  <div class="card">
+    <details id="debugDetails">
+      <summary><b>Estado de Matrícula</b> <span class="muted">(ver detalles técnicos)</span></summary>
 
-<form id="formNuevo">
+      <div class="line"></div>
 
-<h4>Apoderado</h4>
-<input id="dniApoderado" placeholder="DNI apoderado">
-<input id="nombresApoderado" placeholder="Nombres">
-<input id="apellidosApoderado" placeholder="Apellidos">
+      <div class="status-grid">
+        <div class="status-item">
+          <div>
+            <b>Tabla: apoderados</b><br/>
+            <small>Insert/Upsert en BD</small>
+          </div>
+          <div class="status-tag" id="st_apoderados">—</div>
+        </div>
 
-<h4>Alumno</h4>
-<input id="dniAlumno" placeholder="DNI alumno">
-<input id="nombresAlumno" placeholder="Nombres">
-<input id="apellidosAlumno" placeholder="Apellidos">
+        <div class="status-item">
+          <div>
+            <b>Tabla: alumnos</b><br/>
+            <small>Insert/Upsert en BD</small>
+          </div>
+          <div class="status-tag" id="st_alumnos">—</div>
+        </div>
 
-<h4>Credenciales</h4>
-<input id="passwordApoderado" placeholder="Contraseña apoderado (opcional)">
-<input id="passwordAlumno" placeholder="Contraseña alumno (opcional)">
+        <div class="status-item">
+          <div>
+            <b>Tabla: matriculas</b><br/>
+            <small>Registro de matrícula</small>
+          </div>
+          <div class="status-tag" id="st_matriculas">—</div>
+        </div>
 
-<button type="submit">Registrar matrícula</button>
+        <div class="status-item">
+          <div>
+            <b>Auth: apoderado</b><br/>
+            <small>Crear usuario en Supabase Auth</small>
+          </div>
+          <div class="status-tag" id="st_auth_apoderado">—</div>
+        </div>
 
-</form>
-</div>
+        <div class="status-item">
+          <div>
+            <b>Auth: alumno</b><br/>
+            <small>Crear usuario en Supabase Auth</small>
+          </div>
+          <div class="status-tag" id="st_auth_alumno">—</div>
+        </div>
 
-<!-- ===================== -->
-<!-- MODAL -->
-<!-- ===================== -->
-<div id="modalExistente" style="display:none;background:#0003;padding:20px;">
-  <div style="background:white;padding:20px">
-    <div id="modalBody"></div>
+        <div class="status-item">
+          <div>
+            <b>Tabla: profiles</b><br/>
+            <small>Upsert profiles (si aplica)</small>
+          </div>
+          <div class="status-tag" id="st_profiles">—</div>
+        </div>
 
-    <button id="btnConfirmarMatricula">Confirmar</button>
-    <button id="btnReingreso">Reingreso</button>
-    <button id="btnTraslado">Traslado</button>
-    <button id="btnRetiro">Retiro</button>
-    <button id="btnCerrarModal">Cerrar</button>
+        <div class="status-item">
+          <div>
+            <b>Tabla: apoderado_hijos</b><br/>
+            <small>Vincular apoderado ↔ alumno (si aplica)</small>
+          </div>
+          <div class="status-tag" id="st_apoderado_hijos">—</div>
+        </div>
+      </div>
+
+      <div class="line"></div>
+
+      <div id="debugBox" class="card" style="background:#fcfcff;">
+        <b>Log técnico</b>
+        <div id="debugList" class="muted" style="margin-top:8px; white-space:pre-wrap;"></div>
+      </div>
+    </details>
   </div>
-</div>
 
-<!-- ===================== -->
-<!-- DEBUG -->
-<!-- ===================== -->
-<div class="box">
-  <h4>Estado</h4>
-  <div id="debugBox"></div>
-</div>
+  <!-- =========================
+       1) BUSCAR (REINGRESO)
+  ========================== -->
+  <div class="card">
+    <h2>1) Buscar alumno por DNI (reingreso)</h2>
 
-<!-- TU JS -->
-<script src="../js/matricula.js"></script>
+    <form id="formBuscarDni">
+      <div class="row inline">
+        <div>
+          <label for="dniBuscar">DNI del alumno</label>
+          <input id="dniBuscar" type="text" placeholder="Ej: 71234567" inputmode="numeric" />
+        </div>
+        <div>
+          <button class="btn primary" id="btnBuscar" type="submit">Buscar</button>
+        </div>
+      </div>
+    </form>
+
+    <div id="boxExistente" style="display:none; margin-top:10px;">
+      <div class="line"></div>
+      <p id="txtExistente" class="muted"></p>
+    </div>
+  </div>
+
+  <!-- =========================
+       2) NUEVA MATRÍCULA
+  ========================== -->
+  <div class="card" id="boxNuevo" style="display:none;">
+    <h2>2) Nueva matrícula (crear apoderado + alumno + matrícula)</h2>
+
+    <form id="formNuevo">
+      <div class="grid">
+        <!-- Apoderado -->
+        <div class="card" style="margin:0;">
+          <h3>Datos del Apoderado</h3>
+
+          <label for="dniApoderado">DNI apoderado:</label>
+          <input id="dniApoderado" type="text" placeholder="Ej: 45102918" inputmode="numeric"/>
+
+          <label for="nombresApoderado">Nombres:</label>
+          <input id="nombresApoderado" type="text" placeholder="Ej: Juan"/>
+
+          <label for="apellidosApoderado">Apellidos:</label>
+          <input id="apellidosApoderado" type="text" placeholder="Ej: Pérez"/>
+
+          <label for="telefonoApoderado">Teléfono (opcional):</label>
+          <input id="telefonoApoderado" type="text" placeholder="Ej: 999888777" inputmode="tel"/>
+
+          <label for="emailApoderado">Email (opcional):</label>
+          <input id="emailApoderado" type="email" placeholder="Ej: apoderado@gmail.com"/>
+
+          <div class="line"></div>
+
+          <h3>Credenciales (Auth)</h3>
+          <p class="muted">Si dejas vacío, la contraseña puede ser el DNI (según tu JS).</p>
+
+          <label for="passApoderado">Contraseña Apoderado:</label>
+          <input id="passApoderado" type="password" placeholder="(por defecto: DNI)" />
+        </div>
+
+        <!-- Alumno -->
+        <div class="card" style="margin:0;">
+          <h3>Datos del Alumno</h3>
+
+          <label for="dniAlumno">DNI alumno:</label>
+          <input id="dniAlumno" type="text" placeholder="Ej: 45102919" inputmode="numeric"/>
+
+          <div class="row inline">
+            <div>
+              <label for="aluCodigo">Código alumno (puede ser DNI o código interno):</label>
+              <input id="aluCodigo" type="text" placeholder="Ej: 12345678 o AMDC-2026-00045"/>
+            </div>
+            <div>
+              <button class="btn" id="btnAutoCodigo" type="button">Autogenerar</button>
+            </div>
+          </div>
+
+          <label for="nombresAlumno">Nombres:</label>
+          <input id="nombresAlumno" type="text" placeholder="Ej: María"/>
+
+          <label for="apellidosAlumno">Apellidos:</label>
+          <input id="apellidosAlumno" type="text" placeholder="Ej: Gómez"/>
+
+          <div class="row two">
+            <div>
+              <label for="nivelAlumno">Nivel:</label>
+              <select id="nivelAlumno">
+                <option value="Inicial">Inicial</option>
+                <option value="Primaria">Primaria</option>
+                <option value="Secundaria">Secundaria</option>
+              </select>
+            </div>
+            <div>
+              <label for="gradoAlumno">Grado:</label>
+              <input id="gradoAlumno" type="text" placeholder="Ej: 5" inputmode="numeric"/>
+            </div>
+          </div>
+
+          <label for="seccionAlumno">Sección:</label>
+          <input id="seccionAlumno" type="text" placeholder="Ej: A"/>
+
+          <div class="line"></div>
+
+          <h3>Credenciales (Auth)</h3>
+          <p class="muted">Si dejas vacío, la contraseña puede ser el DNI (según tu JS).</p>
+
+          <label for="passAlumno">Contraseña Alumno:</label>
+          <input id="passAlumno" type="password" placeholder="(por defecto: DNI)" />
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:10px;">
+        <h3>Datos de Matrícula</h3>
+
+        <label for="matAnio">Año:</label>
+        <input id="matAnio" type="text" value="2026" inputmode="numeric" />
+
+        <div style="margin-top:10px;">
+          <button class="btn primary" type="submit">Registrar matrícula</button>
+        </div>
+
+        <p class="muted" id="msgOk" style="margin-top:10px;"></p>
+      </div>
+    </form>
+  </div>
+
+  <!-- =========================
+       MODAL EXISTENTE (acciones)
+  ========================== -->
+  <div id="modalExistente" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <b>Alumno existente</b>
+        <button class="btn small" id="btnCerrarModal" type="button">X</button>
+      </div>
+
+      <div class="modal-body" id="modalBody">
+        <!-- El JS inyecta contenido aquí -->
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn primary" id="btnConfirmarMatricula" type="button">Confirmar</button>
+        <button class="btn" id="btnReingreso" type="button">Reingreso</button>
+        <button class="btn" id="btnTraslado" type="button">Traslado</button>
+        <button class="btn danger" id="btnRetiro" type="button">Retiro</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
+       SCRIPTS
+  ========================== -->
+  <!-- Supabase CDN v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Tu cliente global -->
+  <script src="../../assets/js/supabaseClient.js"></script>
+
+  <!-- Script de matrícula -->
+  <script src="../js/matricula.js"></script>
+
+  <!-- Logout simple (si tu auth.js ya lo maneja, puedes borrar esto) -->
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      try {
+        const sb = window.supabaseClient || window.supabase;
+        if (!sb) return;
+
+        // Mostrar sesión + colegio_id si existe
+        const { data } = await sb.auth.getSession();
+        const role = localStorage.getItem("role") || "(rol?)";
+        const colegioId = localStorage.getItem("colegio_id") || "(sin colegio_id)";
+        const who = data?.session?.user?.email || data?.session?.user?.id || "sin sesión";
+        const el = document.getElementById("sessionInfo");
+        if (el) el.textContent = `Sesión activa (${role}) | colegio_id: ${colegioId} | ${who}`;
+
+        const btn = document.getElementById("btnLogout");
+        if (btn) {
+          btn.addEventListener("click", async () => {
+            await sb.auth.signOut();
+            window.location.href = "../../login.html";
+          });
+        }
+
+        // Autogenerar código (si lo quieres simple)
+        const btnAuto = document.getElementById("btnAutoCodigo");
+        if (btnAuto) {
+          btnAuto.addEventListener("click", () => {
+            const dni = (document.getElementById("dniAlumno")?.value || "").trim();
+            const anio = (document.getElementById("matAnio")?.value || "2026").trim();
+            const cod = document.getElementById("aluCodigo");
+            if (!cod) return;
+            if (dni) cod.value = dni;
+            else cod.value = `AMDC-${anio}-${String(Math.floor(Math.random()*99999)).padStart(5,'0')}`;
+          });
+        }
+      } catch (_) {}
+    });
+  </script>
 
 </body>
 </html>
