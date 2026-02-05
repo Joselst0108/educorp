@@ -2,8 +2,9 @@
 // MATRICULA - EduAdmin
 // Ruta: eduadmin/js/matricula.js
 // - Crea Alumno/Apoderado/Matricula (DB)
-// - Crea Auth users (email interno DNI@educorp.local) con password = DNI
+// - Intenta crear Auth users (email interno DNI@educorp.local) con password = DNI
 // - No rompe la sesión del admin (cliente aislado)
+// - Muestra errores reales cuando Auth no se crea
 // ================================
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -24,6 +25,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const anioAcademicoId = localStorage.getItem("anio_academico_id") || "";
   const AUTO_CREATE_AUTH = true;
+
+  // ✅ IMPORTANTE:
+  // Tu supabaseClient.js NO define window.SUPABASE_URL / window.SUPABASE_ANON_KEY
+  // Por eso, aquí los ponemos como fallback usando los datos del proyecto (ANON key es seguro para frontend).
+  const FALLBACK_SUPABASE_URL = "https://rvdafufkhyjtauubirkz.supabase.co";
+  const FALLBACK_SUPABASE_ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2ZGFmdWZraHlqdGF1dWJpcmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNzM5MDQsImV4cCI6MjA4NTY0OTkwNH0.Yo0EC8g9v0DHebiFyS445EbLMYHw14U2x3VN1_ZmKAk";
 
   // =========================
   // ELEMENTOS (IDs esperados)
@@ -69,13 +77,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const isValidDni = (dni) => onlyDigits(dni).length === 8;
   const toInternalEmailByDni = (dni) => `${onlyDigits(dni)}@educorp.local`;
 
+  const errMsg = (e) =>
+    (e && (e.message || e.error_description)) ? (e.message || e.error_description) : String(e || "");
+
   // =========================
   // Cliente aislado para signUp (NO rompe sesión admin)
   // =========================
   function getProvisionClient() {
-    const url = window.SUPABASE_URL;
-    const key = window.SUPABASE_ANON_KEY;
-    if (!url || !key) throw new Error("Falta SUPABASE_URL o SUPABASE_ANON_KEY en window (revisa supabaseClient.js).");
+    // Usamos window vars si existen, sino fallback (para que no falle).
+    const url = window.SUPABASE_URL || FALLBACK_SUPABASE_URL;
+    const key = window.SUPABASE_ANON_KEY || FALLBACK_SUPABASE_ANON_KEY;
+
+    if (!url || !key) throw new Error("Falta SUPABASE_URL o SUPABASE_ANON_KEY (no hay fallback).");
 
     // Usamos el SDK global del CDN (supabase)
     return supabase.createClient(url, key, {
@@ -87,6 +100,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // =========================
+  // AUTH + PROFILE (por signUp)
+  // =========================
   async function ensureAuthAndProfile({ dni, role, colegio_id, alumno_id = null, apoderado_id = null }) {
     if (!AUTO_CREATE_AUTH) return { ok: true, skipped: true };
 
@@ -98,22 +114,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const pClient = getProvisionClient();
 
-    // 1) SignUp (si ya existe, lo tratamos como OK)
+    // 1) SignUp
     const { data: signData, error: signErr } = await pClient.auth.signUp({ email, password });
 
-    // Si existe, supabase suele devolver error tipo "User already registered"
-    if (signErr && !String(signErr.message || "").toLowerCase().includes("already")) {
+    // Si hay error, lo devolvemos tal cual (para que lo veas en el alert)
+    if (signErr) {
+      // Caso típico: "User already registered"
+      const low = String(signErr.message || "").toLowerCase();
+      if (low.includes("already") || low.includes("registered")) {
+        return { ok: true, email, password, user_id: null, existed: true, note: "Usuario ya existía en Auth." };
+      }
       return { ok: false, error: `signUp (${role}): ${signErr.message}` };
     }
 
-    // 2) Obtener auth user id:
-    // - Si signUp funcionó, puede venir signData.user.id
-    // - Si ya existía, no tenemos admin para leerlo. Solución simple:
-    //   Insertamos/actualizamos profile SOLO cuando tenemos user id.
-    //
-    // Para casos “ya existía”, lo dejamos sin profile aquí (ya debería existir).
     const userId = signData?.user?.id || null;
 
+    // 2) Upsert profile (si tenemos userId)
     if (userId) {
       const { error: profErr } = await sb
         .from("profiles")
@@ -133,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (profErr) return { ok: false, error: `profiles upsert (${role}): ${profErr.message}` };
     }
 
-    return { ok: true, email, password, user_id: userId, existed: !!signErr };
+    return { ok: true, email, password, user_id: userId, existed: false };
   }
 
   // =========================
@@ -234,7 +250,9 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderModalAlumnoExistente(alumno, apoderado) {
     const estado = alumno.estado || "activo";
     const nombre = `${alumno.nombres || ""} ${alumno.apellidos || ""}`.trim();
-    const apNombre = apoderado ? `${apoderado.nombres || ""} ${apoderado.apellidos || ""}`.trim() : "(sin apoderado)";
+    const apNombre = apoderado
+      ? `${apoderado.nombres || ""} ${apoderado.apellidos || ""}`.trim()
+      : "(sin apoderado)";
     const apDni = apoderado?.dni || "-";
 
     if (modalBody) {
@@ -286,7 +304,7 @@ document.addEventListener("DOMContentLoaded", () => {
       renderModalAlumnoExistente(alumnoEncontrado, apoderadoEncontrado);
     } catch (err) {
       console.error(err);
-      alert("❌ Error al buscar DNI: " + (err.message || err));
+      alert("❌ Error al buscar DNI: " + errMsg(err));
     }
   }
 
@@ -301,15 +319,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       const apoderadoId = apoderadoEncontrado?.id || alumnoEncontrado.apoderado_id || null;
-
       const r = await crearMatricula({ alumno_id: alumnoEncontrado.id, apoderado_id: apoderadoId, tipo });
+
       closeModal();
 
       if (r.duplicated) return alert("⚠️ Ya existe matrícula para este alumno (año actual).");
       alert(`✅ Matrícula registrada (${tipo}).`);
     } catch (err) {
       console.error(err);
-      alert("❌ Error registrando matrícula: " + (err.message || err));
+      alert("❌ Error registrando matrícula: " + errMsg(err));
     }
   }
 
@@ -338,7 +356,12 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!isValidDni(dniAl) || !isValidDni(dniAp)) return alert("⚠️ DNI inválido. Debe tener 8 dígitos.");
 
       // 1) DB apoderado
-      const apoderado = await upsertApoderado({ colegio_id: colegioId, dni: dniAp, nombres: nomAp, apellidos: apeAp });
+      const apoderado = await upsertApoderado({
+        colegio_id: colegioId,
+        dni: dniAp,
+        nombres: nomAp,
+        apellidos: apeAp
+      });
 
       // 2) DB alumno
       const alumno = await upsertAlumno({
@@ -347,27 +370,14 @@ document.addEventListener("DOMContentLoaded", () => {
         nombres: nomAl,
         apellidos: apeAl,
         estado: "activo",
-        apoderado_id: apoderado.id,
+        apoderado_id: apoderado.id
       });
 
       // 3) DB matrícula
-      const mat = await crearMatricula({ alumno_id: alumno.id, apoderado_id: apoderado.id, tipo: "nuevo" });
-
-      // 4) Auth + profiles (cliente aislado)
-      const authAp = await ensureAuthAndProfile({
-        dni: dniAp,
-        role: "apoderado",
-        colegio_id: colegioId,
-        apoderado_id: apoderado.id,
-        alumno_id: null,
-      });
-
-      const authAl = await ensureAuthAndProfile({
-        dni: dniAl,
-        role: "alumno",
-        colegio_id: colegioId,
+      const mat = await crearMatricula({
         alumno_id: alumno.id,
-        apoderado_id: null,
+        apoderado_id: apoderado.id,
+        tipo: "nuevo"
       });
 
       if (mat.duplicated) {
@@ -375,11 +385,30 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      // 4) Auth + profiles (cliente aislado)
+      const authAp = await ensureAuthAndProfile({
+        dni: dniAp,
+        role: "apoderado",
+        colegio_id: colegioId,
+        apoderado_id: apoderado.id,
+        alumno_id: null
+      });
+
+      const authAl = await ensureAuthAndProfile({
+        dni: dniAl,
+        role: "alumno",
+        colegio_id: colegioId,
+        alumno_id: alumno.id,
+        apoderado_id: null
+      });
+
       if (!authAp.ok || !authAl.ok) {
+        // ✅ Aquí verás EL ERROR REAL de por qué no se crea Auth
         alert(
-          "✅ Matrícula creada, pero falló la creación de Auth/Profile.\n\n" +
+          "✅ Matrícula creada, pero NO se creó Auth/Profile.\n\n" +
           `Apoderado: ${authAp.ok ? "OK" : authAp.error}\n` +
-          `Alumno: ${authAl.ok ? "OK" : authAl.error}`
+          `Alumno: ${authAl.ok ? "OK" : authAl.error}\n\n` +
+          "➡️ Solución típica: en Supabase Auth -> Providers -> Email, desactiva 'Confirm email' o habilita Signups."
         );
         return;
       }
@@ -396,7 +425,7 @@ document.addEventListener("DOMContentLoaded", () => {
       show(boxExistente);
     } catch (err) {
       console.error(err);
-      alert("❌ Error guardando matrícula: " + (err.message || err));
+      alert("❌ Error guardando matrícula: " + errMsg(err));
     }
   }
 
