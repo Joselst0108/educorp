@@ -1,135 +1,96 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Matrícula | EduAdmin</title>
+  <meta charset="UTF-8">
+  <title>EduAdmin | Matrícula</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Supabase CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabaseClient.js"></script>
 
-<!-- 🔴 IMPORTANTE: rutas corregidas -->
-<script src="../../assets/js/supabaseClient.js"></script>
-
-<style>
-body{font-family:Arial;padding:16px}
-.box{border:1px solid #ddd;padding:12px;margin:12px 0;border-radius:8px}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:720px){.row{grid-template-columns:1fr}}
-input,select,button{width:100%;padding:8px;margin-top:6px}
-button{cursor:pointer}
-#modalExistente{display:none;position:fixed;inset:0;background:#0008;align-items:center;justify-content:center}
-#modalCard{background:#fff;padding:16px;border-radius:10px;width:90%;max-width:500px}
-#debugBox{background:#111;color:#0f0;padding:8px;font-size:12px;margin-top:10px;max-height:180px;overflow:auto}
-</style>
+  <style>
+    body{font-family:Arial;padding:20px}
+    input,select{margin-bottom:8px;width:100%;padding:6px}
+    button{padding:10px;margin-top:10px}
+    .box{border:1px solid #ccc;padding:15px;margin-bottom:20px}
+    .ok{color:green}
+    .error{color:red}
+  </style>
 </head>
 
 <body>
 
-<h2>📚 Matrícula</h2>
+<h2>🎓 Matrícula</h2>
 
+<!-- ===================== -->
+<!-- BUSCAR EXISTENTE -->
+<!-- ===================== -->
 <div class="box">
-Colegio ID:
-<b id="colegioIdView">-</b>
+  <h3>1) Buscar alumno por DNI</h3>
+
+  <form id="formBuscarDni">
+    <input id="dniBuscar" placeholder="DNI alumno">
+    <button type="submit" id="btnBuscar">Buscar</button>
+  </form>
+
+  <div id="boxExistente" style="display:none">
+    <p id="txtExistente"></p>
+  </div>
 </div>
 
-<script>
-document.addEventListener("DOMContentLoaded",()=>{
- const c=localStorage.getItem("colegio_id")||"";
- document.getElementById("colegioIdView").textContent=c||"(vacío)";
-});
-</script>
-
-<!-- ========================= -->
-<!-- BUSCAR -->
-<!-- ========================= -->
-<div class="box">
-<h3>1) Buscar alumno por DNI</h3>
-
-<form id="formBuscarDni">
-<input id="dniBuscar" placeholder="DNI alumno"/>
-<button type="submit" id="btnBuscar">Buscar</button>
-</form>
-
-<div id="boxExistente" style="display:none">
-<p id="txtExistente"></p>
-</div>
-
-<!-- ========================= -->
+<!-- ===================== -->
 <!-- NUEVO -->
-<!-- ========================= -->
-<div id="boxNuevo" style="display:none">
+<!-- ===================== -->
+<div class="box" id="boxNuevo" style="display:none">
 
 <h3>2) Nueva matrícula</h3>
 
 <form id="formNuevo">
 
-<div class="row">
-
-<div class="box">
 <h4>Apoderado</h4>
+<input id="dniApoderado" placeholder="DNI apoderado">
+<input id="nombresApoderado" placeholder="Nombres">
+<input id="apellidosApoderado" placeholder="Apellidos">
 
-<label>DNI</label>
-<input id="dniApoderado" required>
-
-<label>Nombres</label>
-<input id="nombresApoderado" required>
-
-<label>Apellidos</label>
-<input id="apellidosApoderado" required>
-
-</div>
-
-<div class="box">
 <h4>Alumno</h4>
+<input id="dniAlumno" placeholder="DNI alumno">
+<input id="nombresAlumno" placeholder="Nombres">
+<input id="apellidosAlumno" placeholder="Apellidos">
 
-<label>DNI</label>
-<input id="dniAlumno" required>
-
-<label>Nombres</label>
-<input id="nombresAlumno" required>
-
-<label>Apellidos</label>
-<input id="apellidosAlumno" required>
-
-</div>
-
-</div>
-
-<div class="box">
 <h4>Credenciales</h4>
-<p>Usuario será: DNI@educorp.local</p>
-<p>Contraseña inicial: DNI</p>
-</div>
+<input id="passwordApoderado" placeholder="Contraseña apoderado (opcional)">
+<input id="passwordAlumno" placeholder="Contraseña alumno (opcional)">
 
 <button type="submit">Registrar matrícula</button>
 
-<div id="debugBox"></div>
-
 </form>
-
-</div>
 </div>
 
-<!-- ========================= -->
-<!-- MODAL EXISTENTE -->
-<!-- ========================= -->
-<div id="modalExistente">
-<div id="modalCard">
+<!-- ===================== -->
+<!-- MODAL -->
+<!-- ===================== -->
+<div id="modalExistente" style="display:none;background:#0003;padding:20px;">
+  <div style="background:white;padding:20px">
+    <div id="modalBody"></div>
 
-<h3>Alumno ya existe</h3>
-<div id="modalBody"></div>
-
-<button id="btnConfirmarMatricula">Confirmar</button>
-<button id="btnReingreso">Reingreso</button>
-<button id="btnTraslado">Traslado</button>
-<button id="btnRetiro">Retiro</button>
-<button id="btnCerrarModal">Cerrar</button>
-
-</div>
+    <button id="btnConfirmarMatricula">Confirmar</button>
+    <button id="btnReingreso">Reingreso</button>
+    <button id="btnTraslado">Traslado</button>
+    <button id="btnRetiro">Retiro</button>
+    <button id="btnCerrarModal">Cerrar</button>
+  </div>
 </div>
 
-<!-- 🔴 JS MATRÍCULA -->
+<!-- ===================== -->
+<!-- DEBUG -->
+<!-- ===================== -->
+<div class="box">
+  <h4>Estado</h4>
+  <div id="debugBox"></div>
+</div>
+
+<!-- TU JS -->
 <script src="../js/matricula.js"></script>
 
 </body>
