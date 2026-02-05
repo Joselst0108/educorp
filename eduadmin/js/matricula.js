@@ -1,12 +1,13 @@
 // ================================
 // MATRICULA - EduAdmin (con apoderado_id + Netlify Function opcional)
 // Ruta: eduadmin/js/matricula.js
+// ✅ Mejorado: validaciones, mensajes claros, payload correcto para Netlify Function
 // ================================
 
 document.addEventListener("DOMContentLoaded", () => {
   const sb = window.supabaseClient || window.supabase;
   if (!sb) {
-    alert("❌ Supabase no inicializado. Revisa supabaseClient.js y el CDN.");
+    alert("❌ Supabase no inicializado. Revisa assets/js/supabaseClient.js y el CDN.");
     return;
   }
 
@@ -105,6 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ==========================================
   // ✅ Netlify Function (Auth + profiles + apoderado_hijos)
+  //    IMPORTANTE: payload corregido al formato que tu function espera
   // ==========================================
   async function ensureAuthProfilesAndLink({ colegio_id, apoderado, alumno }) {
     if (!AUTO_CREATE_AUTH) return { ok: true, skipped: true };
@@ -112,23 +114,24 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!colegio_id) return { ok: false, error: "Falta colegio_id para crear Auth/perfiles." };
     if (!apoderado?.dni || !alumno?.dni) return { ok: false, error: "Faltan DNI de apoderado/alumno." };
 
+    // ✅ payload compatible con tu function actual
     const payload = {
       colegio_id,
       initial_password: INITIAL_PASSWORD,
       apoderado: {
-        id: apoderado.id || null,          // public.apoderados.id
+        id: apoderado.id || null, // public.apoderados.id
         dni: onlyDigits(apoderado.dni),
         nombres: apoderado.nombres || "",
         apellidos: apoderado.apellidos || "",
         email: toInternalEmailByDni(apoderado.dni),
       },
       alumno: {
-        id: alumno.id || null,             // public.alumnos.id
+        id: alumno.id || null, // public.alumnos.id
         dni: onlyDigits(alumno.dni),
         nombres: alumno.nombres || "",
         apellidos: alumno.apellidos || "",
         email: toInternalEmailByDni(alumno.dni),
-      }
+      },
     };
 
     const { res, data } = await safeFetchJson("/.netlify/functions/create-auth-and-links", {
@@ -139,13 +142,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!res.ok || !data?.ok) {
       const errMsg = data?.error || `HTTP ${res.status} al llamar a create-auth-and-links`;
-      return { ok: false, error: errMsg };
+      return { ok: false, error: errMsg, details: data || null };
     }
 
     return {
       ok: true,
       apoderado_auth_id: data.apoderado_auth_id,
-      alumno_auth_id: data.alumno_auth_id
+      alumno_auth_id: data.alumno_auth_id,
+      apoderado_email: data.apoderado_email,
+      alumno_email: data.alumno_email,
+      initial_password: data.initial_password || INITIAL_PASSWORD,
     };
   }
 
@@ -419,6 +425,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (!dniAl || !dniAp) return alert("⚠️ DNI de alumno y apoderado son obligatorios.");
       if (!isValidDni(dniAl) || !isValidDni(dniAp)) return alert("⚠️ DNI inválido. Debe tener 8 dígitos.");
+      if (!nombresAlumno || !apellidosAlumno) return alert("⚠️ Completa nombres y apellidos del alumno.");
+      if (!nombresApoderado || !apellidosApoderado) return alert("⚠️ Completa nombres y apellidos del apoderado.");
 
       // 1) Crear/obtener apoderado
       const apoderado = await upsertApoderado({
@@ -463,9 +471,9 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         alert(
           "✅ Matrícula creada y usuarios generados.\n\n" +
-          `Alumno (usuario): ${toInternalEmailByDni(dniAl)}\n` +
-          `Apoderado (usuario): ${toInternalEmailByDni(dniAp)}\n` +
-          `Clave inicial: ${INITIAL_PASSWORD}`
+          `Alumno (usuario): ${link.alumno_email || toInternalEmailByDni(dniAl)}\n` +
+          `Apoderado (usuario): ${link.apoderado_email || toInternalEmailByDni(dniAp)}\n` +
+          `Clave inicial: ${link.initial_password || INITIAL_PASSWORD}`
         );
       }
 
