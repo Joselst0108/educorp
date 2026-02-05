@@ -1,4 +1,4 @@
-I90// ================================
+// ================================
 // MATRICULA - EduAdmin (con apoderado_id + Netlify Function opcional)
 // Ruta: eduadmin/js/matricula.js
 // ================================
@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ✅ Activa/desactiva automatización Auth + profiles + apoderado_hijos
   const AUTO_CREATE_AUTH = true;
 
-  // Password inicial requerido
+  // Password inicial requerido (se usará para alumno y apoderado)
   const INITIAL_PASSWORD = "0502000323";
 
   // ==========================================
@@ -346,8 +346,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnBuscar) btnBuscar.addEventListener("click", onBuscar);
 
   // ==========================================
-  // CONFIRMAR (EXISTENTE) -> ahora sí usa apoderado_id
-  // y opcionalmente crea Auth+profiles+apoderado_hijos
+  // CONFIRMAR (EXISTENTE)
   // ==========================================
   async function confirmar(tipo) {
     if (!alumnoEncontrado) return;
@@ -464,13 +463,13 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         alert(
           "✅ Matrícula creada y usuarios generados.\n\n" +
-          `Alumno: ${toInternalEmailByDni(dniAl)}\n` +
-          `Apoderado: ${toInternalEmailByDni(dniAp)}\n` +
+          `Alumno (usuario): ${toInternalEmailByDni(dniAl)}\n` +
+          `Apoderado (usuario): ${toInternalEmailByDni(dniAp)}\n` +
           `Clave inicial: ${INITIAL_PASSWORD}`
         );
       }
 
-      formNuevo.reset();
+      if (formNuevo) formNuevo.reset();
       hide(boxNuevo);
       show(boxExistente);
     } catch (err) {
@@ -481,24 +480,3 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (formNuevo) formNuevo.addEventListener("submit", onGuardarNuevo);
 });
-// 4) Crear Auth + profiles + apoderado_hijos (backend)
-const resp = await fetch("/.netlify/functions/create-auth-and-links", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    colegio_id: colegioId,
-    apoderado_id: apoderado.id,
-    apoderado_dni: dniApoderado,
-    alumno_id: alumno.id,
-    alumno_dni: dniAlumno,
-    password: "0502000323"
-  })
-});
-
-const j = await resp.json();
-if (!resp.ok || !j.ok) {
-  console.error("Auth/Profiles link error:", j);
-  alert("⚠️ Matrícula creada, pero falló Auth/Profiles/Vínculo: " + (j.error || "error"));
-} else {
-  alert("✅ Matrícula + Auth + Profiles + Vínculo creados.");
-}
