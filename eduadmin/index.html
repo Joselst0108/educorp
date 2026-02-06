@@ -1,13 +1,6 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EduAdmin | EduCorp</title>
-</head>
-<body>
-  <h1>EduAdmin</h1>
-  <p>Gestión administrativa real del colegio.</p>
-  <a href="../index.html">Volver a EduCorp</a>
-</body>
-</html>
+const colegioId = localStorage.getItem("selected_colegio_id");
+
+if (!colegioId) {
+  alert("No hay colegio seleccionado");
+  window.location.href = "/eduadmin/pages/select-colegio.html";
+}
