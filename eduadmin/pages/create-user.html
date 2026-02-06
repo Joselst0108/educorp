@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduAdmin | Crear Usuario</title>
+
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background:#f5f7fb; }
+    header { background:#0f172a; color:#fff; padding:14px 18px; }
+    .wrap { max-width: 900px; margin: 18px auto; padding: 0 14px; }
+    .card { background:#fff; border-radius: 12px; padding:16px; box-shadow: 0 6px 18px rgba(0,0,0,.06); }
+    label { display:block; font-weight:600; margin:12px 0 6px; }
+    input, select { width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .btns { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+    button { padding:10px 14px; border:0; border-radius:10px; cursor:pointer; font-weight:700; }
+    .primary { background:#0ea5e9; color:#fff; }
+    .ghost { background:#e2e8f0; color:#0f172a; }
+    .ok { color:#0f766e; font-weight:700; }
+    .err { color:#b91c1c; font-weight:700; }
+    pre { background:#0b1020; color:#e5e7eb; padding:12px; border-radius:10px; overflow:auto; }
+    small { color:#475569; }
+    .hint { margin-top:10px; padding:10px; border-radius:10px; background:#fff7ed; border:1px solid #fed7aa; color:#9a3412;}
+    .toplinks { margin-top: 10px; display:flex; gap:10px; flex-wrap:wrap; }
+    .toplinks a { color:#0ea5e9; text-decoration:none; font-weight:700; }
+    @media (max-width:700px){ .row{ grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <strong>EduAdmin</strong> · Crear Usuario (prueba cambio de contraseña)
+</header>
+
+<div class="wrap">
+  <div class="card">
+
+    <div class="toplinks">
+      <a href="../dashboard.html">⬅ Volver al Dashboard</a>
+      <a href="../../login.html">🔐 Ir a Login</a>
+    </div>
+
+    <p>
+      Este formulario crea un usuario en <b>Supabase Auth</b> y crea/actualiza <b>profiles</b> con
+      <code>must_change_password=true</code> para que el cambio de contraseña ocurra solo la primera vez.
+    </p>
+
+    <div class="row">
+      <div>
+        <label>DNI</label>
+        <input id="dni" inputmode="numeric" placeholder="Ej: 45102960" maxlength="8" />
+        <small>8 dígitos (se convertirá a correo: dni@educorp.local)</small>
+      </div>
+
+      <div>
+        <label>colegio_id (UUID)</label>
+        <input id="colegio_id" placeholder="Ej: 8f818584-ef44-4e3a-9a33-02fc269971c8" />
+        <small>Si tu dashboard ya guarda colegio_id en localStorage, se autocompletará.</small>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Rol</label>
+        <select id="role">
+          <option value="docente">docente</option>
+          <option value="alumno">alumno</option>
+          <option value="apoderado">apoderado</option>
+          <option value="secretaria">secretaria</option>
+          <option value="director">director</option>
+          <option value="superadmin">superadmin</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Contraseña inicial</label>
+        <input id="password" type="text" placeholder="Si lo dejas vacío: usa el DNI" />
+        <small>Recomendado: DNI (para forzar cambio 1ra vez).</small>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Nombre (opcional)</label>
+        <input id="full_name" placeholder="Ej: José Silvestre" />
+      </div>
+
+      <div>
+        <label>Forzar cambio de contraseña</label>
+        <select id="must_change_password">
+          <option value="true" selected>true (solo primera vez)</option>
+          <option value="false">false</option>
+        </select>
+        <small>Si está en true, tu login debe mostrar el modal solo una vez.</small>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button class="primary" id="btnCrear">Crear usuario</button>
+      <button class="ghost" id="btnLimpiar" type="button">Limpiar</button>
+    </div>
+
+    <div class="hint">
+      Si tu Function no se llama <b>create-user</b>, cambia la constante <code>FN_URL</code> en el script.
+    </div>
+
+    <p id="msg"></p>
+    <pre id="out" style="display:none"></pre>
+
+  </div>
+</div>
+
+<!-- Scripts (orden importante) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../../assets/js/supabaseClient.js"></script>
+
+<script>
+  // ✅ Cambia esto si tu function tiene otro nombre
+  const FN_URL = "/.netlify/functions/create-user";
+
+  const $ = (id) => document.getElementById(id);
+  const msg = $("msg");
+  const out = $("out");
+
+  // Autocompletar colegio_id si existe
+  (function fillColegio() {
+    try {
+      const cid = localStorage.getItem("colegio_id");
+      if (cid && !$("colegio_id").value) $("colegio_id").value = cid;
+    } catch {}
+  })();
+
+  $("btnLimpiar").addEventListener("click", () => {
+    ["dni","password","full_name"].forEach(k => $(k).value = "");
+    // no borramos colegio_id a propósito
+    $("role").value = "docente";
+    $("must_change_password").value = "true";
+    msg.textContent = "";
+    msg.className = "";
+    out.style.display = "none";
+    out.textContent = "";
+  });
+
+  $("btnCrear").addEventListener("click", async () => {
+    msg.textContent = "";
+    msg.className = "";
+    out.style.display = "none";
+    out.textContent = "";
+
+    const dni = ($("dni").value || "").trim();
+    const colegio_id = ($("colegio_id").value || "").trim();
+    const role = $("role").value;
+    const password = ($("password").value || "").trim();
+    const full_name = ($("full_name").value || "").trim();
+    const must_change_password = $("must_change_password").value === "true";
+
+    if (!/^\d{8}$/.test(dni)) {
+      msg.className = "err";
+      msg.textContent = "❌ DNI inválido. Debe tener 8 dígitos.";
+      return;
+    }
+    if (!colegio_id) {
+      msg.className = "err";
+      msg.textContent = "❌ Falta colegio_id (UUID).";
+      return;
+    }
+
+    // Requiere sesión (token)
+    const { data } = await window.supabaseClient.auth.getSession();
+    const token = data?.session?.access_token;
+
+    if (!token) {
+      msg.className = "err";
+      msg.textContent = "❌ No hay sesión. Inicia sesión como admin primero.";
+      return;
+    }
+
+    const payload = {
+      dni,
+      colegio_id,
+      roles: [role],
+      password: password || dni,
+      full_name,
+      must_change_password
+    };
+
+    const btn = $("btnCrear");
+    btn.disabled = true;
+
+    try {
+      const res = await fetch(FN_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        msg.className = "err";
+        msg.textContent = "❌ Error: " + (data.error || "No se pudo crear");
+        out.style.display = "block";
+        out.textContent = JSON.stringify(data, null, 2);
+        return;
+      }
+
+      msg.className = "ok";
+      msg.textContent =
+        "✅ Usuario creado. Debe pedir cambio de contraseña SOLO la primera vez.";
+
+      out.style.display = "block";
+      out.textContent = JSON.stringify(data, null, 2);
+
+    } catch (e) {
+      msg.className = "err";
+      msg.textContent = "❌ Error inesperado: " + (e?.message || e);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+</script>
+
+</body>
+</html>
