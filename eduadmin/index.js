@@ -1,5 +1,4 @@
 document.addEventListener("DOMContentLoaded", async () => {
-  // ✅ clave correcta (la que usará todo el sistema)
   const colegioId = localStorage.getItem("colegio_id");
 
   if (!colegioId) {
@@ -8,7 +7,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  // traer colegio desde supabase
   const { data: colegio, error } = await window.supabaseClient
     .from("colegios")
     .select("*")
@@ -26,10 +24,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   const nombreEl = document.getElementById("colegioNombre");
   if (nombreEl) nombreEl.textContent = colegio.nombre;
 
-  // ✅ Validar año académico activo
-  if (typeof setActiveAcademicYearOrRedirect === "function") {
-    await setActiveAcademicYearOrRedirect();
-  } else {
-    console.warn("⚠️ No existe setActiveAcademicYearOrRedirect()");
-  }
+  await setActiveAcademicYearOrRedirect();
 });
