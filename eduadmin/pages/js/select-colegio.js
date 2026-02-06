@@ -1,64 +1,141 @@
-const sb = window.supabaseClient || window.supabase;
+(() => {
+  // ✅ Confirmación rápida de carga (si molesta luego lo quitas)
+  // alert("select-user.js cargó ✅");
 
-const select = document.getElementById("colegioSelect");
-const debugBox = document.getElementById("debugBox");
+  const $ = (id) => document.getElementById(id);
 
-async function cargarColegios() {
-  const { data: sessionData } = await sb.auth.getSession();
-  const user = sessionData?.session?.user;
+  const sessionInfo = $("sessionInfo");
+  const colegioSelect = $("colegioSelect");
+  const btnEnter = $("btnEnter");
+  const btnUserId = $("btnUserId");
+  const debug = $("debug");
 
-  if (!user) {
-    alert("No hay sesión");
-    location.href = "/login.html";
-    return;
+  function setDebug(obj) {
+    debug.textContent = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
   }
 
-  const userId = user.id;
-
-  debugBox.innerHTML = "USER_ID: " + userId;
-
-  // 🔵 obtener colegios del usuario
-  const { data, error } = await sb
-    .from("user_colegios")
-    .select("colegio_id, colegios(nombre)")
-    .eq("user_id", userId);
-
-  if (error) {
-    debugBox.innerHTML = "Error: " + error.message;
-    return;
+  function getSb() {
+    return window.supabaseClient || window.supabase;
   }
 
-  select.innerHTML = "";
+  async function requireSession() {
+    const sb = getSb();
+    if (!sb) {
+      sessionInfo.innerHTML = "❌ No cargó Supabase. Revisa ../../assets/js/supabaseClient.js";
+      setDebug("Supabase undefined");
+      return null;
+    }
 
-  if (!data || data.length === 0) {
-    select.innerHTML = "<option>No tienes colegios asignados</option>";
-    return;
+    const { data, error } = await sb.auth.getSession();
+    if (error) {
+      sessionInfo.innerHTML = "❌ Error obteniendo sesión: " + error.message;
+      setDebug(error);
+      return null;
+    }
+
+    const session = data?.session || null;
+    if (!session?.user) {
+      sessionInfo.innerHTML = "❌ No hay sesión. Vuelve al login.";
+      setDebug("No session");
+      return null;
+    }
+
+    sessionInfo.innerHTML =
+      `✅ Sesión: <b>${session.user.email || session.user.id}</b><br>` +
+      `<span style="font-size:12px;color:#6b7280">user_id: ${session.user.id}</span>`;
+
+    return session;
   }
 
-  data.forEach(r => {
-    const op = document.createElement("option");
-    op.value = r.colegio_id;
-    op.textContent = r.colegios?.nombre || r.colegio_id;
-    select.appendChild(op);
-  });
-}
+  async function loadColegios(userId) {
+    const sb = getSb();
 
-document.getElementById("btnEntrar").addEventListener("click", () => {
-  const id = select.value;
-  localStorage.setItem("selected_colegio_id", id);
+    // 1) vínculos del usuario
+    const { data: links, error: lErr } = await sb
+      .from("user_colegios")
+      .select("colegio_id")
+      .eq("user_id", userId);
 
-  // redirige al dashboard
-  location.href = "/eduadmin/dashboard.html";
-});
+    if (lErr) {
+      setDebug({ step: "user_colegios", error: lErr });
+      throw new Error("No se pudo leer user_colegios: " + lErr.message);
+    }
 
-document.getElementById("btnUserDebug").addEventListener("click", async () => {
-  const { data } = await sb.auth.getSession();
-  const user = data?.session?.user;
+    if (!links || links.length === 0) {
+      setDebug({ step: "user_colegios", user_id: userId, links });
+      throw new Error("Este usuario NO tiene colegios asignados en user_colegios.");
+    }
 
-  alert(
-    "USER ID:\n" + user.id +
-    "\n\nEMAIL:\n" + user.email
-  );
-});
+    const colegioIds = links.map((x) => x.colegio_id);
 
-cargarColegios();
+    // 2) info de colegios
+    const { data: colegios, error: cErr } = await sb
+      .from("colegios")
+      .select("id, nombre")
+      .in("id", colegioIds)
+      .order("nombre", { ascending: true });
+
+    if (cErr) {
+      setDebug({ step: "colegios", error: cErr });
+      throw new Error("No se pudo leer colegios: " + cErr.message);
+    }
+
+    return colegios || [];
+  }
+
+  function fillSelect(colegios) {
+    colegioSelect.innerHTML =
+      `<option value="">-- Selecciona --</option>` +
+      colegios.map(c => `<option value="${c.id}">${c.nombre || c.id}</option>`).join("");
+
+    colegioSelect.disabled = false;
+    btnEnter.disabled = false;
+  }
+
+  async function main() {
+    try {
+      setDebug("Iniciando...");
+      const session = await requireSession();
+      if (!session) return;
+
+      // ✅ Ver USER ID
+      btnUserId.addEventListener("click", async () => {
+        const s = await requireSession();
+        if (!s) return;
+
+        const msg = `USER ID:\n${s.user.id}\n\nEMAIL:\n${s.user.email || "(sin email)"}`;
+        setDebug({ user_id: s.user.id, email: s.user.email });
+        alert(msg);
+      });
+
+      // ✅ Cargar colegios
+      setDebug("Cargando colegios...");
+      const colegios = await loadColegios(session.user.id);
+      setDebug({ ok: true, colegios_count: colegios.length, colegios });
+      fillSelect(colegios);
+
+      // ✅ Guardar y entrar
+      btnEnter.addEventListener("click", () => {
+        const selected = colegioSelect.value;
+        if (!selected) {
+          alert("Selecciona un colegio.");
+          return;
+        }
+
+        localStorage.setItem("selected_colegio_id", selected);
+        alert("✅ Colegio seleccionado:\n" + selected);
+
+        // Cambia si tu dashboard está en otra ruta
+        location.href = "../dashboard.html";
+      });
+
+    } catch (e) {
+      sessionInfo.innerHTML = "❌ " + (e?.message || e);
+      setDebug({ fatal: String(e?.message || e) });
+      colegioSelect.disabled = true;
+      btnEnter.disabled = true;
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", main);
+})();
