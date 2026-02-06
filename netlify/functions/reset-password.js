@@ -13,11 +13,14 @@ exports.handler = async (event) => {
     if (!user_id || !password) {
       return json(400, { error: "Falta user_id o password" });
     }
-const supabaseUrl = process.env.SUPABASE_URL;
- ,
+
+    // 🔹 CLIENTE SUPABASE
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
+    // 🔹 CAMBIAR PASSWORD
     const { data, error } = await supabase.auth.admin.updateUserById(user_id, {
       password: password,
     });
