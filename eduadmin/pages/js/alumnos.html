@@ -1,72 +1,117 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin | Alumnos</title>
+document.addEventListener("DOMContentLoaded", async () => {
+  const msg = document.getElementById("msg");
+  const metaInfo = document.getElementById("metaInfo");
+  const tbody = document.getElementById("tbodyAlumnos");
+  const countInfo = document.getElementById("countInfo");
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../assets/js/supabaseClient.js"></script>
+  const colegioId = localStorage.getItem("colegio_id");
+  const anioAcademicoId = localStorage.getItem("anio_academico_id");
+  const anio = localStorage.getItem("anio") || "";
 
-  <style>
-    body{font-family:system-ui,Arial;margin:18px;background:#f7f8fb}
-    .wrap{max-width:1100px;margin:0 auto}
-    .card{background:#fff;border:1px solid #e6e8f0;border-radius:14px;padding:16px;margin-bottom:14px}
-    h1{margin:0 0 10px}
-    .row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-    input,select,button{padding:10px;border-radius:10px;border:1px solid #d9dbe7;font-size:15px;width:100%}
-    button{cursor:pointer;border:none;background:#2e7d32;color:#fff}
-    table{width:100%;border-collapse:collapse}
-    th,td{border-bottom:1px solid #eef0f6;padding:10px;text-align:left;font-size:14px}
-    .muted{color:#6b7280;font-size:13px}
-    .danger{color:#b00020;font-weight:600}
-  </style>
-</head>
-<body>
-  <div class="wrap">
+  if (!colegioId) {
+    alert("No hay colegio seleccionado");
+    window.location.href = "/eduadmin/pages/select-colegio.html";
+    return;
+  }
 
-    <div class="card">
-      <h1>Alumnos</h1>
-      <div class="muted" id="metaInfo">Cargando colegio y año...</div>
-      <div class="danger" id="msg"></div>
-    </div>
+  if (!anioAcademicoId) {
+    alert("No hay año académico activo");
+    window.location.href = "/eduadmin/index.html";
+    return;
+  }
 
-    <div class="card">
-      <h3 style="margin:0 0 10px">Registrar alumno</h3>
-      <div class="row">
-        <input id="dni" placeholder="DNI" maxlength="12" />
-        <input id="nombres" placeholder="Nombres" />
-        <input id="apellidos" placeholder="Apellidos" />
-        <select id="grado">
-          <option value="">Grado</option>
-          <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option>
-        </select>
-        <input id="seccion" placeholder="Sección (A, B, C)" maxlength="2" />
-        <button id="btnGuardar">Guardar</button>
-      </div>
-    </div>
+  // Cargar nombre del colegio
+  const { data: colegio, error: errCol } = await window.supabaseClient
+    .from("colegios")
+    .select("nombre")
+    .eq("id", colegioId)
+    .single();
 
-    <div class="card">
-      <h3 style="margin:0 0 10px">Lista de alumnos</h3>
-      <div class="muted" id="countInfo">0 alumnos</div>
-      <div style="overflow:auto">
-        <table>
-          <thead>
-            <tr>
-              <th>DNI</th>
-              <th>Apellidos</th>
-              <th>Nombres</th>
-              <th>Grado</th>
-              <th>Sección</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyAlumnos"></tbody>
-        </table>
-      </div>
-    </div>
+  if (errCol || !colegio) {
+    msg.textContent = "Error cargando colegio";
+    console.log(errCol);
+    return;
+  }
 
-  </div>
+  metaInfo.textContent = `Colegio: ${colegio.nombre} | Año: ${anio || "(activo)"}`;
 
-  <script src="./js/alumnos.js"></script>
-</body>
-</html>
+  async function cargarAlumnos() {
+    msg.textContent = "";
+    tbody.innerHTML = `<tr><td colspan="5" class="muted">Cargando...</td></tr>`;
+
+    const { data, error } = await window.supabaseClient
+      .from("alumnos")
+      .select("dni, nombres, apellidos, grado, seccion")
+      .eq("colegio_id", colegioId)
+      .eq("anio_academico_id", anioAcademicoId)
+      .order("apellidos", { ascending: true });
+
+    if (error) {
+      tbody.innerHTML = "";
+      msg.textContent = "Error cargando alumnos";
+      console.log(error);
+      return;
+    }
+
+    countInfo.textContent = `${data.length} alumnos`;
+
+    if (!data.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="muted">Sin alumnos registrados</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.map(a => `
+      <tr>
+        <td>${a.dni || ""}</td>
+        <td>${a.apellidos || ""}</td>
+        <td>${a.nombres || ""}</td>
+        <td>${a.grado || ""}</td>
+        <td>${a.seccion || ""}</td>
+      </tr>
+    `).join("");
+  }
+
+  document.getElementById("btnGuardar").addEventListener("click", async () => {
+    msg.textContent = "";
+
+    const dni = document.getElementById("dni").value.trim();
+    const nombres = document.getElementById("nombres").value.trim();
+    const apellidos = document.getElementById("apellidos").value.trim();
+    const grado = document.getElementById("grado").value.trim();
+    const seccion = document.getElementById("seccion").value.trim().toUpperCase();
+
+    if (!nombres || !apellidos || !grado || !seccion) {
+      msg.textContent = "Completa nombres, apellidos, grado y sección.";
+      return;
+    }
+
+    const payload = {
+      colegio_id: colegioId,
+      anio_academico_id: anioAcademicoId,
+      dni: dni || null,
+      nombres,
+      apellidos,
+      grado,
+      seccion,
+    };
+
+    const { error } = await window.supabaseClient.from("alumnos").insert(payload);
+
+    if (error) {
+      msg.textContent = "Error guardando alumno (mira consola).";
+      console.log(error);
+      return;
+    }
+
+    // limpiar
+    document.getElementById("dni").value = "";
+    document.getElementById("nombres").value = "";
+    document.getElementById("apellidos").value = "";
+    document.getElementById("grado").value = "";
+    document.getElementById("seccion").value = "";
+
+    await cargarAlumnos();
+  });
+
+  await cargarAlumnos();
+});
