@@ -1,29 +1,47 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Seleccionar colegio</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seleccionar colegio</title>
 
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../../assets/js/supabaseClient.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../../js/supabaseClient.js"></script>
+
+<style>
+body{
+  font-family: Arial;
+  background:#f4f6f9;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+.card{
+  background:white;
+  padding:30px;
+  border-radius:10px;
+  width:350px;
+  text-align:center;
+}
+select,button{
+  width:100%;
+  padding:10px;
+  margin-top:15px;
+}
+</style>
 </head>
 
-<body style="font-family: Arial; padding: 30px;">
+<body>
 
-  <h2>Selecciona tu colegio</h2>
+<div class="card">
+<h2>Selecciona tu colegio</h2>
 
-  <select id="colegioSelect">
-    <option value="">Cargando colegios...</option>
-  </select>
+<select id="colegioSelect"></select>
+<button onclick="entrar()">Entrar</button>
 
-  <br><br>
+</div>
 
-  <button id="btnEntrar">Entrar</button>
-
-  <script src="./js/select-colegio.js"></script>
-
+<script src="js/select-colegio.js"></script>
 </body>
 </html>
