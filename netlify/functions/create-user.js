@@ -1,21 +1,100 @@
-async function crearUsuario() {
+const { createClient } = require("@supabase/supabase-js");
 
-  const r = await fetch("/.netlify/functions/create-user", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      dni: "45102966",
-      colegio_id: "8f818584-ef44-4e3a-9a33-02fc269971c8",
-      roles: ["docente"]
-    })
-  });
-
-  const t = await r.text();
-  console.log("RAW:", t);
-
+exports.handler = async (event) => {
   try {
-    console.log("JSON:", JSON.parse(t));
-  } catch {
-    console.log("No es JSON válido");
+    // ✅ CAMBIO NECESARIO: exigir POST
+    if (event.httpMethod !== "POST") {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ error: "Use POST" }),
+      };
+    }
+
+    // ✅ CAMBIO NECESARIO: evitar JSON vacío
+    if (!event.body) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Body vacío" }),
+      };
+    }
+
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    const { dni, colegio_id, roles } = JSON.parse(event.body);
+
+    if (!dni || !colegio_id || !roles) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "faltan datos" }),
+      };
+    }
+
+    const email = dni + "@educorp.local";
+    const password = dni;
+
+    // =========================
+    // CREAR USUARIO AUTH
+    // =========================
+    const { data: userData, error: authError } =
+      await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      });
+
+    if (authError) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: authError.message }),
+      };
+    }
+
+    const user_id = userData.user.id;
+
+    // =========================
+    // INSERT USER_COLEGIOS
+    // =========================
+    const { error: ucError } = await supabase
+      .from("user_colegios")
+      .insert([{ user_id, colegio_id }]);
+
+    if (ucError) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "user_colegios: " + ucError.message }),
+      };
+    }
+
+    // =========================
+    // INSERT ROLES
+    // =========================
+    for (const rol of roles) {
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .insert([{ user_id, role: rol }]);
+
+      if (roleError) {
+        return {
+          statusCode: 500,
+          body: JSON.stringify({ error: "user_roles: " + roleError.message }),
+        };
+      }
+    }
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ ok: true, user_id }),
+    };
+  } catch (e) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        error: "server error",
+        detail: e.message,
+      }),
+    };
   }
-}
+};
