@@ -14,19 +14,24 @@
     <label>Usuario (DNI):</label><br />
     <input
       id="inpUsuario"
+      name="username"
       type="text"
       placeholder="Ej: 45102940"
       autocomplete="username"
       inputmode="numeric"
+      pattern="[0-9]{8}"
+      required
     />
     <br /><br />
 
     <label>Contraseña:</label><br />
     <input
       id="inpPassword"
+      name="password"
       type="password"
       placeholder="Tu DNI (primera vez)"
       autocomplete="current-password"
+      required
     />
     <br /><br />
 
