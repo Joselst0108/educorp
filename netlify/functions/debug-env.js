@@ -4,7 +4,9 @@ exports.handler = async () => {
     body: JSON.stringify({
       hasUrl: !!process.env.SUPABASE_URL,
       hasKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-      urlSample: (process.env.SUPABASE_URL || "").slice(0, 25)
+      keyLength: process.env.SUPABASE_SERVICE_ROLE_KEY
+        ? process.env.SUPABASE_SERVICE_ROLE_KEY.length
+        : 0
     })
   };
 };
