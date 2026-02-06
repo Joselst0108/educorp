@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const countInfo = document.getElementById("countInfo");
 
   const colegioId = localStorage.getItem("colegio_id");
-  const anioAcademicoId = localStorage.getItem("anio_academico_id");
+  const anioAcademicoId = localStorage.getItem("anio_id");
   const anio = localStorage.getItem("anio") || "";
 
   if (!colegioId) {
