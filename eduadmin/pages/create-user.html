@@ -1,111 +1,236 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Crear usuario</title>
   <style>
-    body{font-family:system-ui;margin:20px;max-width:520px}
-    input,select,button{width:100%;padding:10px;margin:8px 0;font-size:16px}
-    pre{background:#111;color:#0f0;padding:10px;overflow:auto;min-height:100px}
-    .row{display:flex;gap:10px}
-    .row > *{flex:1}
+    body { font-family: system-ui, Arial; margin: 24px; max-width: 720px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .col { flex: 1; min-width: 220px; }
+    label { display:block; margin: 10px 0 6px; font-weight: 600; }
+    input, select, button {
+      width: 100%; padding: 10px; font-size: 16px;
+      border: 1px solid #cbd5e1; border-radius: 10px;
+    }
+    button { cursor:pointer; border:none; background:#0ea5e9; color:#fff; font-weight:700; }
+    button:disabled { opacity:.6; cursor:not-allowed; }
+    .muted { color:#64748b; font-size: 13px; margin-top: 6px; }
+    .card { border:1px solid #e2e8f0; border-radius: 14px; padding: 16px; margin-top: 14px; }
+    .error { color:#b91c1c; font-weight:700; }
+    .ok { color:#166534; font-weight:700; }
+    pre { background:#0b1220; color:#d1fae5; padding: 12px; border-radius: 12px; overflow:auto; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .link { color:#0ea5e9; text-decoration:none; font-weight:600; }
+    .mini { font-size: 12px; color:#475569; }
   </style>
 </head>
 <body>
 
-  <h2>Crear usuario</h2>
-
-  <div class="row">
-    <input id="dni" placeholder="DNI (8 dígitos)" inputmode="numeric" />
-    <select id="role">
-      <option value="docente">docente</option>
-      <option value="alumno">alumno</option>
-      <option value="apoderado">apoderado</option>
-      <option value="director">director</option>
-      <option value="secretaria">secretaria</option>
-    </select>
+  <div class="topbar">
+    <h2 style="margin:0">Crear usuario</h2>
+    <a class="link" href="../dashboard.html">← Volver al dashboard</a>
   </div>
 
-  <input id="colegio" placeholder="Colegio UUID" />
+  <div class="card">
+    <div id="sessionBox" class="mini">Verificando sesión...</div>
+  </div>
 
-  <input id="initialPass" placeholder="Contraseña inicial (opcional, si vacío usa DNI)" />
+  <div class="card">
+    <div class="row">
+      <div class="col">
+        <label>DNI</label>
+        <input id="dni" type="text" inputmode="numeric" placeholder="Ej: 45102999" maxlength="8" />
+        <div class="muted">Debe ser 8 dígitos.</div>
+      </div>
 
-  <label style="display:flex;gap:10px;align-items:center;margin:8px 0">
-    <input type="checkbox" id="force" checked style="width:auto;margin:0">
-    Forzar cambio de contraseña (solo 1ra vez)
-  </label>
+      <div class="col">
+        <label>Rol</label>
+        <select id="role">
+          <option value="docente">docente</option>
+          <option value="alumno">alumno</option>
+          <option value="apoderado">apoderado</option>
+          <option value="director">director</option>
+          <option value="secretaria">secretaria</option>
+          <option value="superadmin">superadmin</option>
+        </select>
+      </div>
+    </div>
 
-  <button id="btn">Crear</button>
+    <label>Colegio ID (UUID)</label>
+    <input id="colegio_id" type="text" placeholder="Ej: 8f818584-ef44-4e3a-9a33-02fc269971c8" />
 
-  <pre id="out"></pre>
+    <label>Contraseña inicial</label>
+    <input id="initial_password" type="text" placeholder="Recomendado: DNI (para forzar cambio 1ra vez)" />
+    <div class="muted">
+      Si lo dejas vacío, se usará el DNI como contraseña inicial.
+    </div>
 
-  <!-- Orden IMPORTANTE -->
+    <div style="margin-top:10px">
+      <label style="display:flex;align-items:center;gap:10px;font-weight:600;">
+        <input id="must_change_password" type="checkbox" checked style="width:auto;transform:scale(1.2)" />
+        Forzar cambio de contraseña (solo 1ra vez)
+      </label>
+      <div class="muted">
+        Si está activado, el usuario verá el modal de cambio de contraseña solo en su primer ingreso.
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:14px">
+      <div class="col">
+        <button id="btnCreate">Crear</button>
+        <div class="muted">Se enviará a Netlify Function: <b>/.netlify/functions/create-user</b></div>
+      </div>
+      <div class="col">
+        <button id="btnLogout" style="background:#334155">Cerrar sesión</button>
+        <div class="muted">Útil si el token expiró.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div id="status"></div>
+    <pre id="out">{}</pre>
+  </div>
+
+  <!-- Scripts (orden IMPORTANTE) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Ajusta esta ruta si tu supabaseClient.js está en otro lugar -->
   <script src="../../assets/js/supabaseClient.js"></script>
 
   <script>
-    const outEl = document.getElementById("out");
-    const out = (x) => (outEl.textContent = x);
+    // =========================
+    // Helpers
+    // =========================
+    const $ = (id) => document.getElementById(id);
+    const cleanDni = (x) => String(x || "").replace(/\D/g, "").slice(0, 8);
 
-    async function getAccessToken(sb){
-      const { data: s1 } = await sb.auth.getSession();
-      let token = s1?.session?.access_token;
-
-      if (!token) {
-        const { data: s2 } = await sb.auth.refreshSession();
-        token = s2?.session?.access_token;
-      }
-      return token || null;
+    function setStatus(msg, kind = "mini") {
+      const el = $("status");
+      el.className = kind;
+      el.innerHTML = msg;
     }
 
-    document.getElementById("btn").addEventListener("click", async () => {
-      try {
-        const sb = window.supabaseClient;
-        if (!sb) throw new Error("No cargó supabaseClient.js");
+    function setOut(obj) {
+      $("out").textContent = JSON.stringify(obj, null, 2);
+    }
 
-        // 1) Token desde sesión
-        const token = await getAccessToken(sb);
-        if (!token) throw new Error("No hay sesión. Entra por /login y vuelve aquí (misma pestaña).");
+    async function getToken() {
+      const sb = window.supabaseClient || window.supabase;
+      const { data, error } = await sb.auth.getSession();
+      if (error) return { token: null, error };
+      return { token: data?.session?.access_token || null, session: data?.session || null };
+    }
 
-        // 2) Datos
-        const dni = document.getElementById("dni").value.trim();
-        const role = document.getElementById("role").value;
-        const colegio_id = document.getElementById("colegio").value.trim();
-        const initial_password = document.getElementById("initialPass").value.trim();
-        const must_change_password = document.getElementById("force").checked;
-
-        if (!/^\d{8}$/.test(dni)) throw new Error("DNI inválido (8 dígitos).");
-        if (!colegio_id) throw new Error("Falta colegio_id.");
-
-        out("Enviando a create-user...");
-
-        // 3) Llamada
-        const r = await fetch("/.netlify/functions/create-user", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + token
-          },
-          body: JSON.stringify({
-            dni,
-            roles: [role],
-            colegio_id,
-            initial_password: initial_password || undefined,
-            must_change_password
-          })
-        });
-
-        const data = await r.json().catch(() => ({}));
-        out(JSON.stringify(data, null, 2));
-
-        if (!r.ok) throw new Error(data?.error || "Error create-user");
-
-        alert("✅ Usuario creado. Ahora prueba loguearte con su DNI y su clave inicial.");
-
-      } catch (e) {
-        out("ERROR: " + (e?.message || e));
+    async function ensureSession() {
+      const sb = window.supabaseClient || window.supabase;
+      if (!sb) {
+        $("sessionBox").innerHTML = '<span class="error">❌ Supabase no cargó</span>';
+        return false;
       }
+
+      const { token, session } = await getToken();
+      if (!token || !session?.user) {
+        $("sessionBox").innerHTML =
+          '<span class="error">❌ No hay sesión activa. Inicia sesión primero.</span> ' +
+          '<a class="link" href="../../login.html">Ir al login</a>';
+        return false;
+      }
+
+      $("sessionBox").innerHTML =
+        '✅ Sesión activa: <b>' + (session.user.email || session.user.id) + '</b><br>' +
+        '<span class="mini">user_id: ' + session.user.id + '</span>';
+      return true;
+    }
+
+    // =========================
+    // MAIN
+    // =========================
+    document.addEventListener("DOMContentLoaded", async () => {
+      // Verifica sesión al cargar
+      await ensureSession();
+
+      // Autocompletar DNI solo números
+      $("dni").addEventListener("input", () => {
+        $("dni").value = cleanDni($("dni").value);
+      });
+
+      $("btnLogout").addEventListener("click", async () => {
+        const sb = window.supabaseClient || window.supabase;
+        await sb.auth.signOut().catch(() => {});
+        alert("Sesión cerrada. Vuelve a iniciar sesión.");
+        location.href = "../../login.html";
+      });
+
+      $("btnCreate").addEventListener("click", async () => {
+        $("btnCreate").disabled = true;
+        try {
+          const okSession = await ensureSession();
+          if (!okSession) return;
+
+          const dni = cleanDni($("dni").value);
+          const role = String($("role").value || "").trim();
+          const colegio_id = String($("colegio_id").value || "").trim();
+          const must_change_password = $("must_change_password").checked;
+
+          let initial_password = String($("initial_password").value || "").trim();
+          if (!initial_password) initial_password = dni;
+
+          if (!/^\d{8}$/.test(dni)) {
+            setStatus('<span class="error">❌ DNI inválido (8 dígitos)</span>');
+            return;
+          }
+          if (!colegio_id) {
+            setStatus('<span class="error">❌ Falta colegio_id</span>');
+            return;
+          }
+          if (!role) {
+            setStatus('<span class="error">❌ Falta rol</span>');
+            return;
+          }
+
+          setStatus("⏳ Creando usuario...");
+          setOut({});
+
+          const { token } = await getToken();
+          if (!token) {
+            setStatus('<span class="error">❌ No se pudo obtener token. Re-inicia sesión.</span>');
+            return;
+          }
+
+          const payload = {
+            dni,
+            role,
+            colegio_id,
+            initial_password,
+            must_change_password
+          };
+
+          const res = await fetch("/.netlify/functions/create-user", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+          });
+
+          const data = await res.json().catch(() => ({}));
+          setOut(data);
+
+          if (!res.ok) {
+            setStatus('<span class="error">❌ ERROR: ' + (data?.error || "No se pudo crear") + '</span>');
+            return;
+          }
+
+          setStatus('<span class="ok">✅ Usuario creado correctamente</span>');
+          alert("✅ Creado: " + (data.email || "ok"));
+        } catch (e) {
+          setStatus('<span class="error">❌ Error: ' + (e?.message || e) + '</span>');
+        } finally {
+          $("btnCreate").disabled = false;
+        }
+      });
     });
   </script>
 
