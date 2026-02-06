@@ -1,1 +1,80 @@
 
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EduAdmin | Seleccionar Año</title>
+  <style>
+    body{font-family:system-ui;max-width:720px;margin:40px auto;padding:0 16px}
+    .card{border:1px solid #e5e7eb;border-radius:12px;padding:16px}
+    select,button{width:100%;padding:12px;border-radius:10px;border:1px solid #d1d5db;margin-top:10px}
+    button{background:#16a34a;color:#fff;border:none;cursor:pointer}
+    pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:10px;overflow:auto}
+  </style>
+</head>
+<body>
+  <h1>Seleccionar año académico</h1>
+  <p>El sistema trabajará por <b>colegio</b> y <b>año</b>.</p>
+
+  <div class="card">
+    <label>Año académico</label>
+    <select id="yearSelect">
+      <option value="">Cargando...</option>
+    </select>
+
+    <button id="btnEnter" disabled>Entrar</button>
+
+    <pre id="debug">Esperando...</pre>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabaseClient.js"></script>
+
+  <script>
+    (async () => {
+      const debug = (o) => document.getElementById("debug").textContent =
+        (typeof o === "string") ? o : JSON.stringify(o, null, 2);
+
+      const supabase = window.supabaseClient;
+      if (!supabase) { debug({fatal:"Supabase no inicializado"}); return; }
+
+      const colegioId = localStorage.getItem("selected_colegio_id");
+      if (!colegioId) { location.href = "/eduadmin/pages/select-colegio.html"; return; }
+
+      // 1) traer años del colegio
+      // ✅ SUPONEMOS tabla: academic_years(id, colegio_id, nombre, activo)
+      const { data: years, error } = await supabase
+        .from("academic_years")
+        .select("id,nombre,activo")
+        .eq("colegio_id", colegioId)
+        .order("nombre", { ascending: false });
+
+      if (error) { debug({fatal:"Error cargando años", error}); return; }
+
+      const sel = document.getElementById("yearSelect");
+      sel.innerHTML = `<option value="">Selecciona un año...</option>` +
+        (years || []).map(y => `<option value="${y.id}">${y.nombre}${y.activo ? " (Activo)" : ""}</option>`).join("");
+
+      debug({ok:true, colegioId, years_count:(years||[]).length});
+
+      // 2) habilitar botón
+      const btn = document.getElementById("btnEnter");
+      sel.addEventListener("change", () => btn.disabled = !sel.value);
+
+      // 3) guardar y entrar
+      btn.addEventListener("click", () => {
+        localStorage.setItem("selected_year_id", sel.value);
+        location.href = "/eduadmin/index.html";
+      });
+
+      // Si hay uno activo, preselecciona
+      const active = (years || []).find(y => y.activo);
+      if (active) {
+        sel.value = active.id;
+        btn.disabled = false;
+      }
+    })();
+  </script>
+</body>
+</html>
