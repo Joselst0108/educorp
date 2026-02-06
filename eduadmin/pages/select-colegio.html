@@ -1,47 +1,52 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seleccionar colegio</title>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../../js/supabaseClient.js"></script>
-
-<style>
-body{
-  font-family: Arial;
-  background:#f4f6f9;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  height:100vh;
-}
-.card{
-  background:white;
-  padding:30px;
-  border-radius:10px;
-  width:350px;
-  text-align:center;
-}
-select,button{
-  width:100%;
-  padding:10px;
-  margin-top:15px;
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EduAdmin | Seleccionar colegio</title>
+  <style>
+    body { font-family: system-ui, Arial; margin: 24px; max-width: 720px; }
+    .card { border:1px solid #e2e8f0; border-radius: 14px; padding: 16px; margin-top: 14px; }
+    label { display:block; margin: 10px 0 6px; font-weight: 600; }
+    select, button {
+      width: 100%; padding: 10px; font-size: 16px;
+      border: 1px solid #cbd5e1; border-radius: 10px;
+    }
+    button { cursor:pointer; border:none; background:#16a34a; color:#fff; font-weight:700; }
+    .muted { color:#64748b; font-size: 13px; margin-top: 8px; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .link { color:#0ea5e9; text-decoration:none; font-weight:600; }
+  </style>
 </head>
-
 <body>
 
-<div class="card">
-<h2>Selecciona tu colegio</h2>
+  <div class="topbar">
+    <h2 style="margin:0">Seleccionar colegio</h2>
+    <a class="link" href="../dashboard.html">← Volver</a>
+  </div>
 
-<select id="colegioSelect"></select>
-<button onclick="entrar()">Entrar</button>
+  <div class="card">
+    <div class="muted">
+      Si eres superadmin o tienes varios colegios, elige con cuál trabajar ahora.
+    </div>
 
-</div>
+    <label for="colegioSelect">Colegio</label>
+    <select id="colegioSelect">
+      <option value="">Cargando...</option>
+    </select>
 
-<script src="js/select-colegio.js"></script>
+    <div style="margin-top:12px">
+      <button type="button" onclick="entrar()">Entrar</button>
+      <div class="muted">Guardará <b>selected_colegio_id</b> en localStorage.</div>
+    </div>
+  </div>
+
+  <!-- Scripts (orden IMPORTANTE) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabaseClient.js"></script>
+
+  <!-- ✅ TU JS -->
+  <script src="js/select-colegio.js"></script>
+
 </body>
 </html>
