@@ -1,87 +1,21 @@
-const { createClient } = require("@supabase/supabase-js");
+async function crearUsuario() {
 
-exports.handler = async (event) => {
+  const r = await fetch("/.netlify/functions/create-user", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      dni: "45102966",
+      colegio_id: "8f818584-ef44-4e3a-9a33-02fc269971c8",
+      roles: ["docente"]
+    })
+  });
 
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ error: "Use POST" })
-    };
-  }
+  const t = await r.text();
+  console.log("RAW:", t);
 
   try {
-
-    const supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
-
-    const body = JSON.parse(event.body || "{}");
-
-    const dni = body.dni;
-    const colegio_id = body.colegio_id;
-    const roles = body.roles;
-
-    if (!dni || !colegio_id || !roles) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "faltan datos" })
-      };
-    }
-
-    const email = dni + "@educorp.local";
-    const password = dni;
-
-    // ================= AUTH USER
-    const { data: userData, error: authError } =
-      await supabase.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true
-      });
-
-    if (authError) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: authError.message })
-      };
-    }
-
-    const user_id = userData.user.id;
-
-    // ================= COLEGIO
-    await supabase
-      .from("user_colegios")
-      .insert({
-        user_id,
-        colegio_id
-      });
-
-    // ================= ROLES
-    for (const rol of roles) {
-      await supabase
-        .from("user_roles")
-        .insert({
-          user_id,
-          role: rol
-        });
-    }
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        ok: true,
-        user_id
-      })
-    };
-
-  } catch (e) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({
-        error: "server error",
-        detail: e.message
-      })
-    };
+    console.log("JSON:", JSON.parse(t));
+  } catch {
+    console.log("No es JSON válido");
   }
-};
+}
