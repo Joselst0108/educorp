@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", async () => {
-  const colegioId = localStorage.getItem("selected_colegio_id");
+  const colegioId = localStorage.getItem("colegio_id");
 
   if (!colegioId) {
     alert("No hay colegio seleccionado");
