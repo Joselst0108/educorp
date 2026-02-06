@@ -2,51 +2,74 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>EduAdmin | Seleccionar colegio</title>
-  <style>
-    body { font-family: system-ui, Arial; margin: 24px; max-width: 720px; }
-    .card { border:1px solid #e2e8f0; border-radius: 14px; padding: 16px; margin-top: 14px; }
-    label { display:block; margin: 10px 0 6px; font-weight: 600; }
-    select, button {
-      width: 100%; padding: 10px; font-size: 16px;
-      border: 1px solid #cbd5e1; border-radius: 10px;
-    }
-    button { cursor:pointer; border:none; background:#16a34a; color:#fff; font-weight:700; }
-    .muted { color:#64748b; font-size: 13px; margin-top: 8px; }
-    .topbar { display:flex; justify-content:space-between; align-items:center; gap:10px; }
-    .link { color:#0ea5e9; text-decoration:none; font-weight:600; }
-  </style>
-</head>
-<body>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Seleccionar colegio</title>
 
-  <div class="topbar">
-    <h2 style="margin:0">Seleccionar colegio</h2>
-    <a class="link" href="../dashboard.html">← Volver</a>
-  </div>
-
-  <div class="card">
-    <div class="muted">
-      Si eres superadmin o tienes varios colegios, elige con cuál trabajar ahora.
-    </div>
-
-    <label for="colegioSelect">Colegio</label>
-    <select id="colegioSelect">
-      <option value="">Cargando...</option>
-    </select>
-
-    <div style="margin-top:12px">
-      <button type="button" onclick="entrar()">Entrar</button>
-      <div class="muted">Guardará <b>selected_colegio_id</b> en localStorage.</div>
-    </div>
-  </div>
-
-  <!-- Scripts (orden IMPORTANTE) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../../assets/js/supabaseClient.js"></script>
 
-  <!-- ✅ TU JS -->
-  <script src="js/select-colegio.js"></script>
+  <style>
+    body{
+      font-family: Arial;
+      background:#f4f6f9;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      height:100vh;
+    }
+    .card{
+      background:#fff;
+      padding:30px;
+      border-radius:14px;
+      width:400px;
+      box-shadow:0 5px 20px rgba(0,0,0,.1);
+      text-align:center;
+    }
+    select,button{
+      width:100%;
+      padding:12px;
+      margin-top:10px;
+      font-size:16px;
+      border-radius:10px;
+      border:1px solid #ccc;
+    }
+    button{
+      background:#16a34a;
+      color:white;
+      border:none;
+      font-weight:bold;
+      cursor:pointer;
+    }
+    .debug{
+      margin-top:15px;
+      background:#0f172a;
+      color:#22c55e;
+      padding:10px;
+      border-radius:10px;
+      font-size:13px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="card">
+  <h2>Selecciona tu colegio</h2>
+
+  <select id="colegioSelect">
+    <option>Cargando...</option>
+  </select>
+
+  <button id="btnEntrar">Entrar</button>
+
+  <button id="btnUserDebug" style="background:#0ea5e9;margin-top:8px">
+    Ver USER ID
+  </button>
+
+  <div class="debug" id="debugBox">Esperando...</div>
+</div>
+
+<script src="../js/select-colegio.js"></script>
 
 </body>
 </html>
