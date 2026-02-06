@@ -1,7 +1,7 @@
 // eduadmin/assets/js/context.js
 window.EduContext = {
   getColegioId() {
-    return localStorage.getItem("selected_colegio_id");
+    return localStorage.getItem("colegio_id");
   },
 
   async getColegio() {
@@ -23,7 +23,7 @@ window.EduContext = {
 
     // OJO: si tu tabla se llama "anios_academicos", cambia aquí abajo
     const { data } = await window.supabaseClient
-      .from("academic_years")
+      .from("anios_academicos")
       .select("*")
       .eq("colegio_id", colegioId)
       .eq("activo", true)
