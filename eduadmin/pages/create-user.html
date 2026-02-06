@@ -10,14 +10,15 @@
 
 <input id="dni" placeholder="DNI"><br><br>
 <input id="colegio" placeholder="Colegio UUID"><br><br>
+
 <select id="role">
 <option value="docente">docente</option>
 <option value="alumno">alumno</option>
 <option value="apoderado">apoderado</option>
 <option value="director">director</option>
 </select>
-<br><br>
 
+<br><br>
 <button onclick="crear()">Crear</button>
 
 <pre id="r"></pre>
@@ -30,30 +31,31 @@ async function crear(){
 
   const sb = window.supabase;
 
-  const { data } = await sb.auth.getSession();
-  const token = data?.session?.access_token;
+  // 🔴 obtener sesión
+  const { data: sess } = await sb.auth.getSession();
+  const token = sess?.session?.access_token;
 
   if(!token){
-    alert("No hay sesión. Inicia login primero.");
+    alert("No hay sesión activa. Debes loguearte primero.");
     return;
   }
 
-  const r = await fetch("/.netlify/functions/create-user",{
+  const res = await fetch("/.netlify/functions/create-user",{
     method:"POST",
     headers:{
       "Content-Type":"application/json",
-      "Authorization":"Bearer "+token
+      "Authorization":"Bearer " + token
     },
     body:JSON.stringify({
-      dni: document.getElementById("dni").value,
+      dni: document.getElementById("dni").value.trim(),
       role: document.getElementById("role").value,
-      colegio_id: document.getElementById("colegio").value,
+      colegio_id: document.getElementById("colegio").value.trim(),
       must_change_password: true
     })
   });
 
-  document.getElementById("r").textContent =
-    JSON.stringify(await r.json(),null,2);
+  const txt = await res.text();
+  document.getElementById("r").textContent = txt;
 }
 </script>
 
