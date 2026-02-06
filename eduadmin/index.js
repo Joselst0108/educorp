@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (!colegioId) {
     alert("No hay colegio seleccionado");
-    window.location.href = "/eduadmin/pages/select-colegio.html";
+    window.location.href = "/eduadmin/pages/colegio_id.html";
     return;
   }
 
