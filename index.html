@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+O<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -23,6 +23,28 @@
         <li><a href="eduasist/">🟡 EduAsist</a> – Asistencia y notas</li>
         <li><a href="eduia/">🟣 EduIA</a> – IA para sesiones y programaciones</li>
     </ul>
+<script>
+async function crearUsuario() {
 
+  const r = await fetch("/.netlify/functions/create-user", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      dni: "45102966",
+      colegio_id: "8f818584-ef44-4e3a-9a33-02fc269971c8",
+      roles: ["docente"]
+    })
+  });
+
+  const t = await r.text();
+  console.log("RESPUESTA RAW:", t);
+
+  try {
+    console.log("JSON:", JSON.parse(t));
+  } catch {
+    console.log("No es JSON válido");
+  }
+}
+</script>
 </body>
 </html>
