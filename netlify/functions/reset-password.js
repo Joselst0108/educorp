@@ -1,125 +1,136 @@
 // netlify/functions/reset-password.js
+const { createClient } = require("@supabase/supabase-js");
+
 exports.handler = async (event) => {
+  // Helpers
+  const json = (statusCode, obj) => ({
+    statusCode,
+    headers: {
+      "content-type": "application/json",
+      "access-control-allow-origin": "*",
+      "access-control-allow-headers": "content-type",
+      "access-control-allow-methods": "POST,OPTIONS",
+    },
+    body: JSON.stringify(obj, null, 2),
+  });
+
   try {
+    // Preflight CORS
+    if (event.httpMethod === "OPTIONS") return json(200, { ok: true });
+
     if (event.httpMethod !== "POST") {
       return json(405, { error: "Method Not Allowed. Use POST." });
     }
 
     const body = JSON.parse(event.body || "{}");
-    const email = String(body.email || "").trim().toLowerCase();
-    const user_id = String(body.user_id || "").trim();
+    const email = String(body.email || "").trim();
     const password = String(body.password || body.new_password || "").trim();
 
-    if ((!email && !user_id) || !password) {
-      return json(400, { error: "Faltan datos: (email o user_id) y password." });
+    if (!email || !password) {
+      return json(400, { error: "Faltan datos: email y password." });
     }
 
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    // ✅ Solo variables de entorno
+    const supabaseUrl = (process.env.SUPABASE_URL || "").trim();
+    const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
 
     if (!supabaseUrl || !serviceKey) {
-      return json(500, { error: "Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en Netlify." });
-    }
-
-    const AUTH_ADMIN = `${supabaseUrl.replace(/\/$/, "")}/auth/v1/admin`;
-
-    const headers = {
-      "Content-Type": "application/json",
-      "apikey": serviceKey,
-      "Authorization": `Bearer ${serviceKey}`,
-    };
-
-    // ============================
-    // 1) Obtener user id (por user_id directo o buscando por email)
-    // ============================
-    let uid = user_id || null;
-
-    if (!uid) {
-      // Listamos usuarios (paginado) y buscamos por email
-      // Nota: si tienes miles de usuarios, subimos per_page y/o recorremos páginas.
-      const perPage = 1000;
-
-      // Intentamos página 1..5 (hasta 5000 usuarios). Ajusta si necesitas más.
-      let found = null;
-
-      for (let page = 1; page <= 5; page++) {
-        const url = `${AUTH_ADMIN}/users?page=${page}&per_page=${perPage}`;
-        const r = await fetch(url, { method: "GET", headers });
-
-        if (!r.ok) {
-          const txt = await safeText(r);
-          return json(500, {
-            error: `No pude listar usuarios (page=${page})`,
-            status: r.status,
-            details: txt,
-            hint: "Revisa SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY en Netlify + redeploy con Clear cache.",
-          });
-        }
-
-        const data = await r.json().catch(() => ({}));
-        const users = Array.isArray(data?.users) ? data.users : [];
-
-        found = users.find((u) => String(u.email || "").toLowerCase() === email) || null;
-        if (found?.id) {
-          uid = found.id;
-          break;
-        }
-
-        // Si vino menos que perPage, ya no hay más páginas
-        if (users.length < perPage) break;
-      }
-
-      if (!uid) {
-        return json(404, { error: "No existe usuario con ese email en auth", email });
-      }
-    }
-
-    // ============================
-    // 2) Actualizar password por ID (Admin API)
-    // ============================
-    const updUrl = `${AUTH_ADMIN}/users/${uid}`;
-
-    const r2 = await fetch(updUrl, {
-      method: "PUT",
-      headers,
-      body: JSON.stringify({ password }),
-    });
-
-    if (!r2.ok) {
-      const txt = await safeText(r2);
       return json(500, {
-        error: "No pude actualizar la contraseña",
-        status: r2.status,
-        details: txt,
-        user_id: uid,
+        error: "Faltan variables en Netlify.",
+        required: ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"],
+        hasUrl: !!supabaseUrl,
+        hasKey: !!serviceKey,
+        urlPreview: supabaseUrl || null,
+        keyLen: serviceKey ? serviceKey.length : 0,
       });
     }
 
-    const out = await r2.json().catch(() => ({}));
+    // ✅ Cliente admin (service role)
+    const sb = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        headers: {
+          // Opcional, ayuda a trazas en logs
+          "X-Client-Info": "educorp-netlify-reset-password",
+        },
+      },
+    });
+
+    // ✅ Chequeos (para que veas si es v2)
+    const checks = {
+      hasAdmin: !!sb?.auth?.admin,
+      getUserByEmail: typeof sb?.auth?.admin?.getUserByEmail,
+      updateUserById: typeof sb?.auth?.admin?.updateUserById,
+      listUsers: typeof sb?.auth?.admin?.listUsers,
+    };
+
+    if (checks.getUserByEmail !== "function" || checks.updateUserById !== "function") {
+      return json(500, {
+        error: "SDK no es Supabase v2 en Netlify Functions (admin.* no disponible).",
+        checks,
+        fix: [
+          "Asegura package.json con @supabase/supabase-js ^2.x",
+          "Deploy: Clear cache and deploy",
+        ],
+      });
+    }
+
+    // 1) Buscar user por email
+    let user = null;
+    try {
+      const { data, error } = await sb.auth.admin.getUserByEmail(email);
+      if (error) {
+        return json(500, {
+          error: "getUserByEmail falló",
+          details: error.message,
+          checks,
+        });
+      }
+      user = data?.user || null;
+    } catch (e) {
+      // Esto captura el típico "fetch failed"
+      return json(500, {
+        error: "fetch failed (Netlify no pudo comunicarse con Supabase)",
+        hint: [
+          "Revisa que SUPABASE_URL esté correcto (https://xxxxx.supabase.co)",
+          "Revisa que el proyecto no esté caído",
+          "Revisa que no haya bloqueo de red/DNS temporal",
+        ],
+        raw: e?.message || String(e),
+        checks,
+      });
+    }
+
+    if (!user?.id) {
+      return json(404, { error: "No existe usuario con ese email", email, checks });
+    }
+
+    // 2) Resetear password
+    const { data: updData, error: updErr } = await sb.auth.admin.updateUserById(user.id, { password });
+    if (updErr) {
+      return json(500, {
+        error: "updateUserById falló",
+        details: updErr.message,
+        email,
+        user_id: user.id,
+        checks,
+      });
+    }
 
     return json(200, {
       ok: true,
-      user_id: uid,
-      email: out?.email || email || null,
-      message: "Password actualizado correctamente.",
+      email,
+      user_id: user.id,
+      updated_user: {
+        id: updData?.user?.id || user.id,
+        email: updData?.user?.email || email,
+      },
+      checks,
     });
   } catch (e) {
-    return json(500, { error: e?.message || String(e) });
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: e?.message || String(e) }, null, 2),
+    };
   }
 };
-
-function json(statusCode, obj) {
-  return {
-    statusCode,
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(obj, null, 2),
-  };
-}
-
-async function safeText(res) {
-  try {
-    return await res.text();
-  } catch {
-    return "";
-  }
-}
