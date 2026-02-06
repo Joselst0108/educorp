@@ -1,63 +1,113 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Crear usuario</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EduAdmin | Crear usuario</title>
+  <style>
+    body{font-family:system-ui;margin:20px;max-width:520px}
+    input,select,button{width:100%;padding:10px;margin:8px 0;font-size:16px}
+    pre{background:#111;color:#0f0;padding:10px;overflow:auto;min-height:100px}
+    .row{display:flex;gap:10px}
+    .row > *{flex:1}
+  </style>
 </head>
 <body>
 
-<h2>Crear usuario</h2>
+  <h2>Crear usuario</h2>
 
-<input id="dni" placeholder="DNI"><br><br>
-<input id="colegio" placeholder="Colegio UUID"><br><br>
+  <div class="row">
+    <input id="dni" placeholder="DNI (8 dígitos)" inputmode="numeric" />
+    <select id="role">
+      <option value="docente">docente</option>
+      <option value="alumno">alumno</option>
+      <option value="apoderado">apoderado</option>
+      <option value="director">director</option>
+      <option value="secretaria">secretaria</option>
+    </select>
+  </div>
 
-<select id="role">
-<option value="docente">docente</option>
-<option value="alumno">alumno</option>
-<option value="apoderado">apoderado</option>
-<option value="director">director</option>
-</select>
+  <input id="colegio" placeholder="Colegio UUID" />
 
-<br><br>
-<button onclick="crear()">Crear</button>
+  <input id="initialPass" placeholder="Contraseña inicial (opcional, si vacío usa DNI)" />
 
-<pre id="r"></pre>
+  <label style="display:flex;gap:10px;align-items:center;margin:8px 0">
+    <input type="checkbox" id="force" checked style="width:auto;margin:0">
+    Forzar cambio de contraseña (solo 1ra vez)
+  </label>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../../assets/js/supabaseClient.js"></script>
+  <button id="btn">Crear</button>
 
-<script>
-async function crear(){
+  <pre id="out"></pre>
 
-  const sb = window.supabase;
+  <!-- Orden IMPORTANTE -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabaseClient.js"></script>
 
-  // 🔴 obtener sesión
-  const { data: sess } = await sb.auth.getSession();
-  const token = sess?.session?.access_token;
+  <script>
+    const outEl = document.getElementById("out");
+    const out = (x) => (outEl.textContent = x);
 
-  if(!token){
-    alert("No hay sesión activa. Debes loguearte primero.");
-    return;
-  }
+    async function getAccessToken(sb){
+      const { data: s1 } = await sb.auth.getSession();
+      let token = s1?.session?.access_token;
 
-  const res = await fetch("/.netlify/functions/create-user",{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "Authorization":"Bearer " + token
-    },
-    body:JSON.stringify({
-      dni: document.getElementById("dni").value.trim(),
-      role: document.getElementById("role").value,
-      colegio_id: document.getElementById("colegio").value.trim(),
-      must_change_password: true
-    })
-  });
+      if (!token) {
+        const { data: s2 } = await sb.auth.refreshSession();
+        token = s2?.session?.access_token;
+      }
+      return token || null;
+    }
 
-  const txt = await res.text();
-  document.getElementById("r").textContent = txt;
-}
-</script>
+    document.getElementById("btn").addEventListener("click", async () => {
+      try {
+        const sb = window.supabaseClient;
+        if (!sb) throw new Error("No cargó supabaseClient.js");
+
+        // 1) Token desde sesión
+        const token = await getAccessToken(sb);
+        if (!token) throw new Error("No hay sesión. Entra por /login y vuelve aquí (misma pestaña).");
+
+        // 2) Datos
+        const dni = document.getElementById("dni").value.trim();
+        const role = document.getElementById("role").value;
+        const colegio_id = document.getElementById("colegio").value.trim();
+        const initial_password = document.getElementById("initialPass").value.trim();
+        const must_change_password = document.getElementById("force").checked;
+
+        if (!/^\d{8}$/.test(dni)) throw new Error("DNI inválido (8 dígitos).");
+        if (!colegio_id) throw new Error("Falta colegio_id.");
+
+        out("Enviando a create-user...");
+
+        // 3) Llamada
+        const r = await fetch("/.netlify/functions/create-user", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+          },
+          body: JSON.stringify({
+            dni,
+            roles: [role],
+            colegio_id,
+            initial_password: initial_password || undefined,
+            must_change_password
+          })
+        });
+
+        const data = await r.json().catch(() => ({}));
+        out(JSON.stringify(data, null, 2));
+
+        if (!r.ok) throw new Error(data?.error || "Error create-user");
+
+        alert("✅ Usuario creado. Ahora prueba loguearte con su DNI y su clave inicial.");
+
+      } catch (e) {
+        out("ERROR: " + (e?.message || e));
+      }
+    });
+  </script>
 
 </body>
 </html>
