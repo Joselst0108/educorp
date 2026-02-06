@@ -1,142 +1,201 @@
-alert("JS cargado select-user");
+// eduadmin/pages/js/select-colegio.js
 (() => {
-  // ✅ Confirmación rápida de carga (si molesta luego lo quitas)
-  // alert("select-user.js cargó ✅");
+  // ✅ Marca de carga para confirmar que ESTE archivo es el que corre
+  alert("JS cargado select-colegio");
 
   const $ = (id) => document.getElementById(id);
 
-  const sessionInfo = $("sessionInfo");
   const colegioSelect = $("colegioSelect");
   const btnEnter = $("btnEnter");
   const btnUserId = $("btnUserId");
   const debug = $("debug");
+  const msg = $("msg");
 
-  function setDebug(obj) {
+  function setMsg(text) {
+    msg.textContent = text || "";
+  }
+
+  function log(obj) {
     debug.textContent = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
   }
 
-  function getSb() {
-    return window.supabaseClient || window.supabase;
+  async function waitSupabaseClient() {
+    // espera hasta 3s a que exista window.supabaseClient
+    const t0 = Date.now();
+    while (!window.supabaseClient) {
+      if (Date.now() - t0 > 3000) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    return window.supabaseClient;
   }
 
-  async function requireSession() {
-    const sb = getSb();
-    if (!sb) {
-      sessionInfo.innerHTML = "❌ No cargó Supabase. Revisa ../../assets/js/supabaseClient.js";
-      setDebug("Supabase undefined");
-      return null;
-    }
-
+  async function getSessionUser(sb) {
     const { data, error } = await sb.auth.getSession();
-    if (error) {
-      sessionInfo.innerHTML = "❌ Error obteniendo sesión: " + error.message;
-      setDebug(error);
-      return null;
-    }
-
-    const session = data?.session || null;
-    if (!session?.user) {
-      sessionInfo.innerHTML = "❌ No hay sesión. Vuelve al login.";
-      setDebug("No session");
-      return null;
-    }
-
-    sessionInfo.innerHTML =
-      `✅ Sesión: <b>${session.user.email || session.user.id}</b><br>` +
-      `<span style="font-size:12px;color:#6b7280">user_id: ${session.user.id}</span>`;
-
-    return session;
+    if (error) throw error;
+    const user = data?.session?.user || null;
+    return { user, session: data?.session || null };
   }
 
-  async function loadColegios(userId) {
-    const sb = getSb();
+  function fillSelect(items) {
+    colegioSelect.innerHTML = "";
+    const opt0 = document.createElement("option");
+    opt0.value = "";
+    opt0.textContent = "Selecciona un colegio...";
+    colegioSelect.appendChild(opt0);
 
-    // 1) vínculos del usuario
-    const { data: links, error: lErr } = await sb
+    for (const it of items) {
+      const opt = document.createElement("option");
+      opt.value = it.id;
+      opt.textContent = it.nombre ? `${it.nombre}` : `${it.id}`;
+      colegioSelect.appendChild(opt);
+    }
+
+    // si hay 1 solo, lo selecciona
+    if (items.length === 1) {
+      colegioSelect.value = items[0].id;
+      btnEnter.disabled = false;
+    }
+  }
+
+  async function loadColegios(sb, userId) {
+    // 1) leer role desde profiles (si existe)
+    let role = null;
+    let profileColegioId = null;
+
+    try {
+      const { data: prof, error: profErr } = await sb
+        .from("profiles")
+        .select("role, colegio_id")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (profErr) throw profErr;
+
+      role = prof?.role || null;
+      profileColegioId = prof?.colegio_id || null;
+    } catch (e) {
+      // no rompemos, solo seguimos
+      log({ warn: "No se pudo leer profiles (seguimos igual)", detail: e?.message || String(e) });
+    }
+
+    // 2) si es superadmin: ver todos los colegios
+    if (role === "superadmin") {
+      const { data: colegios, error } = await sb
+        .from("colegios")
+        .select("id, nombre")
+        .order("nombre", { ascending: true });
+
+      if (error) throw error;
+      return { role, colegios: colegios || [] };
+    }
+
+    // 3) si NO es superadmin: primero buscar en user_colegios
+    const { data: links, error: linkErr } = await sb
       .from("user_colegios")
       .select("colegio_id")
       .eq("user_id", userId);
 
-    if (lErr) {
-      setDebug({ step: "user_colegios", error: lErr });
-      throw new Error("No se pudo leer user_colegios: " + lErr.message);
+    if (linkErr) throw linkErr;
+
+    const colegioIds = (links || []).map((x) => x.colegio_id).filter(Boolean);
+
+    // 4) si no hay links, usamos fallback: profiles.colegio_id (si existe)
+    const finalIds = colegioIds.length ? colegioIds : (profileColegioId ? [profileColegioId] : []);
+
+    if (!finalIds.length) {
+      return { role, colegios: [], reason: "NO_LINKS" };
     }
 
-    if (!links || links.length === 0) {
-      setDebug({ step: "user_colegios", user_id: userId, links });
-      throw new Error("Este usuario NO tiene colegios asignados en user_colegios.");
-    }
-
-    const colegioIds = links.map((x) => x.colegio_id);
-
-    // 2) info de colegios
-    const { data: colegios, error: cErr } = await sb
+    // 5) traer datos de colegios
+    const { data: colegios, error: colErr } = await sb
       .from("colegios")
       .select("id, nombre")
-      .in("id", colegioIds)
-      .order("nombre", { ascending: true });
+      .in("id", finalIds);
 
-    if (cErr) {
-      setDebug({ step: "colegios", error: cErr });
-      throw new Error("No se pudo leer colegios: " + cErr.message);
+    if (colErr) throw colErr;
+
+    // orden por nombre
+    (colegios || []).sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+
+    return { role, colegios: colegios || [] };
+  }
+
+  async function init() {
+    setMsg("");
+    log("Iniciando...");
+
+    const sb = await waitSupabaseClient();
+    if (!sb) {
+      setMsg("No se cargó supabaseClient.js (window.supabaseClient no existe).");
+      log({ fatal: "Falta window.supabaseClient" });
+      return;
     }
 
-    return colegios || [];
-  }
+    const { user } = await getSessionUser(sb);
+    if (!user) {
+      setMsg("Sesión no válida. Inicia sesión primero.");
+      log({ fatal: "No session" });
+      // ajusta ruta según tu proyecto
+      window.location.href = "../login.html";
+      return;
+    }
 
-  function fillSelect(colegios) {
-    colegioSelect.innerHTML =
-      `<option value="">-- Selecciona --</option>` +
-      colegios.map(c => `<option value="${c.id}">${c.nombre || c.id}</option>`).join("");
+    // botón user id
+    btnUserId.addEventListener("click", () => {
+      alert(`USER ID:\n${user.id}\n\nEMAIL:\n${user.email || "(sin email)"}`);
+    });
 
-    colegioSelect.disabled = false;
-    btnEnter.disabled = false;
-  }
+    // si cambia select, habilitar Enter
+    colegioSelect.addEventListener("change", () => {
+      btnEnter.disabled = !colegioSelect.value;
+    });
 
-  async function main() {
-    try {
-      setDebug("Iniciando...");
-      const session = await requireSession();
-      if (!session) return;
+    // Enter: guarda y redirige
+    btnEnter.addEventListener("click", () => {
+      const colegioId = colegioSelect.value;
+      if (!colegioId) return;
 
-      // ✅ Ver USER ID
-      btnUserId.addEventListener("click", async () => {
-        const s = await requireSession();
-        if (!s) return;
+      localStorage.setItem("selected_colegio_id", colegioId);
 
-        const msg = `USER ID:\n${s.user.id}\n\nEMAIL:\n${s.user.email || "(sin email)"}`;
-        setDebug({ user_id: s.user.id, email: s.user.email });
-        alert(msg);
-      });
+      // ✅ aquí tú ya tienes redirección por roles funcionando en otro lado
+      // lo más seguro es volver al dashboard / index y que tu router redireccione
+      window.location.href = "../index.html";
+    });
 
-      // ✅ Cargar colegios
-      setDebug("Cargando colegios...");
-      const colegios = await loadColegios(session.user.id);
-      setDebug({ ok: true, colegios_count: colegios.length, colegios });
-      fillSelect(colegios);
+    // cargar colegios
+    colegioSelect.innerHTML = `<option value="">Cargando...</option>`;
+    btnEnter.disabled = true;
 
-      // ✅ Guardar y entrar
-      btnEnter.addEventListener("click", () => {
-        const selected = colegioSelect.value;
-        if (!selected) {
-          alert("Selecciona un colegio.");
-          return;
-        }
+    const res = await loadColegios(sb, user.id);
 
-        localStorage.setItem("selected_colegio_id", selected);
-        alert("✅ Colegio seleccionado:\n" + selected);
+    if (!res.colegios.length) {
+      setMsg("Este usuario NO tiene colegios asignados en user_colegios (ni colegio_id en profiles).");
+      log({ fatal: "Este usuario NO tiene colegios asignados en user_colegios.", user_id: user.id, role: res.role || null });
+      return;
+    }
 
-        // Cambia si tu dashboard está en otra ruta
-        location.href = "../dashboard.html";
-      });
+    fillSelect(res.colegios);
+    log({
+      ok: true,
+      user_id: user.id,
+      role: res.role || null,
+      colegios_count: res.colegios.length,
+      colegios: res.colegios
+    });
 
-    } catch (e) {
-      sessionInfo.innerHTML = "❌ " + (e?.message || e);
-      setDebug({ fatal: String(e?.message || e) });
-      colegioSelect.disabled = true;
-      btnEnter.disabled = true;
+    // si ya había colegio guardado antes, lo selecciona
+    const saved = localStorage.getItem("selected_colegio_id");
+    if (saved && res.colegios.some((c) => c.id === saved)) {
+      colegioSelect.value = saved;
+      btnEnter.disabled = false;
     }
   }
 
-  document.addEventListener("DOMContentLoaded", main);
+  // arrancar cuando DOM listo
+  document.addEventListener("DOMContentLoaded", () => {
+    init().catch((e) => {
+      setMsg("Error inesperado al cargar colegios.");
+      log({ fatal: e?.message || String(e), detail: e });
+    });
+  });
 })();
