@@ -14,8 +14,7 @@ exports.handler = async (event) => {
       return json(400, { error: "Falta user_id o password" });
     }
 
-    const supabase = createClient(
-      process.env.SUPABASE_URL,
+ const supabaseUrl = process.env.https://rvdafufkhyjtauubirkz.supabase.co; ,
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
