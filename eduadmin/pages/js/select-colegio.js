@@ -1,3 +1,5 @@
+alert("JS cargado select-user");
+
 (() => {
   // ✅ Confirmación rápida de carga (si molesta luego lo quitas)
   // alert("select-user.js cargó ✅");
