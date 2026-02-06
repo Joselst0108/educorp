@@ -185,7 +185,8 @@
       alert("Sesión cerrada. Vuelve a iniciar sesión.");
       location.href = "../../login.html";
     });
-
+<button id="btnRefresh" style="background:#16a34a">Refrescar token</button>
+<div class="muted">Renueva el token sin salir.</div>
     $("btnCreate").addEventListener("click", async () => {
       $("btnCreate").disabled = true;
 
