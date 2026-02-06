@@ -1,65 +1,48 @@
-(async function () {
-  // 1) Asegurar Supabase
-  if (!window.supabaseClient) {
-    alert("Supabase no está listo. Revisa supabaseClient.js y el CDN.");
-    return;
-  }
+document.addEventListener("DOMContentLoaded", async () => {
 
-  // 2) Validar sesión
-  const { data: sessionData, error: sessionError } = await window.supabaseClient.auth.getSession();
-  if (sessionError || !sessionData.session) {
-    alert("Sesión no válida. Inicia sesión.");
-    window.location.href = "./index.html";
-    return;
-  }
-
-  // 3) Leer colegio seleccionado
-  const colegioId = localStorage.getItem("colegio_id");
-  const colegioNombre = localStorage.getItem("colegio_nombre");
+  const colegioId = localStorage.getItem("selected_colegio_id");
 
   if (!colegioId) {
-    alert("No hay colegio seleccionado. Vuelve a seleccionar tu colegio.");
-    window.location.href = "./index.html";
+    alert("No hay colegio seleccionado");
+    window.location.href = "/eduadmin/pages/select-colegio.html";
     return;
   }
 
-  // 4) Mostrar datos básicos en UI
-  document.getElementById("infoColegio").textContent = `Colegio: ${colegioNombre || colegioId}`;
-  document.getElementById("bienvenida").textContent = `Bienvenido ✅ Colegio activo: ${colegioNombre || "Sin nombre"}`;
+  // ===============================
+  // CARGAR COLEGIO
+  // ===============================
+  const { data: colegio, error } = await window.supabaseClient
+    .from("colegios")
+    .select("*")
+    .eq("id", colegioId)
+    .single();
 
-  // 5) AÑO ACTIVO (usa tu archivo academicYear.js)
-  // Debe existir esta función global (la vienes usando): setActiveAcademicYearAndRedirect()
-  // Aquí NO redirigimos, solo cargamos el año activo y lo mostramos.
-  const anioActivo = localStorage.getItem("anio_activo");
-  const anioId = localStorage.getItem("anio_academico_id");
-
-  // Si todavía no está guardado, intentamos forzar la carga (sin redirección)
-  if (!anioId || !anioActivo) {
-    if (typeof window.setActiveAcademicYear === "function") {
-      await window.setActiveAcademicYear(); // si tu academicYear.js lo trae así
-    } else if (typeof window.setActiveAcademicYearAndRedirect === "function") {
-      // lo llamamos pero evitando redirect: si tu función redirige, NO la uses aquí.
-      // Mejor: asegúrate que academicYear.js tenga setActiveAcademicYear() (te lo ajusto si hace falta).
-      console.warn("Tu academicYear.js parece redirigir. Si pasa eso, te lo ajusto.");
-    }
+  if (error || !colegio) {
+    console.log(error);
+    alert("Error cargando colegio");
+    return;
   }
 
-  const anioActivo2 = localStorage.getItem("anio_activo");
-  const anioId2 = localStorage.getItem("anio_academico_id");
-  document.getElementById("infoAnio").textContent = `Año activo: ${anioActivo2 || "—"}`;
+  const elColegio = document.getElementById("infoColegio");
+  if (elColegio) elColegio.textContent = "Colegio: " + colegio.nombre;
 
-  // 6) Stats (por ahora demo, luego lo conectamos a tablas reales)
-  document.getElementById("statAlumnos").textContent = "Listo para conectar a tabla alumnos ✅";
-  document.getElementById("statPagos").textContent = "Listo para conectar a tabla pagos ✅";
-  document.getElementById("statDeudores").textContent = "Listo para conectar a tabla pensiones ✅";
+  // ===============================
+  // CARGAR AÑO ACTIVO
+  // ===============================
+  const { data: anio } = await window.supabaseClient
+    .from("anios_academicos")
+    .select("*")
+    .eq("colegio_id", colegioId)
+    .eq("activo", true)
+    .single();
 
-  // 7) Logout
-  document.getElementById("btnLogout").addEventListener("click", async () => {
-    await window.supabaseClient.auth.signOut();
-    localStorage.removeItem("colegio_id");
-    localStorage.removeItem("colegio_nombre");
-    localStorage.removeItem("anio_academico_id");
-    localStorage.removeItem("anio_activo");
-    window.location.href = "./index.html";
-  });
-})();
+  if (anio) {
+    localStorage.setItem("anio_id", anio.id);
+
+    const elAnio = document.getElementById("infoAnio");
+    if (elAnio) elAnio.textContent = "Año: " + anio.anio;
+  } else {
+    alert("No hay año activo");
+  }
+
+});
