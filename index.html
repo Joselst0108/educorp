@@ -1,50 +1,57 @@
-O<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>EduCorp | Plataforma Educativa Integral</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <title>EduCorp | Plataforma Educativa Integral</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
 
-    <h1>EduCorp</h1>
-    <p>Plataforma educativa integral para colegios (Inicial, Primaria y Secundaria).</p>
+  <h1>EduCorp</h1>
+  <p>Plataforma educativa integral para colegios (Inicial, Primaria y Secundaria).</p>
 
-    <h2>Acceso</h2>
-    <ul>
-        <li><a href="login.html">🔐 Iniciar sesión</a></li>
-        <li><a href="planes.html">💼 Ver planes</a></li>
-    </ul>
+  <h2>Acceso</h2>
+  <ul>
+    <li><a href="login.html">🔐 Iniciar sesión</a></li>
+    <li><a href="planes.html">💼 Ver planes</a></li>
+  </ul>
 
-    <h2>Plataformas</h2>
-    <ul>
-        <li><a href="eduadmin/">🔵 EduAdmin</a> – Administración real</li>
-        <li><a href="edubank/">🟢 EduBank</a> – Educación financiera ficticia</li>
-        <li><a href="eduasist/">🟡 EduAsist</a> – Asistencia y notas</li>
-        <li><a href="eduia/">🟣 EduIA</a> – IA para sesiones y programaciones</li>
-    </ul>
-<script>
-async function crearUsuario() {
+  <h2>Plataformas</h2>
+  <ul>
+    <li><a href="eduadmin/">🔵 EduAdmin</a> – Administración real</li>
+    <li><a href="edubank/">🟢 EduBank</a> – Educación financiera ficticia</li>
+    <li><a href="eduasist/">🟡 EduAsist</a> – Asistencia y notas</li>
+    <li><a href="eduia/">🟣 EduIA</a> – IA para sesiones y programaciones</li>
+  </ul>
 
-  const r = await fetch("/.netlify/functions/create-user", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      dni: "45102966",
-      colegio_id: "8f818584-ef44-4e3a-9a33-02fc269971c8",
-      roles: ["docente"]
-    })
-  });
+  <!-- ✅ CAMBIO NECESARIO: botón para llamar a la función -->
+  <button onclick="crearUsuario()">
+    🧪 Crear usuario de prueba
+  </button>
 
-  const t = await r.text();
-  console.log("RESPUESTA RAW:", t);
+  <script>
+    async function crearUsuario() {
 
-  try {
-    console.log("JSON:", JSON.parse(t));
-  } catch {
-    console.log("No es JSON válido");
-  }
-}
-</script>
+      const r = await fetch("/.netlify/functions/create-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dni: "45102966",
+          colegio_id: "8f818584-ef44-4e3a-9a33-02fc269971c8",
+          roles: ["docente"]
+        })
+      });
+
+      const t = await r.text();
+      console.log("RESPUESTA RAW:", t);
+
+      try {
+        console.log("JSON:", JSON.parse(t));
+      } catch {
+        console.log("No es JSON válido");
+      }
+    }
+  </script>
+
 </body>
 </html>
