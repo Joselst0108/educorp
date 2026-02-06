@@ -1,240 +1,76 @@
-<!-- Ruta: eduadmin/pages/matricula.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Matrícula</title>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabaseClient.js"></script>
+
   <style>
-    body { font-family: Arial, sans-serif; padding: 14px; }
-    h1,h2,h3 { margin: 10px 0; }
-    label { font-weight: 600; }
-    input, select { width: 100%; padding:8px; border:1px solid #bbb; border-radius:6px; box-sizing:border-box; }
-    .btn { padding:7px 12px; border:1px solid #999; background:#f7f7f7; cursor:pointer; border-radius:6px; }
-    .btn.primary { background:#e8fff0; border-color:#5cb85c; }
-    .btn.danger { background:#ffecec; border-color:#d9534f; }
-    .muted { color:#666; font-size: 13px; }
-    .line { height:1px; background:#eee; margin:10px 0; }
-
-    /* Modal */
-    #modalExistente {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.55);
-      display: none;
-      padding: 16px;
-      box-sizing: border-box;
-      z-index: 9999;
-    }
-    .modal-card {
-      max-width: 520px;
-      background: #fff;
-      margin: 40px auto;
-      border-radius: 12px;
-      overflow: hidden;
-      border: 1px solid #ddd;
-    }
-    .modal-head { padding: 12px 14px; background:#f7f7f7; display:flex; justify-content:space-between; align-items:center; }
-    .modal-body { padding: 12px 14px; }
-    .modal-actions { padding: 12px 14px; display:flex; gap:8px; flex-wrap:wrap; background:#fafafa; }
-    .modal-actions .btn { flex: 1 1 auto; }
-
-    /* Layout simple */
-    .row-inline { display:flex; gap:10px; align-items:flex-end; }
-    .row-inline > div { flex: 1; }
+    body{font-family:system-ui,Arial;margin:18px;background:#f7f8fb}
+    .wrap{max-width:1100px;margin:0 auto}
+    .card{background:#fff;border:1px solid #e6e8f0;border-radius:14px;padding:16px;margin-bottom:14px}
+    h1{margin:0 0 10px}
+    .row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    input,select,button{padding:10px;border-radius:10px;border:1px solid #d9dbe7;font-size:15px;width:100%}
+    button{cursor:pointer;border:none;background:#2e7d32;color:#fff}
+    button.secondary{background:#1976d2}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid #eef0f6;padding:10px;text-align:left;font-size:14px}
+    .muted{color:#6b7280;font-size:13px}
+    .danger{color:#b00020;font-weight:600}
   </style>
 </head>
-
 <body>
+  <div class="wrap">
 
-  <h1>EduAdmin | Matrícula</h1>
-  <p class="muted">Matrícula / Reingreso / Traslado / Retiro</p>
+    <div class="card">
+      <h1>Matrícula</h1>
+      <div class="muted" id="metaInfo">Cargando colegio y año...</div>
+      <div class="danger" id="msg"></div>
+    </div>
 
-  <div class="line"></div>
+    <div class="card">
+      <h3 style="margin:0 0 10px">Matricular alumno</h3>
+      <div class="row">
+        <select id="alumnoSelect">
+          <option value="">Cargando alumnos...</option>
+        </select>
 
-  <!-- 0) INFO/SESION (opcional, no afecta) -->
-  <p class="muted" id="sessionInfo"></p>
+        <input id="fecha" type="date" />
 
-  <!-- =========================
-       ESTADO TÉCNICO (opcional)
-       (queda oculto para no ensuciar la vista)
-  ========================== -->
-  <details id="debugDetails" style="display:none;">
-    <summary>Estado técnico</summary>
-    <div id="debugBox">
-      <div id="debugList" style="white-space:pre-wrap;"></div>
-      <div class="line"></div>
-      <div>
-        apoderados: <span id="st_apoderados">—</span><br/>
-        alumnos: <span id="st_alumnos">—</span><br/>
-        matriculas: <span id="st_matriculas">—</span><br/>
-        auth apoderado: <span id="st_auth_apoderado">—</span><br/>
-        auth alumno: <span id="st_auth_alumno">—</span><br/>
-        profiles: <span id="st_profiles">—</span><br/>
-        apoderado_hijos: <span id="st_apoderado_hijos">—</span>
+        <button id="btnMatricular">Matricular</button>
+      </div>
+      <div class="muted" style="margin-top:8px">
+        Tip: solo se puede matricular 1 vez por alumno en el mismo año.
       </div>
     </div>
-  </details>
 
-  <!-- =========================
-       1) BUSCAR ALUMNO POR DNI
-  ========================== -->
-  <h2>1) Buscar alumno por DNI (reingreso)</h2>
+    <div class="card">
+      <h3 style="margin:0 0 10px">Lista de matriculados</h3>
+      <div class="muted" id="countInfo">0 matriculados</div>
 
-  <form id="formBuscarDni">
-    <div class="row-inline">
-      <div>
-        <label for="dniBuscar">DNI del alumno</label>
-        <input id="dniBuscar" type="text" placeholder="DNI del alumno" inputmode="numeric" />
-      </div>
-      <div style="max-width:140px;">
-        <button class="btn primary" id="btnBuscar" type="submit">Buscar</button>
-      </div>
-    </div>
-  </form>
-
-  <div id="boxExistente" style="display:none; margin-top:10px;">
-    <p id="txtExistente" class="muted"></p>
-  </div>
-
-  <div class="line"></div>
-
-  <!-- =========================
-       2) NUEVA MATRÍCULA
-  ========================== -->
-  <h2>2) Nueva matrícula (crear apoderado + alumno + matrícula)</h2>
-
-  <div id="boxNuevo" style="display:block;">
-    <form id="formNuevo">
-
-      <h3>Datos del Apoderado</h3>
-
-      <label for="dniApoderado">DNI apoderado:</label>
-      <input id="dniApoderado" type="text" inputmode="numeric" />
-
-      <label for="nombresApoderado">Nombres:</label>
-      <input id="nombresApoderado" type="text" />
-
-      <label for="apellidosApoderado">Apellidos:</label>
-      <input id="apellidosApoderado" type="text" />
-
-      <!-- Opcionales (por si los tienes en tu HTML antiguo) -->
-      <label for="telefonoApoderado">Teléfono (opcional):</label>
-      <input id="telefonoApoderado" type="text" inputmode="tel" />
-
-      <label for="emailApoderado">Email (opcional):</label>
-      <input id="emailApoderado" type="email" />
-
-      <div class="line"></div>
-
-      <h3>Datos del Alumno</h3>
-
-      <label for="dniAlumno">DNI alumno:</label>
-      <input id="dniAlumno" type="text" inputmode="numeric" />
-
-      <label for="aluCodigo">Código alumno (puede ser DNI o código interno):</label>
-      <div class="row-inline">
-        <div>
-          <input id="aluCodigo" type="text" placeholder="Ej: 12345678" />
-        </div>
-        <div style="max-width:160px;">
-          <button class="btn" id="btnAutoCodigo" type="button">Autogenerar</button>
-        </div>
-      </div>
-
-      <label for="nombresAlumno">Nombres:</label>
-      <input id="nombresAlumno" type="text" />
-
-      <label for="apellidosAlumno">Apellidos:</label>
-      <input id="apellidosAlumno" type="text" />
-
-      <label for="nivelAlumno">Nivel:</label>
-      <select id="nivelAlumno">
-        <option value="Inicial">Inicial</option>
-        <option value="Primaria">Primaria</option>
-        <option value="Secundaria">Secundaria</option>
-      </select>
-
-      <label for="gradoAlumno">Grado:</label>
-      <input id="gradoAlumno" type="text" placeholder="Ej: 5" inputmode="numeric" />
-
-      <label for="seccionAlumno">Sección:</label>
-      <input id="seccionAlumno" type="text" placeholder="Ej: A" />
-
-      <div class="line"></div>
-
-      <h3>Datos de Matrícula</h3>
-
-      <label for="matAnio">Año:</label>
-      <input id="matAnio" type="text" value="2026" inputmode="numeric" />
-
-      <div style="margin-top:10px;">
-        <button class="btn primary" type="submit">Registrar matrícula</button>
-      </div>
-
-      <p id="msgOk" class="muted"></p>
-    </form>
-  </div>
-
-  <!-- =========================
-       MODAL EXISTENTE
-  ========================== -->
-  <div id="modalExistente">
-    <div class="modal-card">
-      <div class="modal-head">
-        <b>Alumno existente</b>
-        <button class="btn" id="btnCerrarModal" type="button">X</button>
-      </div>
-
-      <div class="modal-body" id="modalBody">
-        <!-- JS escribe aquí -->
-      </div>
-
-      <div class="modal-actions">
-        <button class="btn primary" id="btnConfirmarMatricula" type="button">Confirmar</button>
-        <button class="btn" id="btnReingreso" type="button">Reingreso</button>
-        <button class="btn" id="btnTraslado" type="button">Traslado</button>
-        <button class="btn danger" id="btnRetiro" type="button">Retiro</button>
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>DNI</th>
+              <th>Apellidos</th>
+              <th>Nombres</th>
+              <th>Grado</th>
+              <th>Sección</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyMatriculas"></tbody>
+        </table>
       </div>
     </div>
+
   </div>
 
-  <!-- =========================
-       SCRIPTS
-  ========================== -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../../assets/js/supabaseClient.js"></script>
-  <script src="../js/matricula.js"></script>
-
-  <!-- Autogenerar código simple (sin ensuciar pantalla) -->
-  <script>
-    document.addEventListener("DOMContentLoaded", async () => {
-      const btnAuto = document.getElementById("btnAutoCodigo");
-      if (btnAuto) {
-        btnAuto.addEventListener("click", () => {
-          const dni = (document.getElementById("dniAlumno")?.value || "").trim();
-          const anio = (document.getElementById("matAnio")?.value || "2026").trim();
-          const cod = document.getElementById("aluCodigo");
-          if (!cod) return;
-          if (dni) cod.value = dni;
-          else cod.value = `AMDC-${anio}-${String(Math.floor(Math.random()*99999)).padStart(5,'0')}`;
-        });
-      }
-
-      // Mostrar colegio_id si existe (solo info)
-      try {
-        const colegioId = localStorage.getItem("colegio_id") || "";
-        const sb = window.supabaseClient || window.supabase;
-        const { data } = sb ? await sb.auth.getSession() : { data: null };
-        const who = data?.session?.user?.email || "";
-        const el = document.getElementById("sessionInfo");
-        if (el) el.textContent = (colegioId || who)
-          ? `colegio_id: ${colegioId || "(vacío)"} ${who ? " | " + who : ""}`
-          : "";
-      } catch (_) {}
-    });
-  </script>
-
+  <script src="./js/matricula.js"></script>
 </body>
 </html>
