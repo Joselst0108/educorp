@@ -1,161 +1,105 @@
-// netlify/functions/create-user.js
 const { createClient } = require("@supabase/supabase-js");
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
 exports.handler = async (event) => {
-  // CORS preflight
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers: corsHeaders, body: "ok" };
-  }
-
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: "Use POST" }),
-    };
-  }
-
   try {
-    const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!SUPABASE_URL || !SERVICE_KEY) {
-      return {
-        statusCode: 500,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: "Missing env vars" }),
-      };
-    }
+    // =========================================
+    // 🔐 TUS DATOS SUPABASE (PEGADOS DIRECTO)
+    // =========================================
+    const supabaseUrl = "https://rvdafufkhyjtauubirkz.supabase.co";
 
-    const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    const serviceRole =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2ZGFmdWZraHlqdGF1dWJpcmt6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDA3MzkwNCwiZXhwIjoyMDg1NjQ5OTA0fQ.te_K1t1POJkJqMRJvYqNc4Vg5T5EEC5yjUNkQoykebA";
 
-    const body = JSON.parse(event.body || "{}");
-    const dni = String(body.dni || "").trim();
-    const roles = Array.isArray(body.roles) ? body.roles : [];
-    const colegios = Array.isArray(body.colegios) ? body.colegios : []; // opcional
-    const colegio_id = body.colegio_id || null; // compatibilidad (uno)
-    const full_name = String(body.full_name || "").trim();
+    const admin = createClient(supabaseUrl, serviceRole);
 
-    if (!dni || dni.length < 6) {
+    // =========================================
+    // BODY
+    // =========================================
+    const { dni, colegio_id, roles } = JSON.parse(event.body);
+
+    if (!dni) {
       return {
         statusCode: 400,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: "dni requerido" }),
+        body: JSON.stringify({ error: "Falta DNI" })
       };
     }
 
-    // email interno por DNI
-    const email = `${dni}@educorp.local`;
-    const password = dni; // password inicial
+    const email = dni + "@educorp.local";
+    const password = dni;
 
-    // 1) Buscar si ya existe en auth
-    let userId = null;
-
-    const { data: listData, error: listErr } = await admin.auth.admin.listUsers({
-      page: 1,
-      perPage: 1000, // suficiente para pruebas; si crece, lo mejor es guardar dni en tabla propia
-    });
-
-    if (listErr) throw listErr;
-
-    const existing = (listData?.users || []).find((u) => u.email === email);
-
-    if (existing) {
-      userId = existing.id;
-    } else {
-      // 2) Crear auth user
-      const { data: created, error: createErr } = await admin.auth.admin.createUser({
+    // =========================================
+    // CREAR AUTH USER
+    // =========================================
+    const { data: userData, error: userError } =
+      await admin.auth.admin.createUser({
         email,
         password,
-        email_confirm: true,
-        user_metadata: { dni, full_name },
+        email_confirm: true
       });
 
-      if (createErr) throw createErr;
-      userId = created.user.id;
+    if (userError) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: userError.message
+        })
+      };
     }
 
-    // 3) Upsert profile base (tu tabla profiles ya existe)
-    // OJO: en tu captura profiles tiene: role, colegio_id, is_active, created_at, alumno_id, apoderado_id, must_change_password, email
-    // Como ahora roles van en user_roles, dejamos role opcional y ponemos email.
-    const primaryColegio = colegio_id || (colegios[0] || null);
+    const user_id = userData.user.id;
 
-    const { error: profErr } = await admin
-      .from("profiles")
-      .upsert(
-        {
-          id: userId,
-          email,
-          colegio_id: primaryColegio,
-          is_active: true,
-        },
-        { onConflict: "id" }
-      );
+    // =========================================
+    // PROFILE
+    // =========================================
+    await admin.from("profiles").insert({
+      id: user_id,
+      dni: dni
+    });
 
-    if (profErr) throw profErr;
+    // =========================================
+    // ROLES
+    // =========================================
+    for (const r of roles) {
 
-    // 4) Insertar colegios (muchos)
-    const colegiosFinal = [
-      ...new Set([...(colegios || []), ...(primaryColegio ? [primaryColegio] : [])]),
-    ].filter(Boolean);
+      const { data: roleData } = await admin
+        .from("roles")
+        .select("id")
+        .eq("role", r)
+        .single();
 
-    if (colegiosFinal.length > 0) {
-      const rowsColegios = colegiosFinal.map((cid) => ({
-        user_id: userId,
-        colegio_id: cid,
-      }));
-
-      const { error: ucErr } = await admin
-        .from("user_colegios")
-        .upsert(rowsColegios, { onConflict: "user_id,colegio_id" });
-
-      if (ucErr) throw ucErr;
+      if (roleData) {
+        await admin.from("user_roles").insert({
+          user_id,
+          role_id: roleData.id
+        });
+      }
     }
 
-    // 5) Insertar roles (muchos)
-    const rolesFinal = [...new Set(roles.map((r) => String(r).trim()).filter(Boolean))];
-
-    if (rolesFinal.length > 0) {
-      const rowsRoles = rolesFinal.map((r) => ({
-        user_id: userId,
-        role: r,
-      }));
-
-      const { error: urErr } = await admin
-        .from("user_roles")
-        .upsert(rowsRoles, { onConflict: "user_id,role" });
-
-      if (urErr) throw urErr;
+    // =========================================
+    // COLEGIO
+    // =========================================
+    if (colegio_id) {
+      await admin.from("user_colegios").insert({
+        user_id,
+        colegio_id
+      });
     }
 
     return {
       statusCode: 200,
-      headers: corsHeaders,
       body: JSON.stringify({
         ok: true,
-        user_id: userId,
-        email,
-        created: !existing,
-        roles: rolesFinal,
-        colegios: colegiosFinal,
-      }),
+        user_id
+      })
     };
-  } catch (e) {
+
+  } catch (err) {
     return {
       statusCode: 500,
-      headers: corsHeaders,
       body: JSON.stringify({
-        error: "internal_error",
-        message: e?.message || String(e),
-      }),
+        error: err.message
+      })
     };
   }
 };
