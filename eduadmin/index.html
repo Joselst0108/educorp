@@ -10,21 +10,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const supabase = window.supabaseClient;
 
   // 🔹 obtener colegio seleccionado
-  const colegioId = localStorage.getItem("selected_colegio_id");
-
-  if (!colegioId) {
-    alert("No hay colegio seleccionado");
-    window.location.href = "/eduadmin/pages/select-colegio.html";
-    return;
-  }
-
-  // 🔹 traer nombre del colegio
-  const { data, error } = await supabase
-    .from("colegios")
-    .select("nombre")
-    .eq("id", colegioId)
-    .single();
-
+  const colegioId = 
   
 
   
