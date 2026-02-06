@@ -1,42 +1,49 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Reset Password (Test)</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Reset Password</title>
 </head>
-<body style="font-family:system-ui;padding:16px;max-width:520px;margin:auto">
-  <h2>Reset Password (Netlify)</h2>
 
-  <label>Email</label><br/>
-  <input id="email" style="width:100%;padding:10px" value="45102960@educorp.local"/><br/><br/>
+<body style="font-family:system-ui;padding:20px;max-width:500px;margin:auto">
 
-  <label>Nueva contraseña</label><br/>
-  <input id="pass" style="width:100%;padding:10px" value="0502000323"/><br/><br/>
+<h2>Reset Password</h2>
 
-  <button id="btn" style="padding:10px 14px">Resetear</button>
+<label>User ID</label>
+<input id="uid" style="width:100%;padding:10px"
+value="574d6406-a398-43ea-8034-d5a76176ed4a"/>
 
-  <pre id="out" style="background:#111;color:#0f0;padding:12px;white-space:pre-wrap;margin-top:16px"></pre>
+<br><br>
 
-  <script>
-    const out = document.getElementById("out");
-    document.getElementById("btn").addEventListener("click", async () => {
-      out.textContent = "Enviando...";
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("pass").value;
+<label>Nueva contraseña</label>
+<input id="pass" style="width:100%;padding:10px"
+value="0502000323"/>
 
-      try {
-        const r = await fetch("/.netlify/functions/reset-password", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password })
-        });
-        const data = await r.json().catch(() => ({}));
-        out.textContent = "HTTP " + r.status + "\n" + JSON.stringify(data, null, 2);
-      } catch (e) {
-        out.textContent = "ERROR: " + (e.message || e);
-      }
-    });
-  </script>
+<br><br>
+
+<button onclick="reset()">Resetear</button>
+
+<pre id="out" style="background:#111;color:#0f0;padding:12px;margin-top:20px"></pre>
+
+<script>
+async function reset(){
+  const out = document.getElementById("out");
+  out.textContent = "Enviando...";
+
+  const r = await fetch("/.netlify/functions/reset-password",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({
+      user_id: document.getElementById("uid").value,
+      password: document.getElementById("pass").value
+    })
+  });
+
+  const t = await r.text();
+  out.textContent = "HTTP "+r.status+"\n"+t;
+}
+</script>
+
 </body>
 </html>
