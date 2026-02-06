@@ -1,35 +1,28 @@
 document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    const supabase = window.supabaseClient;
+  const colegioId = localStorage.getItem("selected_colegio_id");
 
-    if (!supabase) {
-      console.error("❌ window.supabaseClient no existe. Revisa que supabaseClient.js esté bien enlazado.");
-      return;
-    }
+  if (!colegioId) {
+    alert("No hay colegio seleccionado");
+    window.location.href = "/eduadmin/pages/select-colegio.html";
+    return;
+  }
 
-    const colegioId = localStorage.getItem("selected_colegio_id");
+  const { data: colegio, error } = await window.supabaseClient
+    .from("colegios")
+    .select("*")
+    .eq("id", colegioId)
+    .single();
 
-    if (!colegioId) {
-      alert("No hay colegio seleccionado");
-      window.location.href = "/eduadmin/pages/select-colegio.html";
-      return;
-    }
+  if (error || !colegio) {
+    alert("Error cargando colegio");
+    console.log(error);
+    return;
+  }
 
-    const { data: colegio, error } = await supabase
-      .from("colegios")
-      .select("nombre")
-      .eq("id", colegioId)
-      .single();
+  console.log("Colegio activo:", colegio.nombre);
 
-    if (error) {
-      console.error("❌ Error cargando colegio:", error);
-      document.getElementById("colegioNombre").textContent = "Error cargando colegio";
-      return;
-    }
-
-    document.getElementById("colegioNombre").textContent = colegio.nombre;
-    console.log("✅ Colegio activo:", colegio.nombre);
-  } catch (e) {
-    console.error("❌ Error en index.js:", e);
+  const nombreEl = document.getElementById("colegioNombre");
+  if (nombreEl) {
+    nombreEl.textContent = colegio.nombre;
   }
 });
