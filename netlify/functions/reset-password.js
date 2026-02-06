@@ -1,5 +1,4 @@
-const { createClient } = require("@supabase/supabase-js");
-
+// netlify/functions/reset-password.js
 exports.handler = async (event) => {
   try {
     if (event.httpMethod !== "POST") {
@@ -7,11 +6,12 @@ exports.handler = async (event) => {
     }
 
     const body = JSON.parse(event.body || "{}");
-    const email = String(body.email || "").trim();
+    const email = String(body.email || "").trim().toLowerCase();
+    const user_id = String(body.user_id || "").trim();
     const password = String(body.password || body.new_password || "").trim();
 
-    if (!email || !password) {
-      return json(400, { error: "Faltan datos: email y password." });
+    if ((!email && !user_id) || !password) {
+      return json(400, { error: "Faltan datos: (email o user_id) y password." });
     }
 
     const supabaseUrl = process.env.SUPABASE_URL;
@@ -21,67 +21,88 @@ exports.handler = async (event) => {
       return json(500, { error: "Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en Netlify." });
     }
 
-    const sb = createClient(supabaseUrl, serviceKey);
+    const AUTH_ADMIN = `${supabaseUrl.replace(/\/$/, "")}/auth/v1/admin`;
+
+    const headers = {
+      "Content-Type": "application/json",
+      "apikey": serviceKey,
+      "Authorization": `Bearer ${serviceKey}`,
+    };
 
     // ============================
-    // 1) OBTENER USER POR EMAIL (v2 o v1)
+    // 1) Obtener user id (por user_id directo o buscando por email)
     // ============================
-    let user = null;
+    let uid = user_id || null;
 
-    // v2: sb.auth.admin.getUserByEmail
-    if (sb?.auth?.admin?.getUserByEmail) {
-      const { data, error } = await sb.auth.admin.getUserByEmail(email);
-      if (error) return json(500, { error: "getUserByEmail: " + error.message });
-      user = data?.user || null;
-    }
-    // v1: sb.auth.api.getUserByEmail
-    else if (sb?.auth?.api?.getUserByEmail) {
-      const { user: u, error } = await sb.auth.api.getUserByEmail(email);
-      if (error) return json(500, { error: "getUserByEmail(v1): " + error.message });
-      user = u || null;
-    }
-    // fallback: listar usuarios (v2 o v1)
-    else {
-      // v2 listUsers
-      if (sb?.auth?.admin?.listUsers) {
-        const { data, error } = await sb.auth.admin.listUsers({ perPage: 2000 });
-        if (error) return json(500, { error: "listUsers(v2): " + error.message });
-        user = (data?.users || []).find((u) => u.email === email) || null;
+    if (!uid) {
+      // Listamos usuarios (paginado) y buscamos por email
+      // Nota: si tienes miles de usuarios, subimos per_page y/o recorremos páginas.
+      const perPage = 1000;
+
+      // Intentamos página 1..5 (hasta 5000 usuarios). Ajusta si necesitas más.
+      let found = null;
+
+      for (let page = 1; page <= 5; page++) {
+        const url = `${AUTH_ADMIN}/users?page=${page}&per_page=${perPage}`;
+        const r = await fetch(url, { method: "GET", headers });
+
+        if (!r.ok) {
+          const txt = await safeText(r);
+          return json(500, {
+            error: `No pude listar usuarios (page=${page})`,
+            status: r.status,
+            details: txt,
+            hint: "Revisa SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY en Netlify + redeploy con Clear cache.",
+          });
+        }
+
+        const data = await r.json().catch(() => ({}));
+        const users = Array.isArray(data?.users) ? data.users : [];
+
+        found = users.find((u) => String(u.email || "").toLowerCase() === email) || null;
+        if (found?.id) {
+          uid = found.id;
+          break;
+        }
+
+        // Si vino menos que perPage, ya no hay más páginas
+        if (users.length < perPage) break;
       }
-      // v1 listUsers
-      else if (sb?.auth?.api?.listUsers) {
-        const { users, error } = await sb.auth.api.listUsers();
-        if (error) return json(500, { error: "listUsers(v1): " + error.message });
-        user = (users || []).find((u) => u.email === email) || null;
-      } else {
-        return json(500, {
-          error: "Tu SDK no expone admin/api (no puedo listar/buscar usuarios).",
-          hint: "Asegura @supabase/supabase-js ^2.x en Netlify Functions y redeploy con Clear cache.",
-        });
+
+      if (!uid) {
+        return json(404, { error: "No existe usuario con ese email en auth", email });
       }
     }
 
-    if (!user?.id) {
-      return json(404, { error: "No existe usuario con ese email en auth.users", email });
+    // ============================
+    // 2) Actualizar password por ID (Admin API)
+    // ============================
+    const updUrl = `${AUTH_ADMIN}/users/${uid}`;
+
+    const r2 = await fetch(updUrl, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ password }),
+    });
+
+    if (!r2.ok) {
+      const txt = await safeText(r2);
+      return json(500, {
+        error: "No pude actualizar la contraseña",
+        status: r2.status,
+        details: txt,
+        user_id: uid,
+      });
     }
 
-    // ============================
-    // 2) ACTUALIZAR PASSWORD (v2 o v1)
-    // ============================
-    // v2: sb.auth.admin.updateUserById
-    if (sb?.auth?.admin?.updateUserById) {
-      const { error } = await sb.auth.admin.updateUserById(user.id, { password });
-      if (error) return json(500, { error: "updateUserById(v2): " + error.message });
-    }
-    // v1: sb.auth.api.updateUserById
-    else if (sb?.auth?.api?.updateUserById) {
-      const { error } = await sb.auth.api.updateUserById(user.id, { password });
-      if (error) return json(500, { error: "updateUserById(v1): " + error.message });
-    } else {
-      return json(500, { error: "No existe updateUserById en tu SDK." });
-    }
+    const out = await r2.json().catch(() => ({}));
 
-    return json(200, { ok: true, email, user_id: user.id });
+    return json(200, {
+      ok: true,
+      user_id: uid,
+      email: out?.email || email || null,
+      message: "Password actualizado correctamente.",
+    });
   } catch (e) {
     return json(500, { error: e?.message || String(e) });
   }
@@ -93,4 +114,12 @@ function json(statusCode, obj) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(obj, null, 2),
   };
+}
+
+async function safeText(res) {
+  try {
+    return await res.text();
+  } catch {
+    return "";
+  }
 }
