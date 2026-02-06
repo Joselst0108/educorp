@@ -1,53 +1,57 @@
-U789<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Seleccionar colegio</title>
   <style>
-    body{font-family:system-ui,Arial;margin:0;min-height:100vh;display:grid;place-items:center;background:#f6f7fb}
-    .card{width:min(720px,92vw);background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.06)}
-    h2{margin:0 0 10px}
-    .muted{color:#6b7280;font-size:13px;margin:6px 0 14px}
-    label{display:block;font-weight:700;margin:10px 0 6px}
-    select,button{width:100%;padding:12px;border-radius:12px;border:1px solid #d1d5db;font-size:16px}
-    button{border:none;color:#fff;font-weight:800;cursor:pointer}
-    #btnEnter{background:#16a34a}
-    #btnUserId{background:#2563eb;margin-top:10px}
-    #debug{margin-top:10px;background:#0b1220;color:#d1fae5;padding:12px;border-radius:12px;overflow:auto;min-height:70px}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    @media (max-width:560px){.row{grid-template-columns:1fr}}
+    body { font-family: system-ui, Arial; background:#f5f7fb; margin:0; }
+    .wrap { max-width: 900px; margin: 40px auto; padding: 0 16px; }
+    .card { background:#fff; border-radius:14px; padding: 20px; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+    h1 { margin:0 0 10px; }
+    .muted { color:#666; font-size: 14px; }
+    label { display:block; margin: 14px 0 6px; font-weight:600; }
+    select, button { width:100%; padding: 12px; border-radius:10px; border:1px solid #ddd; font-size:16px; }
+    .row { display:flex; gap: 12px; margin-top: 14px; }
+    .row button { width: 50%; }
+    #btnEnter { background:#2e7d32; color:#fff; border:none; }
+    #btnUserId { background:#1976d2; color:#fff; border:none; }
+    #btnEnter[disabled] { opacity:.6; cursor:not-allowed; }
+    pre { background:#0b1220; color:#d7e0ff; padding: 12px; border-radius:10px; overflow:auto; }
+    .danger { color:#b00020; font-weight:600; margin-top:10px; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h2>Seleccionar colegio</h2>
-    <div class="muted">
-      Si eres superadmin o tienes varios colegios, elige con cuál trabajar ahora.
+  <div class="wrap">
+    <div class="card">
+      <h1>Seleccionar colegio</h1>
+      <div class="muted">
+        Si eres superadmin o tienes varios colegios, elige con cuál trabajar ahora.
+      </div>
+
+      <div id="msg" class="danger"></div>
+
+      <label for="colegioSelect">Colegio</label>
+      <select id="colegioSelect">
+        <option value="">Cargando...</option>
+      </select>
+
+      <div class="row">
+        <button id="btnEnter" disabled>Entrar</button>
+        <button id="btnUserId" type="button">Ver USER ID</button>
+      </div>
+
+      <pre id="debug">Esperando...</pre>
     </div>
-
-    <div class="muted" id="sessionInfo">Cargando sesión...</div>
-
-    <label for="colegioSelect">Colegio</label>
-    <select id="colegioSelect" disabled>
-      <option value="">Cargando...</option>
-    </select>
-
-    <div class="row">
-      <button id="btnEnter" disabled>Entrar</button>
-      <button id="btnUserId" type="button">Ver USER ID</button>
-    </div>
-
-    <pre id="debug">Esperando...</pre>
   </div>
 
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- TU cliente Supabase (ajusta SOLO si tu ruta es otra) -->
+  <!-- Tu cliente Supabase (debe crear window.supabaseClient) -->
   <script src="../../assets/js/supabaseClient.js"></script>
 
-  <!-- ✅ TU JS real (según tu carpeta) -->
+  <!-- TU JS -->
   <script src="./js/select-colegio.js"></script>
 </body>
 </html>
