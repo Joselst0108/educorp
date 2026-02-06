@@ -1,1 +1,14 @@
+// eduadmin/js/guard.js
+(function () {
+  const colegioId = localStorage.getItem("selected_colegio_id");
+  if (!colegioId) {
+    location.href = "/eduadmin/pages/select-colegio.html";
+    return;
+  }
 
+  const yearId = localStorage.getItem("selected_year_id");
+  if (!yearId) {
+    location.href = "/eduadmin/pages/select-year.html";
+    return;
+  }
+})();
