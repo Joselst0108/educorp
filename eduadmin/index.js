@@ -26,3 +26,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     nombreEl.textContent = colegio.nombre;
   }
 });
+await setActiveAcademicYeaOrRedurect()
