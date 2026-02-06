@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduAdmin | Alumnos</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabaseClient.js"></script>
+
+  <style>
+    body{font-family:system-ui,Arial;margin:18px;background:#f7f8fb}
+    .wrap{max-width:1100px;margin:0 auto}
+    .card{background:#fff;border:1px solid #e6e8f0;border-radius:14px;padding:16px;margin-bottom:14px}
+    h1{margin:0 0 10px}
+    .row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    input,select,button{padding:10px;border-radius:10px;border:1px solid #d9dbe7;font-size:15px;width:100%}
+    button{cursor:pointer;border:none;background:#2e7d32;color:#fff}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid #eef0f6;padding:10px;text-align:left;font-size:14px}
+    .muted{color:#6b7280;font-size:13px}
+    .danger{color:#b00020;font-weight:600}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div class="card">
+      <h1>Alumnos</h1>
+      <div class="muted" id="metaInfo">Cargando colegio y año...</div>
+      <div class="danger" id="msg"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 10px">Registrar alumno</h3>
+      <div class="row">
+        <input id="dni" placeholder="DNI" maxlength="12" />
+        <input id="nombres" placeholder="Nombres" />
+        <input id="apellidos" placeholder="Apellidos" />
+        <select id="grado">
+          <option value="">Grado</option>
+          <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option>
+        </select>
+        <input id="seccion" placeholder="Sección (A, B, C)" maxlength="2" />
+        <button id="btnGuardar">Guardar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 10px">Lista de alumnos</h3>
+      <div class="muted" id="countInfo">0 alumnos</div>
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>DNI</th>
+              <th>Apellidos</th>
+              <th>Nombres</th>
+              <th>Grado</th>
+              <th>Sección</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyAlumnos"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="./js/alumnos.js"></script>
+</body>
+</html>
