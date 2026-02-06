@@ -1,8 +1,36 @@
-const colegioId = localStorage.getItem("selected_colegio_id");
+<h1>EduAdmin</h1>
+<p>Gestión administrativa real del colegio.</p>
 
-if (!colegioId) {
-  alert("No hay colegio seleccionado");
-  window.location.href = "/eduadmin/pages/select-colegio.html";
-}
 <h2 id="colegioNombre">Cargando colegio...</h2>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/supabaseClient.js"></script>
 <script src="./index.js"></script>
+document.addEventListener("DOMContentLoaded", async () => {
+
+  const supabase = window.supabaseClient;
+
+  // 🔹 obtener colegio seleccionado
+  const colegioId = localStorage.getItem("selected_colegio_id");
+
+  if (!colegioId) {
+    alert("No hay colegio seleccionado");
+    window.location.href = "/eduadmin/pages/select-colegio.html";
+    return;
+  }
+
+  // 🔹 traer nombre del colegio
+  const { data, error } = await supabase
+    .from("colegios")
+    .select("nombre")
+    .eq("id", colegioId)
+    .single();
+
+  if (error) {
+    console.error("Error cargando colegio:", error);
+    return;
+  }
+
+  document.getElementById("colegioNombre").textContent =
+    "Colegio activo: " + data.nombre;
+
+});
