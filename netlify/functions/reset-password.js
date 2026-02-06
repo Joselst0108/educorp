@@ -13,8 +13,8 @@ exports.handler = async (event) => {
     if (!user_id || !password) {
       return json(400, { error: "Falta user_id o password" });
     }
-
- const supabaseUrl = process.env.https://rvdafufkhyjtauubirkz.supabase.co; ,
+const supabaseUrl = process.env.SUPABASE_URL;
+ ,
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
