@@ -1,58 +1,94 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduCorp | Login</title>
+
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; padding: 16px; }
+    .card { max-width: 520px; margin: 0 auto; padding: 18px; border: 1px solid #e5e7eb; border-radius: 14px; }
+    label { font-weight: 600; display:block; margin-top: 10px; }
+    input, button { width: 100%; padding: 10px; margin-top: 6px; box-sizing: border-box; }
+    button { cursor:pointer; }
+    .hint { color:#6b7280; font-size: 13px; margin-top:6px; }
+    .error { color:#b91c1c; font-size: 14px; margin-top: 10px; }
+    .ok { color:#065f46; font-size: 14px; margin-top: 10px; }
+    .hidden { display:none !important; }
+
+    dialog { border: none; border-radius: 14px; width: min(520px, 92vw); padding: 0; }
+    .modal { padding: 18px; }
+    .modal h2 { margin: 0 0 8px 0; }
+    .modal .actions { display:flex; gap: 10px; margin-top: 14px; }
+    .modal .actions button { width: auto; flex: 1; }
+  </style>
 </head>
+
 <body>
+  <main class="card">
+    <h1>Login EduCorp</h1>
+    <p class="hint">Ingresa con tu DNI y tu contraseña.</p>
 
-  <h1>Login EduCorp</h1>
-  <p>Ingresa con tu DNI (se convertirá internamente a correo) y tu contraseña.</p>
+    <form id="frmLogin" autocomplete="on">
+      <label for="inpUsuario">Usuario (DNI)</label>
+      <input
+        id="inpUsuario"
+        name="username"
+        type="text"
+        placeholder="Ej: 45102940"
+        inputmode="numeric"
+        autocomplete="username"
+        maxlength="8"
+        pattern="^[0-9]{8}$"
+        required
+      />
+      <div class="hint">Debe tener 8 dígitos.</div>
 
-  <form onsubmit="return false;">
-    <label>Usuario (DNI):</label><br />
-    <input
-      id="inpUsuario"
-      name="username"
-      type="text"
-      placeholder="Ej: 45102940"
-      autocomplete="username"
-      inputmode="numeric"
-      pattern="[0-9]{8}"
-      required
-    />
-    <br /><br />
+      <label for="inpPassword">Contraseña</label>
+      <input
+        id="inpPassword"
+        name="password"
+        type="password"
+        placeholder="Tu contraseña"
+        autocomplete="current-password"
+        required
+      />
 
-    <label>Contraseña:</label><br />
-    <input
-      id="inpPassword"
-      name="password"
-      type="password"
-      placeholder="Tu DNI (primera vez)"
-      autocomplete="current-password"
-      required
-    />
-    <br /><br />
+      <button type="submit" id="btnEntrar">Entrar</button>
 
-    <label>Entrar a:</label><br />
-    <select id="appDestino">
-      <option value="eduasist/dashboard.html">EduAsist (Docente/Alumno/Apoderado)</option>
-      <option value="eduadmin/dashboard.html">EduAdmin (Director/Secretaria)</option>
-      <option value="edubank/dashboard.html">EduBank (si está habilitado)</option>
-      <option value="eduia/dashboard.html">EduIA (si está habilitado)</option>
-    </select>
+      <p id="msgError" class="error hidden"></p>
+      <p id="msgOk" class="ok hidden"></p>
+    </form>
 
-    <br /><br />
-    <button type="button" id="btnEntrar">Entrar</button>
-  </form>
+    <p style="margin-top:16px;">
+      <a href="index.html">Volver al inicio</a>
+    </p>
+  </main>
 
-  <p><a href="index.html">Volver al inicio</a></p>
+  <!-- Modal: Cambiar contraseña (solo primera vez) -->
+  <dialog id="dlgCambioClave">
+    <div class="modal">
+      <h2>Cambiar contraseña</h2>
+      <p class="hint">Por seguridad, debes cambiar tu contraseña la primera vez.</p>
+
+      <label for="newPass">Nueva contraseña</label>
+      <input id="newPass" type="password" autocomplete="new-password" minlength="6" />
+
+      <label for="newPass2">Repetir contraseña</label>
+      <input id="newPass2" type="password" autocomplete="new-password" minlength="6" />
+
+      <p id="msgPassError" class="error hidden"></p>
+
+      <div class="actions">
+        <button type="button" id="btnCancelarCambio">Cancelar</button>
+        <button type="button" id="btnGuardarCambio">Guardar</button>
+      </div>
+    </div>
+  </dialog>
 
   <!-- Scripts (orden IMPORTANTE) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="assets/js/supabaseClient.js"></script>
   <script src="assets/js/login.js"></script>
-
 </body>
 </html>
