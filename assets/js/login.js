@@ -1,6 +1,9 @@
 // assets/js/login.js
+
 document.addEventListener("DOMContentLoaded", () => {
   const sb = window.supabase;
+  const status = document.getElementById("status");
+
   if (!sb) {
     alert("Supabase no cargó. Revisa supabaseClient.js / CDN.");
     return;
@@ -10,17 +13,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const inpUsuario = document.getElementById("inpUsuario");
   const inpPassword = document.getElementById("inpPassword");
 
-  // OJO: Si ya eliminaste el selector appDestino del HTML,
-  // este elemento será null y no se rompe.
-  const appDestino = document.getElementById("appDestino");
+  const setStatus = (msg) => { if (status) status.textContent = msg || ""; };
 
   // Enter para login
   inpPassword?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") btn?.click();
+    if (e.key === "Enter") btn.click();
   });
 
-  btn?.addEventListener("click", async () => {
+  btn.addEventListener("click", async () => {
     btn.disabled = true;
+    setStatus("Validando...");
 
     try {
       const dni = (inpUsuario.value || "").trim();
@@ -31,19 +33,15 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Validación DNI
       if (!/^\d{8}$/.test(dni)) {
         alert("El DNI debe tener 8 dígitos numéricos.");
         return;
       }
 
-      // IMPORTANTE: usa el mismo dominio que tú ya usas
       const email = `${dni}@educorp.local`;
 
-      const { data, error } = await sb.auth.signInWithPassword({
-        email,
-        password: pass,
-      });
+      setStatus("Iniciando sesión...");
+      const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
 
       if (error || !data?.user) {
         alert("❌ Usuario o contraseña incorrectos");
@@ -52,149 +50,124 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const user = data.user;
 
-      // ===============================
-      // Cargar info (roles/colegios)
-      // ===============================
+      // 1) Cargar contexto
+      setStatus("Cargando tu perfil...");
       const ctx = await cargarContextoUsuario(sb, user.id);
 
-      // Guardar contexto (para todas las apps)
-      localStorage.setItem(
-        "educorp_user",
-        JSON.stringify({
-          user_id: user.id,
-          email,
-          dni,
-          roles: ctx.roles,
-          colegios: ctx.colegios,
-          profile: ctx.profile,
-          updated_at: new Date().toISOString(),
-        })
-      );
+      // 2) Guardar contexto global
+      localStorage.setItem("educorp_user", JSON.stringify({
+        user_id: user.id,
+        email,
+        dni,
+        roles: ctx.roles,
+        colegios: ctx.colegios,
+        profile: ctx.profile,
+        updated_at: new Date().toISOString()
+      }));
 
-      // ===============================
-      // Primer login / forzar cambio
-      // REGLA PRINCIPAL: SOLO si profile.must_change_password === true
-      // REGLA SECUNDARIA (opcional): pass === dni, PERO solo si el profile existe
-      // ===============================
-      const mustChange =
-        ctx.profile?.must_change_password === true ||
-        (ctx.profile && pass === dni && ctx.profile?.must_change_password !== false);
+      // 3) Primera vez: SOLO si el perfil dice must_change_password=true
+      //    (Si quieres usar el fallback pass===dni, lo dejamos, pero con control)
+      const firstTimeByFlag = ctx.profile?.must_change_password === true;
+      const firstTimeByDniPass = (pass === dni);
 
-      if (mustChange) {
-        await mostrarModalCambio(sb, {
-          dni,
-          // luego de cambiar, redirigimos a donde corresponde:
-          onSuccessRedirect: async () => {
-            const dest = getDestinoPorRol(ctx.roles, ctx.profile);
-            window.location.href = dest;
-          },
-        });
+      if (firstTimeByFlag || firstTimeByDniPass) {
+        setStatus("");
+        mostrarModalCambio(sb, { userId: user.id });
         return;
       }
 
-      // ===============================
-      // Redirigir
-      // - Si existe selector, lo usa (no rompe tu flujo)
-      // - Si NO existe, redirige por rol automáticamente
-      // ===============================
-      const destinoFinal = appDestino?.value || getDestinoPorRol(ctx.roles, ctx.profile);
-      window.location.href = destinoFinal;
+      // 4) Redirección automática por rol
+      const destino = resolverDestinoPorRol(ctx.roles);
+      if (!destino) {
+        await sb.auth.signOut().catch(() => {});
+        alert("Tu usuario no tiene rol válido. Contacta al administrador.");
+        return;
+      }
+
+      setStatus("Entrando...");
+      window.location.href = destino;
 
     } catch (e) {
       alert("Error inesperado: " + (e?.message || e));
     } finally {
       btn.disabled = false;
+      setStatus("");
     }
   });
 });
 
-// ===============================
-// REDIRECCIÓN AUTOMÁTICA POR ROL
-// Ajusta rutas si deseas
-// ===============================
-function getDestinoPorRol(roles = [], profile = null) {
-  const role = String(
-    (Array.isArray(roles) && roles[0]) || profile?.role || ""
-  ).toLowerCase().trim();
 
-  // Mapeo recomendado
-  const map = {
-    superadmin: "eduadmin/dashboard.html",
-    admin: "eduadmin/dashboard.html",
-    director: "eduadmin/dashboard.html",
-    secretaria: "eduadmin/dashboard.html",
-    docente: "eduasist/dashboard.html",
-    alumno: "eduasist/dashboard.html",
-    apoderado: "eduasist/dashboard.html",
-    edubank: "edubank/dashboard.html",
-    bank: "edubank/dashboard.html",
-    eduia: "eduia/dashboard.html",
-    ia: "eduia/dashboard.html",
-  };
+// ===============================
+// REDIRECCIÓN POR ROL
+// Ajusta los nombres de roles a los tuyos reales
+// ===============================
+function resolverDestinoPorRol(roles = []) {
+  const r = roles.map(x => String(x || "").toLowerCase());
 
-  return map[role] || "eduasist/dashboard.html";
+  // Prioridades (de mayor poder a menor)
+  if (r.includes("superadmin") || r.includes("admin") || r.includes("director") || r.includes("secretaria")) {
+    return "/eduadmin/dashboard.html";
+  }
+  if (r.includes("adminbank") || r.includes("bank")) {
+    return "/edubank/dashboard.html";
+  }
+  if (r.includes("eduia") || r.includes("ia")) {
+    return "/eduia/dashboard.html";
+  }
+  if (r.includes("docente") || r.includes("alumno") || r.includes("apoderado")) {
+    return "/eduasist/dashboard.html";
+  }
+
+  return null;
 }
+
 
 // ===============================
 // CARGAR CONTEXTO DEL USUARIO
-// - Tolera que tablas no existan sin romper
 // ===============================
 async function cargarContextoUsuario(sb, userId) {
-  // 1) profile
+  // profile
   let profile = null;
-  try {
+  {
     const { data, error } = await sb
       .from("profiles")
-      .select("id, email, role, roles, colegio_id, alumno_id, apoderado_id, is_active, must_change_password")
+      .select("id, email, role, colegio_id, alumno_id, apoderado_id, is_active, must_change_password")
       .eq("id", userId)
       .maybeSingle();
-
     if (!error) profile = data || null;
-  } catch {
-    profile = null;
   }
 
-  // 2) roles múltiples (si existe user_roles)
+  // roles múltiples (si existe user_roles)
   let roles = [];
-  try {
+  {
     const { data, error } = await sb
       .from("user_roles")
       .select("role")
       .eq("user_id", userId);
 
     if (!error && Array.isArray(data)) {
-      roles = data.map((r) => r.role).filter(Boolean);
+      roles = data.map(r => r.role).filter(Boolean);
     }
-  } catch {
-    // si la tabla no existe o no hay permisos, no rompe
   }
 
-  // 3) colegios múltiples (si existe user_colegios)
+  // colegios múltiples (si existe user_colegios)
   let colegios = [];
-  try {
+  {
     const { data, error } = await sb
       .from("user_colegios")
       .select("colegio_id")
       .eq("user_id", userId);
 
     if (!error && Array.isArray(data)) {
-      colegios = data.map((c) => c.colegio_id).filter(Boolean);
+      colegios = data.map(c => c.colegio_id).filter(Boolean);
     }
-  } catch {
-    // no rompe
   }
 
-  // 4) Fallback al modelo simple
-  if ((!roles || roles.length === 0)) {
-    if (Array.isArray(profile?.roles) && profile.roles.length) roles = profile.roles;
-    else if (profile?.role) roles = [profile.role];
-  }
+  // fallback al modelo simple
+  if ((!roles || roles.length === 0) && profile?.role) roles = [profile.role];
+  if ((!colegios || colegios.length === 0) && profile?.colegio_id) colegios = [profile.colegio_id];
 
-  if ((!colegios || colegios.length === 0) && profile?.colegio_id) {
-    colegios = [profile.colegio_id];
-  }
-
-  // 5) Validaciones básicas
+  // validación activo
   if (profile?.is_active === false) {
     await sb.auth.signOut().catch(() => {});
     throw new Error("Tu usuario está desactivado. Contacta al administrador.");
@@ -203,15 +176,14 @@ async function cargarContextoUsuario(sb, userId) {
   return { profile, roles, colegios };
 }
 
-// ===============================
-// MODAL CAMBIO PASSWORD
-// - Cambia contraseña
-// - Marca must_change_password = false
-// - NO obliga a volver a iniciar sesión
-// ===============================
-async function mostrarModalCambio(sb, opts = {}) {
-  const { onSuccessRedirect } = opts;
 
+// ===============================
+// MODAL CAMBIO PASSWORD (solo primera vez)
+// - Cambia contraseña
+// - Marca must_change_password=false en profiles
+// - Luego redirige automáticamente por rol SIN pedir login otra vez
+// ===============================
+function mostrarModalCambio(sb, { userId }) {
   const modal = document.createElement("div");
   modal.style.position = "fixed";
   modal.style.top = 0;
@@ -225,97 +197,81 @@ async function mostrarModalCambio(sb, opts = {}) {
   modal.style.zIndex = 9999;
 
   modal.innerHTML = `
-    <div style="background:white;padding:20px;border-radius:10px;width:340px;font-family:system-ui">
+    <div style="background:white;padding:20px;border-radius:12px;width:340px;font-family:system-ui">
       <h3 style="margin:0 0 10px 0">Cambiar contraseña</h3>
       <p style="margin:0 0 10px 0;font-size:13px;color:#444">
         Por seguridad, debes cambiar tu contraseña la primera vez.
       </p>
-      <input id="newPass" type="password" placeholder="Nueva contraseña" style="width:100%;padding:10px;margin-bottom:10px" autocomplete="new-password">
-      <input id="newPass2" type="password" placeholder="Repetir contraseña" style="width:100%;padding:10px;margin-bottom:10px" autocomplete="new-password">
-      <div id="passMsg" style="display:none;margin:0 0 10px 0;font-size:13px;color:#b91c1c"></div>
+
+      <input id="newPass" type="password" placeholder="Nueva contraseña (mínimo 6)" style="width:100%;padding:10px;margin-bottom:10px;border:1px solid #ddd;border-radius:10px">
+      <input id="newPass2" type="password" placeholder="Repetir contraseña" style="width:100%;padding:10px;margin-bottom:12px;border:1px solid #ddd;border-radius:10px">
+
       <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button id="cancelPass" type="button">Cancelar</button>
-        <button id="guardarPass" type="button" style="background:#0ea5e9;color:white;border:none;padding:8px 12px;border-radius:6px">
-          Guardar
-        </button>
+        <button id="cancelPass" type="button" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;background:#fff">Cancelar</button>
+        <button id="guardarPass" type="button" style="background:#0ea5e9;color:white;border:none;padding:8px 12px;border-radius:8px">Guardar</button>
       </div>
     </div>
   `;
 
   document.body.appendChild(modal);
 
-  const showMsg = (t) => {
-    const el = modal.querySelector("#passMsg");
-    el.textContent = t;
-    el.style.display = "block";
-  };
-
-  modal.querySelector("#cancelPass").onclick = async () => {
-    // si cancela, cerramos sesión para evitar loops
+  document.getElementById("cancelPass").onclick = async () => {
     await sb.auth.signOut().catch(() => {});
     modal.remove();
     location.reload();
   };
 
-  modal.querySelector("#guardarPass").onclick = async () => {
-    const btn = modal.querySelector("#guardarPass");
+  document.getElementById("guardarPass").onclick = async () => {
+    const btn = document.getElementById("guardarPass");
     btn.disabled = true;
-    btn.textContent = "Guardando...";
 
     try {
-      const newPass = (modal.querySelector("#newPass").value || "").trim();
-      const newPass2 = (modal.querySelector("#newPass2").value || "").trim();
+      const newPass = (document.getElementById("newPass").value || "").trim();
+      const newPass2 = (document.getElementById("newPass2").value || "").trim();
 
       if (newPass.length < 6) {
-        showMsg("La contraseña debe tener al menos 6 caracteres.");
+        alert("La contraseña debe tener al menos 6 caracteres.");
         return;
       }
       if (newPass !== newPass2) {
-        showMsg("Las contraseñas no coinciden.");
+        alert("Las contraseñas no coinciden.");
         return;
       }
 
-      // 1) cambiar password en auth
+      // 1) Cambiar password en auth
       const { error } = await sb.auth.updateUser({ password: newPass });
       if (error) {
-        showMsg("Error cambiando contraseña: " + error.message);
+        alert("Error cambiando contraseña: " + error.message);
         return;
       }
 
-      // 2) marcar en profiles must_change_password=false (si existe y hay permisos)
-      const { data: sess } = await sb.auth.getSession();
-      const uid = sess?.session?.user?.id;
-
-      if (uid) {
-        try {
-          const { error: upErr } = await sb
-            .from("profiles")
-            .update({ must_change_password: false })
-            .eq("id", uid);
-
-          // si falla, no reventamos: la clave ya se cambió
-          if (upErr) {
-            console.warn("No se pudo actualizar must_change_password:", upErr.message);
-          }
-        } catch (e) {
-          console.warn("Update profiles falló:", e?.message || e);
-        }
+      // 2) Marcar must_change_password = false
+      if (userId) {
+        await sb.from("profiles").update({ must_change_password: false }).eq("id", userId);
       }
 
-      // 3) cerrar modal y continuar sin re-login
+      // 3) Volver a cargar contexto y redirigir SIN cerrar sesión
+      const ctx = await cargarContextoUsuario(sb, userId);
+      localStorage.setItem("educorp_user", JSON.stringify({
+        user_id: userId,
+        email: ctx?.profile?.email || null,
+        roles: ctx.roles,
+        colegios: ctx.colegios,
+        profile: ctx.profile,
+        updated_at: new Date().toISOString()
+      }));
+
+      const destino = resolverDestinoPorRol(ctx.roles);
+      if (!destino) {
+        alert("Contraseña actualizada, pero no se detectó rol. Contacta al administrador.");
+        return;
+      }
+
       modal.remove();
-
-      // 4) Redirigir
-      if (typeof onSuccessRedirect === "function") {
-        await onSuccessRedirect();
-      } else {
-        // fallback: ir a dashboard base
-        window.location.href = "eduasist/dashboard.html";
-      }
+      window.location.href = destino;
 
     } finally {
       btn.disabled = false;
-      btn.textContent = "Guardar";
     }
   };
 }
