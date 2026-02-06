@@ -1,5 +1,4 @@
 // assets/js/supabaseClient.js
-// ✅ Deja SUPABASE_URL y SUPABASE_ANON_KEY disponibles globalmente
 
 window.SUPABASE_URL = "https://rvdafufkhyjtauubirkz.supabase.co";
 window.SUPABASE_ANON_KEY =
@@ -8,8 +7,16 @@ window.SUPABASE_ANON_KEY =
 if (typeof supabase !== "undefined") {
   window.supabaseClient = supabase.createClient(
     window.SUPABASE_URL,
-    window.SUPABASE_ANON_KEY
+    window.SUPABASE_ANON_KEY,
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    }
   );
+
   window.supabase = window.supabaseClient; // compatibilidad
   console.log("✅ Supabase inicializado: window.supabaseClient");
 } else {
