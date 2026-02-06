@@ -4,20 +4,59 @@ const { createClient } = require("@supabase/supabase-js");
 function json(statusCode, obj) {
   return {
     statusCode,
-    headers: {
-      "content-type": "application/json",
-      "cache-control": "no-store",
-    },
-    body: JSON.stringify(obj, null, 2),
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(obj),
   };
+}
+
+function pickAuthHeader(headers = {}) {
+  return headers.authorization || headers.Authorization || "";
 }
 
 exports.handler = async (event) => {
   try {
-    // =====================================================
-    // Solo POST (pero dejamos GET para diagnóstico rápido)
-    // =====================================================
-    const method = (event.httpMethod || "GET").toUpperCase();
+    // ========= GET = diagnóstico rápido =========
+    if (event.httpMethod === "GET") {
+      const SUPABASE_URL = process.env.SUPABASE_URL;
+      const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+      const tests = {
+        has_SUPABASE_URL: !!SUPABASE_URL,
+        has_SERVICE_ROLE: !!SERVICE_ROLE,
+        has_ANON_KEY: !!ANON_KEY,
+        anon_client_ok: false,
+        service_client_ok: false,
+        anon_client_error: null,
+        service_client_error: null,
+      };
+
+      if (SUPABASE_URL && ANON_KEY) {
+        try {
+          const anon = createClient(SUPABASE_URL, ANON_KEY);
+          // prueba simple (no importa si no existe tabla, solo que no sea "Invalid API key")
+          await anon.auth.getSession();
+          tests.anon_client_ok = true;
+        } catch (e) {
+          tests.anon_client_error = String(e?.message || e);
+        }
+      }
+
+      if (SUPABASE_URL && SERVICE_ROLE) {
+        try {
+          const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+          await admin.auth.admin.listUsers({ page: 1, perPage: 1 });
+          tests.service_client_ok = true;
+        } catch (e) {
+          tests.service_client_error = String(e?.message || e);
+        }
+      }
+
+      return json(200, { ok: true, message: "Diagnóstico OK. (Usa POST para crear usuario)", tests });
+    }
+
+    // ========= POST =========
+    if (event.httpMethod !== "POST") return json(200, { ok: true, message: "Use POST" });
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -35,64 +74,16 @@ exports.handler = async (event) => {
       });
     }
 
-    // Cliente ADMIN (service role)
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    // Cliente USER (anon) para validar el token del usuario
-    const userClient = createClient(SUPABASE_URL, ANON_KEY);
+    // Admin (service role) + User client (anon) para validar token
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
+    const userClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
 
-    // =====================================================
-    // ✅ MODO DIAGNÓSTICO (GET):
-    // Abre: /.netlify/functions/create-user
-    // y te dirá cuál key falla.
-    // =====================================================
-    if (method === "GET") {
-      const tests = {};
-
-      // Test anon client (solo comprobar que responde a una query simple)
-      try {
-        const { error } = await userClient.from("profiles").select("id").limit(1);
-        tests.anon_client_ok = !error;
-        tests.anon_client_error = error?.message || null;
-      } catch (e) {
-        tests.anon_client_ok = false;
-        tests.anon_client_error = String(e?.message || e);
-      }
-
-      // Test service role client
-      try {
-        const { error } = await admin.from("profiles").select("id").limit(1);
-        tests.service_client_ok = !error;
-        tests.service_client_error = error?.message || null;
-      } catch (e) {
-        tests.service_client_ok = false;
-        tests.service_client_error = String(e?.message || e);
-      }
-
-      return json(200, {
-        ok: true,
-        message: "Diagnóstico OK. (Usa POST para crear usuario)",
-        tests,
-      });
-    }
-
-    // =====================================================
-    // POST normal
-    // =====================================================
-    if (method !== "POST") return json(200, { ok: true, message: "Use POST" });
-
-    // =====================
-    // TOKEN
-    // =====================
-    const authHeader =
-      event.headers?.authorization ||
-      event.headers?.Authorization ||
-      event.headers?.AUTHORIZATION ||
-      "";
-
+    // ========= TOKEN =========
+    const authHeader = pickAuthHeader(event.headers);
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+
     if (!token) return json(401, { error: "Sin token (Authorization: Bearer ...)" });
 
-    // Validar token con ANON (usuario)
     const { data: u, error: uErr } = await userClient.auth.getUser(token);
     if (uErr || !u?.user) {
       return json(401, { error: "Token inválido o expirado", detail: uErr?.message || null });
@@ -100,9 +91,7 @@ exports.handler = async (event) => {
 
     const requesterId = u.user.id;
 
-    // =====================
-    // verificar rol (service role)
-    // =====================
+    // ========= verificar rol superadmin =========
     const { data: prof, error: pErr } = await admin
       .from("profiles")
       .select("role, is_active")
@@ -113,37 +102,54 @@ exports.handler = async (event) => {
     if (!prof || prof.is_active === false) return json(403, { error: "No autorizado" });
     if (prof.role !== "superadmin") return json(403, { error: "Solo superadmin" });
 
-    // =====================
-    // BODY
-    // =====================
+    // ========= BODY =========
     const body = JSON.parse(event.body || "{}");
-
-    const dni = String(body.dni || "").trim();
+    const dni = String(body.dni || "").replace(/\D/g, "").slice(0, 8);
     const role = String(body.role || "").trim();
-    const colegio_id = body.colegio_id || null;
+    const colegio_id = String(body.colegio_id || "").trim();
 
-    const initial_password = String(body.initial_password || body.password || dni).trim();
+    let password = String(body.initial_password || "").trim();
+    if (!password) password = dni;
+
     const must_change_password = body.must_change_password === true;
 
     if (!/^\d{8}$/.test(dni)) return json(400, { error: "DNI inválido (8 dígitos)" });
     if (!role) return json(400, { error: "Falta role" });
     if (!colegio_id) return json(400, { error: "Falta colegio_id" });
+    if (password.length < 6) return json(400, { error: "La contraseña debe tener mínimo 6 caracteres" });
 
     const email = `${dni}@educorp.local`;
 
-    // =====================
-    // CREAR USER (Admin API)
-    // =====================
+    // ========= (opcional) check si existe en auth.users =========
+    // NOTA: requiere trigger/schema support; si falla, igual seguimos
+    try {
+      const { data: existing } = await admin.schema("auth").from("users").select("id").eq("email", email).maybeSingle();
+      if (existing?.id) return json(409, { error: "Ya existe ese usuario", email });
+    } catch (_) {}
+
+    // ========= CREAR USER (Auth Admin) =========
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
-      password: initial_password,
+      password,
       email_confirm: true,
-      user_metadata: { dni, role },
+      user_metadata: {
+        dni,
+        role,
+        colegio_id,
+        must_change_password,
+      },
     });
 
-    if (createErr) return json(500, { error: "createUser: " + createErr.message });
+    if (createErr || !created?.user) {
+      return json(500, {
+        error: "createUser: " + (createErr?.message || "Unknown error"),
+        detail: createErr || null,
+        hint:
+          "Si tienes trigger handle_new_user y profiles tiene NOT NULL (colegio_id/role), el trigger puede estar fallando. Revisa triggers en auth.users.",
+      });
+    }
 
-    // Upsert profile
+    // ========= PERFIL (por si NO tienes trigger o para asegurar) =========
     const { error: upErr } = await admin.from("profiles").upsert(
       {
         id: created.user.id,
@@ -156,13 +162,15 @@ exports.handler = async (event) => {
       { onConflict: "id" }
     );
 
-    if (upErr) return json(500, { error: "profiles upsert: " + upErr.message });
+    if (upErr) {
+      return json(500, { error: "profiles upsert: " + upErr.message });
+    }
 
     return json(200, {
       ok: true,
       created_user_id: created.user.id,
       email,
-      password_used: initial_password,
+      password_used: password,
       must_change_password,
     });
   } catch (e) {
