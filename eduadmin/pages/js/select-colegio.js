@@ -155,7 +155,7 @@
       const colegioId = colegioSelect.value;
       if (!colegioId) return;
 
-      localStorage.setItem("selected_colegio_id", colegioId);
+      localStorage.setItem("colegio_id", colegioId);
 
       // ✅ aquí tú ya tienes redirección por roles funcionando en otro lado
       // lo más seguro es volver al dashboard / index y que tu router redireccione
