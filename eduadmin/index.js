@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", async () => {
-  const colegioId = localStorage.getItem("colegio_id");
+  const colegioId = localStorage.getItem("selected_colegio_id");
 
   if (!colegioId) {
     alert("No hay colegio seleccionado");
@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
+  // ===== TRAER COLEGIO =====
   const { data: colegio, error } = await window.supabaseClient
     .from("colegios")
     .select("*")
@@ -21,8 +22,28 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   console.log("Colegio activo:", colegio.nombre);
 
-  const nombreEl = document.getElementById("colegioNombre");
-  if (nombreEl) nombreEl.textContent = colegio.nombre;
+  const elColegio = document.getElementById("infoColegio");
+  if (elColegio) {
+    elColegio.textContent = "Colegio: " + colegio.nombre;
+  }
 
-  await setActiveAcademicYearOrRedirect();
+  // ===== TRAER AÑO ACTIVO =====
+  const { data: anioRow, error: anioErr } = await window.supabaseClient
+    .from("anios_academicos")
+    .select("anio")
+    .eq("colegio_id", colegioId)
+    .eq("activo", true)
+    .single();
+
+  if (anioErr) {
+    console.log("Error año:", anioErr);
+    return;
+  }
+
+  console.log("Año activo:", anioRow.anio);
+
+  const elAnio = document.getElementById("infoAnio");
+  if (elAnio) {
+    elAnio.textContent = "Año activo: " + anioRow.anio;
+  }
 });
