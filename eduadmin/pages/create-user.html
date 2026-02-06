@@ -3,75 +3,57 @@
 <head>
 <meta charset="UTF-8">
 <title>Crear usuario</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/assets/js/supabaseClient.js"></script>
 </head>
-
 <body>
 
 <h2>Crear usuario</h2>
 
-<input id="dni_apoderado" placeholder="DNI apoderado"><br><br>
-<input id="dni_alumno" placeholder="DNI alumno"><br><br>
-<input id="colegio_id" placeholder="UUID colegio"><br><br>
+<input id="dni" placeholder="DNI"><br><br>
+<input id="colegio" placeholder="Colegio UUID"><br><br>
+<select id="role">
+<option value="docente">docente</option>
+<option value="alumno">alumno</option>
+<option value="apoderado">apoderado</option>
+<option value="director">director</option>
+</select>
+<br><br>
 
-<button onclick="crear()">Crear usuario</button>
+<button onclick="crear()">Crear</button>
 
-<p id="msg"></p>
+<pre id="r"></pre>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../../assets/js/supabaseClient.js"></script>
 
 <script>
-async function verificarSesion() {
-  const { data } = await window.supabase.auth.getSession();
-  const session = data?.session;
+async function crear(){
 
-  if (!session) {
-    alert("Sesión expirada. Inicia sesión otra vez.");
-    window.location.href = "/login.html";
-    return null;
+  const sb = window.supabase;
+
+  const { data } = await sb.auth.getSession();
+  const token = data?.session?.access_token;
+
+  if(!token){
+    alert("No hay sesión. Inicia login primero.");
+    return;
   }
 
-  return session.access_token;
-}
+  const r = await fetch("/.netlify/functions/create-user",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer "+token
+    },
+    body:JSON.stringify({
+      dni: document.getElementById("dni").value,
+      role: document.getElementById("role").value,
+      colegio_id: document.getElementById("colegio").value,
+      must_change_password: true
+    })
+  });
 
-async function crear() {
-  const msg = document.getElementById("msg");
-  msg.textContent = "Creando...";
-
-  const token = await verificarSesion();
-  if (!token) return;
-
-  const dni_apoderado = document.getElementById("dni_apoderado").value;
-  const dni_alumno = document.getElementById("dni_alumno").value;
-  const colegio_id = document.getElementById("colegio_id").value;
-
-  try {
-    const res = await fetch("/.netlify/functions/create-auth-and-links", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + token
-      },
-      body: JSON.stringify({
-        colegio_id,
-        dni_apoderado,
-        dni_alumno
-      })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      msg.style.color = "red";
-      msg.textContent = data.error;
-      return;
-    }
-
-    msg.style.color = "green";
-    msg.textContent = "Usuario creado correctamente";
-
-  } catch (e) {
-    msg.textContent = "Error: " + e.message;
-  }
+  document.getElementById("r").textContent =
+    JSON.stringify(await r.json(),null,2);
 }
 </script>
 
