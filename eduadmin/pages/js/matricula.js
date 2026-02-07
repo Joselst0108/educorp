@@ -348,7 +348,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     location.reload();
   };
+const { error } = await supabase.from("matriculas").insert(payload);
+if (error) return alert("Error al matricular");
 
+// 👇 DESPUÉS DEL INSERT VA ESTO
+const tiene = await alumnoTieneApoderado();
+
+if (!tiene) {
+  alert("⚠️ Matrícula ok. Falta asignar apoderado.");
+  openApoderadoModal();
+  return; // NO recargar todavía
+}
+
+// si sí tiene apoderado recién recarga
+location.reload();
   // ================= LISTA =================
 
   async function cargarLista(){
