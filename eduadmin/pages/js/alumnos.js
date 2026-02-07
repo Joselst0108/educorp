@@ -88,10 +88,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const payload = {
       colegio_id: colegioId,
       anio_academico_id: anioAcademicoId,
-      dni: dni || null,
-      nombres,
-      apellidos,
-      grado,
+      dni: dni,
+      codigo_alumno: codigo || null,
+      nombres: nombres,
+      apellidos: apellidos,
+      apoderado_id: null // opcional (puede ir null)
       seccion,
     };
 
