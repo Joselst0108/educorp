@@ -215,7 +215,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     tbodyMatriculas.innerHTML=data.map(m=>`
       <tr>
-        <td>${m.fecha}</td>
+        <td>${m.fecha_matricula}</td>
         <td>${m.alumnos?.dni||""}</td>
         <td>${m.alumnos?.apellidos||""}</td>
         <td>${m.alumnos?.nombres||""}</td>
