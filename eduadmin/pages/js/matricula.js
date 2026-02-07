@@ -139,6 +139,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ================= AULAS: Nivel -> Grado -> Sección =================
   async function cargarNiveles() {
+    if (!mNivel || !mGrado || !mSeccion) return;
+
     mNivel.innerHTML = `<option value="">— Nivel —</option>`;
     mGrado.innerHTML = `<option value="">— Grado —</option>`;
     mSeccion.innerHTML = `<option value="">— Sección —</option>`;
@@ -153,7 +155,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (error) {
       console.log("Error cargando niveles (aulas):", error);
-      // fallback
       ["INICIAL", "PRIMARIA", "SECUNDARIA"].forEach(n => {
         const op = document.createElement("option");
         op.value = n; op.textContent = n;
@@ -170,7 +171,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       mNivel.appendChild(op);
     });
 
-    // si no hay nada, fallback
     if (niveles.length === 0) {
       ["INICIAL", "PRIMARIA", "SECUNDARIA"].forEach(n => {
         const op = document.createElement("option");
@@ -181,6 +181,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   async function cargarGrados(nivel) {
+    if (!mGrado || !mSeccion) return;
+
     mGrado.innerHTML = `<option value="">— Grado —</option>`;
     mSeccion.innerHTML = `<option value="">— Sección —</option>`;
     mSeccion.disabled = true;
@@ -217,6 +219,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   async function cargarSecciones(nivel, grado) {
+    if (!mSeccion) return;
+
     mSeccion.innerHTML = `<option value="">— Sección —</option>`;
     if (!nivel || !grado) {
       mSeccion.disabled = true;
@@ -288,7 +292,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (error) {
       console.log("buscar alumnos error:", error);
       alumnoSelect.innerHTML = `<option value="">— Selecciona un alumno —</option>`;
-      setMsg("Error buscando alumno (mira consola).");
+      setMsg("Error buscando alumno (mira consola). Revisa RLS/políticas en alumnos.");
       return;
     }
 
@@ -320,7 +324,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (!alumnoSeleccionado) return;
 
-    // cargar matrícula del año actual
     const { data: mat, error } = await supabase
       .from("matriculas")
       .select("*")
@@ -351,20 +354,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     const grado = String(matriculaActual?.grado || "").trim();
     const seccion = String(matriculaActual?.seccion || "").toUpperCase();
 
-    if (nivel) {
+    if (nivel && mNivel) {
       mNivel.value = nivel;
       await cargarGrados(nivel);
-      if (grado) {
+      if (grado && mGrado) {
         mGrado.value = grado;
         await cargarSecciones(nivel, grado);
-        if (seccion) mSeccion.value = seccion;
+        if (seccion && mSeccion) mSeccion.value = seccion;
       }
     }
 
     openModal();
   });
 
-  // ================= Apoderados: verificar / buscar / crear / vincular =================
+  // ================= Apoderados =================
   async function alumnoTieneApoderado() {
     const { data, error } = await supabase
       .from("apoderado_hijos")
@@ -383,10 +386,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   btnBuscarAp?.addEventListener("click", async () => {
     aMsg.textContent = "";
     const q = (aBuscar.value || "").trim();
-    if (!q) {
-      aMsg.textContent = "Escribe DNI o apellidos para buscar.";
-      return;
-    }
+    if (!q) return (aMsg.textContent = "Escribe DNI o apellidos para buscar.");
 
     apSelect.innerHTML = `<option value="">Buscando...</option>`;
 
@@ -401,7 +401,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (error) {
       console.log("buscar apoderados error:", error);
       apSelect.innerHTML = `<option value="">— Selecciona —</option>`;
-      aMsg.textContent = "Error buscando apoderado (mira consola).";
+      aMsg.textContent = "Error buscando apoderado (mira consola). Revisa RLS/políticas en apoderados.";
       return;
     }
 
@@ -419,10 +419,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   async function vincularApoderado(apoderadoId, parentesco) {
-    if (!apoderadoId) {
-      aMsg.textContent = "Selecciona un apoderado.";
-      return false;
-    }
+    if (!apoderadoId) return (aMsg.textContent = "Selecciona un apoderado.") && false;
 
     const payload = {
       colegio_id: colegioId,
@@ -435,7 +432,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const { error } = await supabase.from("apoderado_hijos").insert(payload);
     if (error) {
       console.log("vincular apoderado error:", error);
-      aMsg.textContent = "No se pudo vincular (mira consola).";
+      aMsg.textContent = "No se pudo vincular (mira consola). Revisa políticas en apoderado_hijos.";
       return false;
     }
     return true;
@@ -495,19 +492,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   btnMatricular?.addEventListener("click", async () => {
     setModalMsg("");
 
-    if (!alumnoSeleccionado) {
-      alert("Selecciona un alumno");
-      return;
-    }
-    if (matriculaActual) {
-      alert("Este alumno ya está matriculado en este año.");
-      return;
-    }
+    if (!alumnoSeleccionado) return alert("Selecciona un alumno");
+    if (matriculaActual) return alert("Este alumno ya está matriculado en este año.");
 
-    const nivel = String(mNivel.value || "").trim();
-    const grado = String(mGrado.value || "").trim();
-    const seccion = String(mSeccion.value || "").trim();
-    const fecha = String(mFecha.value || "").trim();
+    const nivel = String(mNivel?.value || "").trim();
+    const grado = String(mGrado?.value || "").trim();
+    const seccion = String(mSeccion?.value || "").trim();
+    const fecha = String(mFecha?.value || "").trim();
 
     if (!fecha) return setModalMsg("Falta fecha.");
     if (!nivel) return setModalMsg("Selecciona nivel.");
@@ -529,17 +520,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     const { error } = await supabase.from("matriculas").insert(payload);
     if (error) {
       console.log("Error matriculando:", error);
-      alert("Error al matricular");
+      alert("Error al matricular (mira consola). Revisa RLS/políticas en matriculas.");
       return;
     }
 
-    // ✅ NUEVO: si no tiene apoderado, abrir modal
     const tiene = await alumnoTieneApoderado();
+    closeModal();
+
     if (!tiene) {
       alert("⚠️ Matrícula ok. Falta asignar apoderado.");
-      closeModal();
       openApoderadoModal();
-      return; // NO recargar todavía
+      return;
     }
 
     location.reload();
@@ -550,25 +541,59 @@ document.addEventListener("DOMContentLoaded", async () => {
     setMsg("");
     tbodyMatriculas.innerHTML = `<tr><td colspan="8" class="muted">Cargando...</td></tr>`;
 
-    // Intento join
-    const { data, error } = await supabase
+    // 1) Intentar JOIN (si hay FK)
+    let rows = [];
+    let joinOk = true;
+
+    const r1 = await supabase
       .from("matriculas")
       .select(`
-        id, fecha_matricula, nivel, grado, seccion, estado,
+        id, fecha_matricula, nivel, grado, seccion, estado, alumno_id,
         alumnos:alumno_id ( dni, apellidos, nombres )
       `)
       .eq("colegio_id", colegioId)
       .eq("anio_academico_id", anioAcademicoId)
       .order("fecha_matricula", { ascending: false });
 
-    if (error) {
-      console.log("Lista matriculas error:", error);
-      tbodyMatriculas.innerHTML = "";
-      setMsg("Error cargando matriculados (mira consola).");
-      return;
+    if (r1.error) {
+      console.log("Lista matriculas (join) error:", r1.error);
+      joinOk = false;
+    } else {
+      rows = r1.data || [];
     }
 
-    const rows = data || [];
+    // 2) Fallback SIN JOIN (por si no hay relación)
+    if (!joinOk) {
+      const r2 = await supabase
+        .from("matriculas")
+        .select(`id, fecha_matricula, nivel, grado, seccion, estado, alumno_id`)
+        .eq("colegio_id", colegioId)
+        .eq("anio_academico_id", anioAcademicoId)
+        .order("fecha_matricula", { ascending: false });
+
+      if (r2.error) {
+        console.log("Lista matriculas (simple) error:", r2.error);
+        tbodyMatriculas.innerHTML = "";
+        setMsg("Error cargando matriculados (mira consola). Revisa políticas/RLS.");
+        return;
+      }
+
+      const mats = r2.data || [];
+      const ids = [...new Set(mats.map(m => m.alumno_id).filter(Boolean))];
+
+      const r3 = await supabase
+        .from("alumnos")
+        .select("id, dni, apellidos, nombres")
+        .eq("colegio_id", colegioId)
+        .in("id", ids);
+
+      const alumnosMap = new Map((r3.data || []).map(a => [a.id, a]));
+      rows = mats.map(m => ({
+        ...m,
+        alumnos: alumnosMap.get(m.alumno_id) || null
+      }));
+    }
+
     countInfo.textContent = `${rows.length} matriculado(s)`;
 
     if (!rows.length) {
