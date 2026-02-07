@@ -11,102 +11,133 @@
 </head>
 
 <body>
-<div class="app-shell">
+  <div class="app-shell">
 
-  <!-- SIDEBAR (idéntico en todas) -->
-  <aside class="sidebar">
-    <div class="brand">
-      <img id="uiAppLogo" src="/assets/img/eduadmin.jpeg" alt="EduAdmin" />
-      <div class="titles">
-        <b>EduAdmin</b>
-        <span>Administración real</span>
-      </div>
-    </div>
-
-    <nav class="nav">
-      <a href="/eduadmin/pages/dashboard.html"><div class="nav-item">Dashboard</div></a>
-
-      <div class="muted" style="margin:10px 6px 6px;font-size:12px;">COLEGIO</div>
-      <a href="/eduadmin/pages/colegio.html"><div class="nav-item">Datos del colegio</div></a>
-      <a href="/eduadmin/pages/usuarios.html"><div class="nav-item">Usuarios y roles</div></a>
-
-      <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTRUCTURA ACADÉMICA</div>
-      <a href="/eduadmin/pages/anio.html"><div class="nav-item active">Año académico</div></a>
-      <a href="/eduadmin/pages/niveles.html"><div class="nav-item">Niveles</div></a>
-      <a href="/eduadmin/pages/grados.html"><div class="nav-item">Grados</div></a>
-      <a href="/eduadmin/pages/aulas.html"><div class="nav-item">Secciones / Aulas</div></a>
-
-      <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTUDIANTES</div>
-      <a href="/eduadmin/pages/alumnos.html"><div class="nav-item">Registrar alumnos</div></a>
-      <a href="/eduadmin/pages/matriculas.html"><div class="nav-item">Matrículas</div></a>
-
-      <div class="muted" style="margin:10px 6px 6px;font-size:12px;">FINANZAS REALES</div>
-      <a href="/eduadmin/pages/conceptos.html"><div class="nav-item">Conceptos de pago</div></a>
-      <a href="/eduadmin/pages/pagos.html"><div class="nav-item">Registrar pagos</div></a>
-      <a href="#" id="logoutBtn"><div class="nav-item">Cerrar sesión</div></a>
-    </nav>
-  </aside>
-
-  <!-- MAIN -->
-  <main class="main">
-    <div class="topbar">
-      <div class="left">
-        <div class="school-chip">
-          <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio" />
-          <div class="meta">
-            <b id="uiSchoolName">Cargando colegio…</b>
-            <span id="uiYearName">Cargando año…</span>
-          </div>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="/assets/img/eduadmin.jpeg" alt="EduAdmin" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
         </div>
       </div>
-      <button class="btn btn-secondary" id="btnRefresh">Actualizar</button>
-    </div>
 
-    <section class="page">
-      <div class="card">
-        <h1 class="h1">Año académico</h1>
-        <p class="muted" id="status">Cargando…</p>
-      </div>
+      <nav class="nav">
+        <a href="/eduadmin/pages/dashboard.html"><div class="nav-item">Dashboard</div></a>
 
-      <div class="card">
-        <h3>Crear año académico</h3>
-        <form id="formAnio" style="display:grid; gap:10px; max-width:520px;">
-          <input id="nombre" placeholder="Nombre (ej: 2026)" required />
-          <input id="anio" type="number" placeholder="Año (ej: 2026)" />
-          <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <input id="inicio" type="date" />
-            <input id="fin" type="date" />
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">COLEGIO</div>
+        <a href="/eduadmin/pages/colegio.html"><div class="nav-item">Datos del colegio</div></a>
+        <a href="/eduadmin/pages/usuarios.html"><div class="nav-item">Usuarios y roles</div></a>
+
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTRUCTURA ACADÉMICA</div>
+        <a href="/eduadmin/pages/anio.html"><div class="nav-item active">Año académico</div></a>
+        <a href="/eduadmin/pages/niveles.html"><div class="nav-item">Niveles</div></a>
+        <a href="/eduadmin/pages/grados.html"><div class="nav-item">Grados</div></a>
+        <a href="/eduadmin/pages/aulas.html"><div class="nav-item">Secciones / Aulas</div></a>
+        <a href="/eduadmin/pages/vacantes.html"><div class="nav-item">Vacantes</div></a>
+
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTUDIANTES</div>
+        <a href="/eduadmin/pages/alumnos.html"><div class="nav-item">Registrar alumnos</div></a>
+        <a href="/eduadmin/pages/lista-alumnos.html"><div class="nav-item">Lista de alumnos</div></a>
+        <a href="/eduadmin/pages/apoderados.html"><div class="nav-item">Apoderados</div></a>
+        <a href="/eduadmin/pages/matriculas.html"><div class="nav-item">Matrículas</div></a>
+
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">FINANZAS REALES</div>
+        <a href="/eduadmin/pages/conceptos.html"><div class="nav-item">Conceptos de pago</div></a>
+        <a href="/eduadmin/pages/pagos.html"><div class="nav-item">Registrar pagos</div></a>
+        <a href="/eduadmin/pages/caja.html"><div class="nav-item">Caja</div></a>
+        <a href="/eduadmin/pages/morosidad.html"><div class="nav-item">Morosidad</div></a>
+        <a href="/eduadmin/pages/reportes-financieros.html"><div class="nav-item">Reportes financieros</div></a>
+
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">SISTEMA</div>
+        <a href="#" id="logoutBtn"><div class="nav-item">Cerrar sesión</div></a>
+      </nav>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+
+      <div class="topbar">
+        <div class="left">
+          <div class="school-chip">
+            <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio" />
+            <div class="meta">
+              <b id="uiSchoolName">Cargando colegio…</b>
+              <span id="uiYearName">Año: —</span>
+            </div>
           </div>
-          <label style="display:flex; gap:10px; align-items:center;">
-            <input type="checkbox" id="activo" />
-            Activar este año
-          </label>
-          <button class="btn btn-primary" type="submit">Guardar</button>
-        </form>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-secondary" id="btnRefresh">Actualizar</button>
+        </div>
       </div>
 
-      <div class="card">
-        <h3>Años registrados</h3>
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Año</th>
-              <th>Activo</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyAnios"></tbody>
-        </table>
-      </div>
-    </section>
-  </main>
-</div>
+      <section class="page">
+        <div class="card">
+          <h1 class="h1">Año académico</h1>
+          <p class="muted" id="status">Cargando…</p>
+        </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/assets/js/supabaseClient.js"></script>
-<script src="/assets/js/context.js"></script>
-<script src="/eduadmin/js/anio.js"></script>
+        <div style="display:grid; grid-template-columns: repeat(12,1fr); gap:14px; margin-top:14px;">
+          <!-- Crear año -->
+          <div class="card" style="grid-column: span 5;">
+            <h2 class="h2">Crear año</h2>
+
+            <form id="formAnio" class="form" style="margin-top:10px;">
+              <label class="label">Año (número)</label>
+              <input class="input" type="number" id="anio" placeholder="2026" required />
+
+              <label class="label" style="margin-top:10px;">Nombre (opcional)</label>
+              <input class="input" type="text" id="nombre" placeholder="Año 2026" />
+
+              <label style="display:flex; align-items:center; gap:8px; margin-top:12px;">
+                <input type="checkbox" id="activo" checked />
+                <span>Activar al crear</span>
+              </label>
+
+              <button class="btn btn-primary" style="margin-top:12px;">Guardar</button>
+            </form>
+
+            <div class="muted" style="margin-top:10px; font-size:12px;">
+              * Solo puede haber un año activo por colegio.
+            </div>
+          </div>
+
+          <!-- Lista -->
+          <div class="card" style="grid-column: span 7;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <h2 class="h2">Años registrados</h2>
+            </div>
+
+            <div style="overflow:auto; margin-top:10px;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Año</th>
+                    <th>Nombre</th>
+                    <th>Activo</th>
+                    <th style="width:180px;">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyAnios">
+                  <tr><td colspan="4" class="muted">Cargando…</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Scripts (orden obligatorio) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/assets/js/supabaseClient.js"></script>
+  <script src="/assets/js/context.js"></script>
+  <script src="/eduadmin/js/anio.js"></script>
 </body>
 </html>
-
