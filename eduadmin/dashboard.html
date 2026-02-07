@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin</title>
+  <title>EduAdmin | Dashboard</title>
 
   <link rel="stylesheet" href="/assets/css/variables.css">
   <link rel="stylesheet" href="/assets/css/main.css">
@@ -13,29 +13,63 @@
 <body>
   <div class="app-shell">
 
-    <!-- SIDEBAR -->
+    <!-- SIDEBAR COMPLETO -->
     <aside class="sidebar">
       <div class="brand">
-        <img id="uiAppLogo" src="/assets/img/eduadmin.svg" alt="App" />
+        <img id="uiAppLogo" src="/assets/img/eduadmin.svg" alt="EduAdmin" />
         <div class="titles">
           <b>EduAdmin</b>
-          <span>Panel administrativo</span>
+          <span>Administración real</span>
         </div>
       </div>
 
       <nav class="nav">
-        <a href="/eduadmin/pages/dashboard.html"><div class="nav-item active">Dashboard <span class="badge">Home</span></div></a>
-        <a href="/eduadmin/pages/alumnos.html"><div class="nav-item">Alumnos <span class="badge">Acad.</span></div></a>
-        <a href="/eduadmin/pages/aulas.html"><div class="nav-item">Aulas <span class="badge">Secciones</span></div></a>
+        <a href="/eduadmin/pages/dashboard.html">
+          <div class="nav-item active">Dashboard <span class="badge">Home</span></div>
+        </a>
+
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">COLEGIO</div>
+        <a href="/eduadmin/pages/colegio.html"><div class="nav-item">Datos del colegio</div></a>
+        <a href="/eduadmin/pages/usuarios.html"><div class="nav-item">Usuarios y roles</div></a>
+
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTRUCTURA ACADÉMICA</div>
+        <a href="/eduadmin/pages/anio.html"><div class="nav-item">Año académico</div></a>
+        <a href="/eduadmin/pages/niveles.html"><div class="nav-item">Niveles</div></a>
+        <a href="/eduadmin/pages/grados.html"><div class="nav-item">Grados</div></a>
+        <a href="/eduadmin/pages/aulas.html"><div class="nav-item">Secciones / Aulas</div></a>
+        <a href="/eduadmin/pages/vacantes.html"><div class="nav-item">Vacantes</div></a>
+
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTUDIANTES</div>
+        <a href="/eduadmin/pages/alumnos.html"><div class="nav-item">Registrar alumnos</div></a>
+        <a href="/eduadmin/pages/lista-alumnos.html"><div class="nav-item">Lista de alumnos</div></a>
+        <a href="/eduadmin/pages/apoderados.html"><div class="nav-item">Apoderados</div></a>
+        <a href="/eduadmin/pages/matriculas.html"><div class="nav-item">Matrículas</div></a>
+
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">FINANZAS REALES</div>
+        <a href="/eduadmin/pages/conceptos.html"><div class="nav-item">Conceptos de pago</div></a>
+        <a href="/eduadmin/pages/pagos.html"><div class="nav-item">Registrar pagos</div></a>
+        <a href="/eduadmin/pages/caja.html"><div class="nav-item">Caja</div></a>
+        <a href="/eduadmin/pages/morosidad.html"><div class="nav-item">Morosidad</div></a>
+        <a href="/eduadmin/pages/reportes-financieros.html"><div class="nav-item">Reportes financieros</div></a>
+
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">REPORTES</div>
+        <a href="/eduadmin/pages/reportes-alumnos.html"><div class="nav-item">Alumnos por grado</div></a>
+        <a href="/eduadmin/pages/reportes-matriculas.html"><div class="nav-item">Matrículas por aula</div></a>
+
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">SISTEMA</div>
+        <a href="/eduadmin/pages/config.html"><div class="nav-item">Configuración</div></a>
+        <a href="#" id="logoutBtn"><div class="nav-item">Cerrar sesión</div></a>
       </nav>
     </aside>
 
     <!-- MAIN -->
     <main class="main">
+
+      <!-- TOPBAR -->
       <div class="topbar">
         <div class="left">
           <div class="school-chip">
-            <img id="uiSchoolLogo" src="/assets/img/educorp.svg" alt="Colegio" />
+            <img id="uiSchoolLogo" src="/assets/img/eduadmin.svg" alt="Colegio" />
             <div class="meta">
               <b id="uiSchoolName">Cargando colegio…</b>
               <span id="uiYearName">Cargando año…</span>
@@ -44,36 +78,72 @@
         </div>
 
         <div style="display:flex; gap:10px;">
-          <button class="btn btn-secondary" id="btnLogout">Salir</button>
+          <button class="btn btn-secondary" id="btnRefresh">Actualizar</button>
         </div>
       </div>
 
+      <!-- CONTENT -->
       <section class="page">
-        <div class="card">
-          <h1 class="h1">Bienvenido a EduAdmin</h1>
-          <p class="muted">Consola de gestión escolar moderna.</p>
-        </div>
-      </section>
-    </main>
 
+        <div class="card">
+          <h1 class="h1">Dashboard</h1>
+          <p class="muted" id="dashStatus">Cargando indicadores…</p>
+        </div>
+
+        <!-- KPIs -->
+        <div style="display:grid; grid-template-columns: repeat(12, 1fr); gap:14px;">
+          <div class="card" style="grid-column: span 3;">
+            <div class="muted">Alumnos registrados</div>
+            <div style="font-size:28px;font-weight:800;margin-top:6px;" id="kpiAlumnos">—</div>
+          </div>
+
+          <div class="card" style="grid-column: span 3;">
+            <div class="muted">Aulas / Secciones</div>
+            <div style="font-size:28px;font-weight:800;margin-top:6px;" id="kpiAulas">—</div>
+          </div>
+
+          <div class="card" style="grid-column: span 3;">
+            <div class="muted">Matriculados (año)</div>
+            <div style="font-size:28px;font-weight:800;margin-top:6px;" id="kpiMatriculas">—</div>
+          </div>
+
+          <div class="card" style="grid-column: span 3;">
+            <div class="muted">Pagos del mes</div>
+            <div style="font-size:28px;font-weight:800;margin-top:6px;" id="kpiPagosMes">—</div>
+          </div>
+
+          <div class="card" style="grid-column: span 6;">
+            <div class="muted">Morosos</div>
+            <div style="font-size:28px;font-weight:800;margin-top:6px;" id="kpiMorosos">0</div>
+            <div class="muted" style="margin-top:6px;font-size:12px;">
+              (Aún no hay tabla de deudas)
+            </div>
+          </div>
+
+          <div class="card" style="grid-column: span 6;">
+            <div class="muted">Acciones rápidas</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+              <a href="/eduadmin/pages/anio.html"><button class="btn btn-secondary">Crear año</button></a>
+              <a href="/eduadmin/pages/niveles.html"><button class="btn btn-secondary">Niveles</button></a>
+              <a href="/eduadmin/pages/grados.html"><button class="btn btn-secondary">Grados</button></a>
+              <a href="/eduadmin/pages/aulas.html"><button class="btn btn-secondary">Aulas</button></a>
+              <a href="/eduadmin/pages/alumnos.html"><button class="btn btn-primary">Registrar alumno</button></a>
+              <a href="/eduadmin/pages/matriculas.html"><button class="btn btn-primary">Matricular</button></a>
+              <a href="/eduadmin/pages/pagos.html"><button class="btn btn-primary">Registrar pago</button></a>
+              <a href="/eduadmin/pages/caja.html"><button class="btn btn-secondary">Caja</button></a>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
   </div>
 
-  <!-- Scripts -->
+  <!-- Scripts (orden obligatorio) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/assets/js/supabaseClient.js"></script>
   <script src="/assets/js/context.js"></script>
-  <script src="/assets/js/ui.js"></script>
-
-  <script>
-    document.getElementById("btnLogout")?.addEventListener("click", async () => {
-      try{
-        window.clearContext?.();
-        await window.supabaseClient.auth.signOut();
-        location.href = "/login.html";
-      }catch(e){
-        console.error(e);
-      }
-    });
-  </script>
+  <script src="/eduadmin/js/dashboard.js"></script>
 </body>
 </html>
