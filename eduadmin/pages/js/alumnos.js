@@ -2,7 +2,7 @@
 document.addEventListener("DOMContentLoaded", async () => {
   const supabase = window.supabaseClient;
   if (!supabase) {
-    alert("Supabase no cargó. Revisa /eduadmin/js/supabaseClient.js");
+    alert("Supabase no cargó. Revisa /eduadmin/assets/js/supabaseClient.js");
     return;
   }
 
