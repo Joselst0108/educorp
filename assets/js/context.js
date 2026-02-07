@@ -1,122 +1,72 @@
-document.addEventListener("DOMContentLoaded", async () => {
+(function () {
+  const KEY = "educorp_context";
 
-  console.log("ALUMNOS JS CARGADO");
+  async function getContext(force = false) {
+    if (!force) {
+      const cached = localStorage.getItem(KEY);
+      if (cached) return JSON.parse(cached);
+    }
 
-  if (!window.getContext) {
-    console.error("context.js no cargó");
-    return;
-  }
-
-  // =========================
-  // CONTEXTO GLOBAL
-  // =========================
-  let ctx;
-  try {
-    ctx = await getContext();
-    console.log("CTX:", ctx);
-  } catch (err) {
-    console.error("Error contexto:", err);
-    alert("No se pudo cargar colegio/año");
-    return;
-  }
-
-  // =========================
-  // ELEMENTOS
-  // =========================
-  const tbody = document.getElementById("tbodyAlumnos");
-  const form = document.getElementById("formAlumno");
-
-  if (!tbody) {
-    console.error("No existe tbodyAlumnos");
-    return;
-  }
-
-  // =========================
-  // CARGAR ALUMNOS
-  // =========================
-  async function cargarAlumnos() {
-
-    tbody.innerHTML = `
-      <tr><td colspan="5">Cargando...</td></tr>
-    `;
+    if (!window.supabaseClient) {
+      throw new Error("supabaseClient no está listo. Carga supabaseClient.js antes.");
+    }
 
     const supabase = window.supabaseClient;
 
-    const { data, error } = await supabase
-      .from("alumnos")
-      .select("*")
-      .eq("colegio_id", ctx.school_id)
-      .eq("anio_id", ctx.year_id)
-      .order("apellidos", { ascending: true });
+    // Usuario
+    const { data: u, error: ue } = await supabase.auth.getUser();
+    if (ue) throw ue;
+    if (!u?.user) throw new Error("No hay sesión activa.");
 
-    if (error) {
-      console.error(error);
-      tbody.innerHTML = `<tr><td colspan="5">Error al cargar</td></tr>`;
-      return;
-    }
+    // Perfil -> colegio
+    const { data: profile, error: pe } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", u.user.id)
+      .single();
+    if (pe) throw pe;
+    if (!profile?.school_id) throw new Error("El profile no tiene school_id.");
 
-    if (!data.length) {
-      tbody.innerHTML = `<tr><td colspan="5">Sin alumnos</td></tr>`;
-      return;
-    }
+    const school_id = profile.school_id;
 
-    tbody.innerHTML = "";
+    // Colegio
+    const { data: col, error: ce } = await supabase
+      .from("colegios")
+      .select("id, nombre")
+      .eq("id", school_id)
+      .single();
+    if (ce) throw ce;
 
-    data.forEach(a => {
-      tbody.innerHTML += `
-        <tr>
-          <td>${a.dni || ""}</td>
-          <td>${a.apellidos || ""}</td>
-          <td>${a.nombres || ""}</td>
-          <td>${a.codigo || ""}</td>
-          <td>${a.creado || ""}</td>
-        </tr>
-      `;
-    });
+    // Año activo
+    const { data: anio, error: ae } = await supabase
+      .from("anios_academicos")
+      .select("id, nombre, anio, activo")
+      .eq("colegio_id", school_id)
+      .eq("activo", true)
+      .maybeSingle();
+    if (ae) throw ae;
+    if (!anio?.id) throw new Error("No hay año académico ACTIVO para este colegio.");
+
+    const ctx = {
+      school_id,
+      school_name: col?.nombre || "",
+      year_id: anio.id,
+      year_name: anio.nombre || String(anio.anio || ""),
+      year_value: anio.anio || null,
+      cached_at: Date.now(),
+    };
+
+    localStorage.setItem(KEY, JSON.stringify(ctx));
+    return ctx;
   }
 
-  // =========================
-  // GUARDAR ALUMNO
-  // =========================
-  if (form) {
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const dni = document.getElementById("dni").value.trim();
-      const apellidos = document.getElementById("apellidos").value.trim();
-      const nombres = document.getElementById("nombres").value.trim();
-
-      if (!dni || !apellidos || !nombres) {
-        alert("Completa los datos");
-        return;
-      }
-
-      const supabase = window.supabaseClient;
-
-      const { error } = await supabase
-        .from("alumnos")
-        .insert([{
-          dni,
-          apellidos,
-          nombres,
-          colegio_id: ctx.school_id,
-          anio_id: ctx.year_id
-        }]);
-
-      if (error) {
-        console.error(error);
-        alert("Error al guardar");
-        return;
-      }
-
-      form.reset();
-      cargarAlumnos();
-    });
+  function clearContext() {
+    localStorage.removeItem(KEY);
   }
 
-  // =========================
-  // INICIO
-  // =========================
-  cargarAlumnos();
+  // ✅ IMPORTANTÍSIMO: exponer global
+  window.getContext = getContext;
+  window.clearContext = clearContext;
 
-});
+  console.log("context.js cargado ✅");
+})();
