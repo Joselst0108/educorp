@@ -189,7 +189,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       colegio_id:colegioId,
       anio_academico_id:anioAcademicoId,
       alumno_id:alumnoSeleccionado.id,
-      fecha:mFecha.value,
+      fecha_matricula:mFecha.value,
       nivel:mNivel.value,
       grado:mGrado.value,
       seccion:mSeccion.value,
