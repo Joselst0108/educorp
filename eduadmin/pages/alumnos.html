@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -6,68 +5,100 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Alumnos</title>
 
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../../assets/js/supabaseClient.js"></script>
+  <script src="/eduadmin/js/supabaseClient.js"></script>
 
   <style>
-    body{font-family:system-ui,Arial;margin:18px;background:#f7f8fb}
-    .wrap{max-width:1100px;margin:0 auto}
-    .card{background:#fff;border:1px solid #e6e8f0;border-radius:14px;padding:16px;margin-bottom:14px}
-    h1{margin:0 0 10px}
-    .row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-    input,select,button{padding:10px;border-radius:10px;border:1px solid #d9dbe7;font-size:15px;width:100%}
-    button{cursor:pointer;border:none;background:#2e7d32;color:#fff}
-    table{width:100%;border-collapse:collapse}
-    th,td{border-bottom:1px solid #eef0f6;padding:10px;text-align:left;font-size:14px}
-    .muted{color:#6b7280;font-size:13px}
-    .danger{color:#b00020;font-weight:600}
+    body { font-family: system-ui, Arial, sans-serif; margin: 0; background: #f6f7fb; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 18px; }
+    .card { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 6px 18px rgba(0,0,0,.06); }
+    .row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px; align-items: end; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    label { font-size: 12px; color: #444; }
+    input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px; outline: none; }
+    input:focus { border-color: #2e7d32; }
+    button { border: 0; border-radius: 10px; padding: 10px 14px; cursor: pointer; }
+    .btn { background: #2e7d32; color: #fff; font-weight: 600; }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .muted { color: #666; font-size: 13px; }
+    .top { display:flex; justify-content: space-between; align-items:center; gap: 12px; margin-bottom: 12px; }
+    .title { font-size: 22px; font-weight: 800; margin: 0; }
+    .meta { font-size: 13px; color:#555; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; font-size: 14px; }
+    th { font-size: 12px; color: #444; text-transform: uppercase; letter-spacing: .03em; }
+    .actions { display:flex; gap: 8px; }
+    .btn-gray { background:#eef1f6; }
+    .msg { margin-top: 10px; font-size: 13px; color: #b00020; }
+    .ok { color: #1b5e20; }
+    .toolbar { display:flex; gap: 10px; align-items:center; margin-top: 12px; }
+    .toolbar input { max-width: 360px; }
   </style>
 </head>
+
 <body>
   <div class="wrap">
-
-    <div class="card">
-      <h1>Alumnos</h1>
-      <div class="muted" id="metaInfo">Cargando colegio y año...</div>
-      <div class="danger" id="msg"></div>
+    <div class="top">
+      <div>
+        <h1 class="title">Alumnos</h1>
+        <div id="metaInfo" class="meta">Cargando colegio y año...</div>
+      </div>
+      <div class="actions">
+        <button class="btn-gray" id="btnReload">Actualizar</button>
+      </div>
     </div>
 
     <div class="card">
-      <h3 style="margin:0 0 10px">Registrar alumno</h3>
+      <h3 style="margin:0 0 10px 0;">Registrar alumno</h3>
+
+      <!-- Formulario -->
       <div class="row">
-        <input id="dni" placeholder="DNI" maxlength="12" />
-        <input id="nombres" placeholder="Nombres" />
-        <input id="apellidos" placeholder="Apellidos" />
-        <select id="grado">
-          <option value="">Grado</option>
-          <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option>
-        </select>
-        <input id="seccion" placeholder="Sección (A, B, C)" maxlength="2" />
-        <button id="btnGuardar">Guardar</button>
+        <div>
+          <label>DNI *</label>
+          <input id="dni" inputmode="numeric" placeholder="8 dígitos" maxlength="12" />
+        </div>
+        <div>
+          <label>Nombres *</label>
+          <input id="nombres" placeholder="Ej. Juan Carlos" />
+        </div>
+        <div>
+          <label>Apellidos *</label>
+          <input id="apellidos" placeholder="Ej. Pérez Gómez" />
+        </div>
+        <div>
+          <label>Código (opcional)</label>
+          <input id="codigo" placeholder="Ej. 2026-001" />
+        </div>
+        <button class="btn" id="btnGuardar">Guardar</button>
       </div>
-    </div>
 
-    <div class="card">
-      <h3 style="margin:0 0 10px">Lista de alumnos</h3>
-      <div class="muted" id="countInfo">0 alumnos</div>
-      <div style="overflow:auto">
-        <table>
-          <thead>
-            <tr>
-              <th>DNI</th>
-              <th>Apellidos</th>
-              <th>Nombres</th>
-              <th>Grado</th>
-              <th>Sección</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyAlumnos"></tbody>
-        </table>
+      <div id="msg" class="msg"></div>
+
+      <!-- Buscador / contador -->
+      <div class="toolbar">
+        <input id="qBuscar" placeholder="Buscar por DNI / apellidos / nombres..." />
+        <div class="muted" id="countInfo">0 alumno(s)</div>
       </div>
-    </div>
 
+      <!-- Lista -->
+      <table>
+        <thead>
+          <tr>
+            <th>DNI</th>
+            <th>Apellidos</th>
+            <th>Nombres</th>
+            <th>Código</th>
+            <th>Creado</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyAlumnos">
+          <tr><td colspan="5" class="muted">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  <script src="./js/alumnos.js"></script>
+  <script src="/eduadmin/pages/js/alumnos.js"></script>
 </body>
 </html>
