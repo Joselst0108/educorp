@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+78<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -141,6 +141,22 @@
       if (qOld && qNew && !qOld.value) qOld.value = qNew.value;
       if (bOld && bNew) bOld.onclick = () => bNew.click();
     })();
+<div id="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);align-items:center;justify-content:center;">
+  <div style="background:white;padding:20px;border-radius:12px;width:300px">
+
+    <h3>Acciones</h3>
+
+    <button onclick="matricular()">Matricular</button>
+    <button onclick="reingreso()">Reingreso</button>
+    <button onclick="retirar()">Retiro</button>
+    <button onclick="traslado()">Traslado</button>
+    <button onclick="anular()">Anular</button>
+
+    <br><br>
+    <button onclick="cerrarModal()">Cerrar</button>
+
+  </div>
+</div>
   </script>
 </body>
 </html>
