@@ -25,6 +25,7 @@
     th,td{border-bottom:1px solid #eef0f6;padding:10px;text-align:left;font-size:14px}
     .muted{color:#6b7280;font-size:13px}
     .dangerText{color:#b00020;font-weight:600}
+    .badge{display:inline-block;padding:4px 10px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px}
   </style>
 </head>
 
@@ -41,14 +42,16 @@
       <h3 style="margin:0 0 10px">Buscar alumno</h3>
 
       <div class="row">
-        <input id="qAlumno" placeholder="Buscar por DNI, código o apellidos/nombres..." />
+        <input id="qAlumno" placeholder="Buscar por DNI / código / apellidos / nombres..." />
         <button id="btnBuscarAlumno" class="secondary" type="button">Buscar</button>
         <select id="alumnoSelect">
           <option value="">— Selecciona un alumno —</option>
         </select>
       </div>
 
-      <div class="muted" id="infoBusqueda" style="margin-top:8px">Tip: busca y selecciona un alumno.</div>
+      <div class="muted" id="infoBusqueda" style="margin-top:8px">
+        Tip: escribe un DNI o apellidos y pulsa Buscar.
+      </div>
 
       <div style="margin-top:10px">
         <button id="btnAbrirModal" type="button">Abrir opciones de matrícula</button>
@@ -82,30 +85,33 @@
 
   <!-- MODAL -->
   <div id="modalMatricula" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); padding:18px; z-index:9999;">
-    <div style="max-width:640px; margin:40px auto; background:#fff; border-radius:14px; padding:16px; border:1px solid #e6e8f0;">
+    <div style="max-width:620px; margin:40px auto; background:#fff; border-radius:14px; padding:16px; border:1px solid #e6e8f0;">
       <h3 style="margin:0 0 10px">Opciones de matrícula</h3>
 
       <div class="muted" id="mAlumno"></div>
-      <div class="muted" id="mEstadoActual" style="margin-bottom:10px"></div>
+      <div class="muted" id="mEstadoActual" style="margin:6px 0 12px"></div>
 
       <div class="row2">
         <input id="mFecha" type="date" />
-        <input id="mMotivo" placeholder="Motivo / Observación (opcional)" />
-      </div>
-
-      <!-- Cascada: Nivel -> Grado -> Sección -->
-      <div class="row" style="margin-top:10px">
         <select id="mNivel">
           <option value="">— Nivel —</option>
+          <option value="INICIAL">INICIAL</option>
+          <option value="PRIMARIA">PRIMARIA</option>
+          <option value="SECUNDARIA">SECUNDARIA</option>
         </select>
+      </div>
 
+      <div class="row2" style="margin-top:10px">
         <select id="mGrado" disabled>
           <option value="">— Grado —</option>
         </select>
-
         <select id="mSeccion" disabled>
           <option value="">— Sección —</option>
         </select>
+      </div>
+
+      <div style="margin-top:10px">
+        <input id="mMotivo" placeholder="Motivo / Observación (opcional)" />
       </div>
 
       <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:12px;">
@@ -114,15 +120,18 @@
         <button id="btnRetiro" type="button" class="danger">Retiro</button>
         <button id="btnTraslado" type="button" class="purple">Traslado</button>
         <button id="btnCambio" type="button" class="teal">Cambio grado/sección</button>
-        <button id="btnAnular" type="button" class="dark">Anular (superadmin)</button>
+        <button id="btnAnular" type="button" class="dark">Anular</button>
         <button id="btnCerrarModal" type="button" class="gray">Cerrar</button>
       </div>
 
       <div class="dangerText" id="mMsg" style="margin-top:10px"></div>
+      <div class="muted" style="margin-top:8px">
+        Estados sugeridos: <span class="badge">MATRICULADO</span> <span class="badge">RETIRADO</span> <span class="badge">TRASLADADO</span> <span class="badge">ANULADO</span>
+      </div>
     </div>
   </div>
 
-  <!-- SCRIPTS: SOLO UNA VEZ -->
+  <!-- SCRIPTS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../../assets/js/supabaseClient.js"></script>
   <script src="./js/matricula.js"></script>
