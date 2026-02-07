@@ -1,0 +1,26 @@
+:root{
+  --bg: #0b1220;
+  --surface: rgba(255,255,255,.06);
+  --surface-2: rgba(255,255,255,.10);
+  --text: rgba(255,255,255,.92);
+  --muted: rgba(255,255,255,.65);
+  --border: rgba(255,255,255,.12);
+
+  --radius: 18px;
+  --shadow: 0 14px 40px rgba(0,0,0,.35);
+
+  /* App accents (por data-app) */
+  --accent: #3b82f6;  /* default azul */
+  --accent-2: rgba(59,130,246,.18);
+
+  --eduadmin: #3b82f6; /* azul */
+  --edubank:  #22c55e; /* verde */
+  --eduia:    #a855f7; /* morado */
+  --eduasist: #f97316; /* naranja */
+}
+
+/* Cambia acento por app */
+[data-app="eduadmin"]{ --accent: var(--eduadmin); --accent-2: rgba(59,130,246,.18); }
+[data-app="edubank"] { --accent: var(--edubank);  --accent-2: rgba(34,197,94,.18); }
+[data-app="eduia"]   { --accent: var(--eduia);    --accent-2: rgba(168,85,247,.18); }
+[data-app="eduasist"]{ --accent: var(--eduasist); --accent-2: rgba(249,115,22,.18); }
