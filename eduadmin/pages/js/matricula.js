@@ -32,7 +32,154 @@ document.addEventListener("DOMContentLoaded", async () => {
   const btnCambio = document.getElementById("btnCambio");
   const btnAnular = document.getElementById("btnAnular");
   const btnCerrarModal = document.getElementById("btnCerrarModal");
+// ===== MODAL APODERADO =====
+  const modalAp = document.getElementById("modalApoderado");
+  const aAlumno = document.getElementById("aAlumno");
+  const aMsg = document.getElementById("aMsg");
+  const aBuscar = document.getElementById("aBuscar");
+  const btnBuscarAp = document.getElementById("btnBuscarApoderado");
+  const apSelect = document.getElementById("apoderadoSelect");
+  const btnVincularExistente = document.getElementById("btnVincularExistente");
+  const btnCrearYVincular = document.getElementById("btnCrearYVincular");
+  const btnCerrarAp = document.getElementById("btnCerrarApoderado");
 
+  const aDni = document.getElementById("aDni");
+  const aTelefono = document.getElementById("aTelefono");
+  const aNombres = document.getElementById("aNombres");
+  const aApellidos = document.getElementById("aApellidos");
+  const aParentesco = document.getElementById("aParentesco");
+
+  let apoderadosCache = [];
+
+  function openApoderadoModal() {
+    aMsg.textContent = "";
+    apSelect.innerHTML = `<option value="">— Selecciona un apoderado encontrado —</option>`;
+    apoderadosCache = [];
+    modalAp.style.display = "block";
+    aAlumno.textContent = `Alumno: ${alumnoSeleccionado?.apellidos || ""} ${alumnoSeleccionado?.nombres || ""}`;
+  }
+  function closeApoderadoModal() {
+    modalAp.style.display = "none";
+    aMsg.textContent = "";
+  }
+  btnCerrarAp?.addEventListener("click", closeApoderadoModal);
+  modalAp?.addEventListener("click", (e) => { if (e.target === modalAp) closeApoderadoModal(); });
+
+  async function alumnoTieneApoderado() {
+    const { data, error } = await supabase
+      .from("apoderado_hijos")
+      .select("id")
+      .eq("colegio_id", colegioId)
+      .eq("alumno_id", alumnoSeleccionado.id)
+      .limit(1);
+
+    if (error) {
+      console.log("apoderado_hijos check error:", error);
+      // si hay error de RLS, mejor no bloquear: pero te lo muestro
+      return false;
+    }
+    return (data || []).length > 0;
+  }
+
+  btnBuscarAp?.addEventListener("click", async () => {
+    aMsg.textContent = "";
+    const q = (aBuscar.value || "").trim();
+    if (!q) return (aMsg.textContent = "Escribe DNI o apellidos para buscar.");
+
+    apSelect.innerHTML = `<option value="">Buscando...</option>`;
+    const { data, error } = await supabase
+      .from("apoderados")
+      .select("id, dni, apellidos, nombres, telefono")
+      .eq("colegio_id", colegioId)
+      .or(`dni.ilike.%${q}%,apellidos.ilike.%${q}%,nombres.ilike.%${q}%`)
+      .order("apellidos", { ascending: true })
+      .limit(30);
+
+    if (error) {
+      console.log("buscar apoderados error:", error);
+      apSelect.innerHTML = `<option value="">— Selecciona —</option>`;
+      aMsg.textContent = "Error buscando apoderado (mira consola).";
+      return;
+    }
+
+    apoderadosCache = data || [];
+    apSelect.innerHTML = `<option value="">— Selecciona un apoderado encontrado —</option>`;
+    apoderadosCache.forEach(p => {
+      const op = document.createElement("option");
+      op.value = p.id;
+      op.textContent = `${p.apellidos || ""} ${p.nombres || ""}${p.dni ? " | DNI: " + p.dni : ""}`;
+      apSelect.appendChild(op);
+    });
+
+    if (!apoderadosCache.length) aMsg.textContent = "No se encontró. Puedes crearlo abajo.";
+  });
+
+  async function vincularApoderado(apoderadoId, parentesco) {
+    if (!apoderadoId) return (aMsg.textContent = "Selecciona un apoderado.");
+    const payload = {
+      colegio_id: colegioId,
+      alumno_id: alumnoSeleccionado.id,
+      apoderado_id: apoderadoId,
+      parentesco: (parentesco || "").trim() || null,
+      is_principal: true,
+    };
+
+    const { error } = await supabase.from("apoderado_hijos").insert(payload);
+    if (error) {
+      console.log("vincular apoderado error:", error);
+      aMsg.textContent = "No se pudo vincular (mira consola).";
+      return false;
+    }
+    return true;
+  }
+
+  btnVincularExistente?.addEventListener("click", async () => {
+    aMsg.textContent = "";
+    const apId = apSelect.value;
+    const ok = await vincularApoderado(apId, aParentesco.value);
+    if (ok) {
+      alert("✅ Apoderado asignado.");
+      closeApoderadoModal();
+    }
+  });
+
+  btnCrearYVincular?.addEventListener("click", async () => {
+    aMsg.textContent = "";
+
+    const nombres = (aNombres.value || "").trim();
+    const apellidos = (aApellidos.value || "").trim();
+    if (!nombres || !apellidos) {
+      aMsg.textContent = "Completa nombres y apellidos del apoderado.";
+      return;
+    }
+
+    const payload = {
+      colegio_id: colegioId,
+      dni: (aDni.value || "").replace(/\D/g, "").trim() || null,
+      nombres,
+      apellidos,
+      telefono: (aTelefono.value || "").trim() || null,
+      email: null,
+    };
+
+    const { data, error } = await supabase
+      .from("apoderados")
+      .insert(payload)
+      .select("id")
+      .single();
+
+    if (error || !data?.id) {
+      console.log("crear apoderado error:", error);
+      aMsg.textContent = "No se pudo crear apoderado (mira consola).";
+      return;
+    }
+
+    const ok = await vincularApoderado(data.id, aParentesco.value);
+    if (ok) {
+      alert("✅ Apoderado creado y asignado.");
+      closeApoderadoModal();
+    }
+  });
   // ================= CONTEXT =================
   const colegioId = localStorage.getItem("colegio_id");
   const anioAcademicoId = localStorage.getItem("anio_academico_id");
