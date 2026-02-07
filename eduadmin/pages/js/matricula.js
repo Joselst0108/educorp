@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   fechaInput.value = today.toISOString().slice(0, 10);
 
   const colegioId = localStorage.getItem("colegio_id");
-  const anioAcademicoId = localStorage.getItem("anio_academico_id");
+  const anioAcademicoId = localStorage.getItem("anio_id");
   const anio = localStorage.getItem("anio") || "";
 
   if (!colegioId) {
