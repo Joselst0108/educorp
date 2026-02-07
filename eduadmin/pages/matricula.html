@@ -53,8 +53,9 @@
         Tip: escribe un DNI o apellidos y pulsa Buscar.
       </div>
 
-      <div style="margin-top:10px">
+      <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
         <button id="btnAbrirModal" type="button">Abrir opciones de matrícula</button>
+        <button id="btnIrAlumnos" class="gray" type="button">Registrar alumno (si no existe)</button>
       </div>
     </div>
 
@@ -95,9 +96,6 @@
         <input id="mFecha" type="date" />
         <select id="mNivel">
           <option value="">— Nivel —</option>
-          <option value="INICIAL">INICIAL</option>
-          <option value="PRIMARIA">PRIMARIA</option>
-          <option value="SECUNDARIA">SECUNDARIA</option>
         </select>
       </div>
 
@@ -126,12 +124,13 @@
 
       <div class="dangerText" id="mMsg" style="margin-top:10px"></div>
       <div class="muted" style="margin-top:8px">
-        Estados sugeridos: <span class="badge">MATRICULADO</span> <span class="badge">RETIRADO</span> <span class="badge">TRASLADADO</span> <span class="badge">ANULADO</span>
+        Estados: <span class="badge">MATRICULADO</span> <span class="badge">RETIRADO</span>
+        <span class="badge">TRASLADADO</span> <span class="badge">ANULADO</span>
       </div>
     </div>
   </div>
 
-  <!-- SCRIPTS -->
+  <!-- SCRIPTS: una sola vez y rutas correctas -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../../assets/js/supabaseClient.js"></script>
   <script src="./js/matricula.js"></script>
