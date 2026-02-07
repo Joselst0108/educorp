@@ -45,6 +45,55 @@
       </div>
       <div class="muted" style="margin-top:8px">
         Tip: solo se puede matricular 1 vez por alumno en el mismo año.
+<div class="card">
+  <h2>Buscar alumno</h2>
+
+  <div class="row">
+    <input id="q" placeholder="Buscar por DNI, código o apellidos..." />
+    <button id="btnBuscar">Buscar</button>
+  </div>
+
+  <div class="muted" id="infoBusqueda"></div>
+  <div class="danger" id="msg"></div>
+
+  <div style="overflow:auto;margin-top:10px">
+    <table>
+      <thead>
+        <tr>
+          <th>DNI</th>
+          <th>Apellidos</th>
+          <th>Nombres</th>
+          <th>Grado</th>
+          <th>Sección</th>
+          <th>Estado</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody id="tbodyResultados"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal Reingreso -->
+<div id="modalReingreso" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);align-items:center;justify-content:center;padding:18px;">
+  <div style="background:#fff;max-width:520px;width:100%;border-radius:14px;padding:16px;border:1px solid #e6e8f0">
+    <h3 style="margin:0 0 8px">Reingreso / Reactivar matrícula</h3>
+    <div class="muted" id="reingresoAlumno"></div>
+
+    <div style="margin-top:10px">
+      <label class="muted">Motivo / Nota (opcional)</label>
+      <textarea id="reingresoNota" style="width:100%;min-height:80px;padding:10px;border-radius:10px;border:1px solid #d9dbe7"></textarea>
+    </div>
+
+    <div class="row" style="margin-top:10px;grid-template-columns:1fr 1fr;">
+      <button id="btnCancelarReingreso" style="background:#6b7280">Cancelar</button>
+      <button id="btnConfirmarReingreso">Confirmar reingreso</button>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/js/context.js"></script>
+<script src="./js/matricula.js"></script>
       </div>
     </div>
 
