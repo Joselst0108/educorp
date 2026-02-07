@@ -1,106 +1,79 @@
-8<!DOCTYPE html>
-<html lang="es">
+<!DOCTYPE html>
+<html lang="es" data-app="eduadmin">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAsist | Dashboard</title>
+  <title>EduAdmin</title>
+
+  <link rel="stylesheet" href="/assets/css/variables.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
 </head>
+
 <body>
+  <div class="app-shell">
 
-  <h1>Dashboard - EduAsist</h1>
-  <p>Roles permitidos: superadmin / director / docente / alumno / apoderado</p>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="/assets/img/eduadmin.svg" alt="App" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Panel administrativo</span>
+        </div>
+      </div>
 
-  <div id="estadoSesion">Verificando sesión...</div>
-  <button type="button" id="btnLogout">Cerrar sesión</button>
+      <nav class="nav">
+        <a href="/eduadmin/pages/dashboard.html"><div class="nav-item active">Dashboard <span class="badge">Home</span></div></a>
+        <a href="/eduadmin/pages/alumnos.html"><div class="nav-item">Alumnos <span class="badge">Acad.</span></div></a>
+        <a href="/eduadmin/pages/aulas.html"><div class="nav-item">Aulas <span class="badge">Secciones</span></div></a>
+      </nav>
+    </aside>
 
-  <hr />
+    <!-- MAIN -->
+    <main class="main">
+      <div class="topbar">
+        <div class="left">
+          <div class="school-chip">
+            <img id="uiSchoolLogo" src="/assets/img/educorp.svg" alt="Colegio" />
+            <div class="meta">
+              <b id="uiSchoolName">Cargando colegio…</b>
+              <span id="uiYearName">Cargando año…</span>
+            </div>
+          </div>
+        </div>
 
-  <ul>
-    <li><a href="pages/boletin-auto.html">Boleta Automática (V2)</a></li>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-secondary" id="btnLogout">Salir</button>
+        </div>
+      </div>
 
-    <li><a href="pages/asistencia.html">Asistencia</a></li>
-    <li><a href="pages/notas.html">Notas</a></li>
-    <li><a href="pages/boletin.html">Boletín</a></li>
-    <li><a href="pages/configuracion.html">Configuración (Director)</a></li>
-  </ul>
+      <section class="page">
+        <div class="card">
+          <h1 class="h1">Bienvenido a EduAdmin</h1>
+          <p class="muted">Consola de gestión escolar moderna.</p>
+        </div>
+      </section>
+    </main>
 
-  <p><a href="../index.html">Volver a EduCorp</a></p>
+  </div>
 
-  <!-- Supabase -->
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../assets/js/supabaseClient.js"></script>
+  <script src="/assets/js/supabaseClient.js"></script>
+  <script src="/assets/js/context.js"></script>
+  <script src="/assets/js/ui.js"></script>
 
   <script>
-    const rutasPorRol = {
-      superadmin: '../eduadmin/dashboard.html',
-      director: '../eduadmin/dashboard.html',
-      secretaria: '../eduadmin/dashboard.html',
-      docente: '../eduasist/dashboard.html',
-      alumno: '../eduasist/dashboard.html',
-      apoderado: '../eduasist/dashboard.html'
-    };
-
-    async function protegerPorSesionYRol() {
-      const estado = document.getElementById('estadoSesion');
-
-      if (!window.supabase) {
-        estado.innerHTML = '❌ Supabase no conectado';
-        return;
+    document.getElementById("btnLogout")?.addEventListener("click", async () => {
+      try{
+        window.clearContext?.();
+        await window.supabaseClient.auth.signOut();
+        location.href = "/login.html";
+      }catch(e){
+        console.error(e);
       }
-
-      const { data, error } = await window.supabase.auth.getSession();
-
-      if (error) {
-        estado.innerHTML = '❌ Error al leer sesión';
-        return;
-      }
-
-      if (!data.session) {
-        window.location.href = '../login.html';
-        return;
-      }
-
-      const userId = data.session.user.id;
-
-      const { data: profile, error: profileError } = await window.supabase
-        .from('profiles')
-        .select('role, is_active')
-        .eq('id', userId)
-        .single();
-
-      if (profileError || !profile) {
-        alert('❌ No tienes perfil (rol).');
-        await window.supabase.auth.signOut();
-        window.location.href = '../login.html';
-        return;
-      }
-
-      if (!profile.is_active) {
-        alert('❌ Usuario inactivo.');
-        await window.supabase.auth.signOut();
-        window.location.href = '../login.html';
-        return;
-      }
-
-      const allowedRoles = ['superadmin', 'director', 'docente', 'alumno', 'apoderado'];
-
-      if (!allowedRoles.includes(profile.role)) {
-        alert('⛔ No tienes permisos para EduAsist');
-        window.location.href = rutasPorRol[profile.role] || '../login.html';
-        return;
-      }
-
-      estado.innerHTML = '✅ Sesión activa (' + profile.role + ')';
-    }
-
-    document.getElementById('btnLogout').addEventListener('click', async () => {
-      if (!window.supabase) return;
-      await window.supabase.auth.signOut();
-      window.location.href = '../login.html';
     });
-
-    protegerPorSesionYRol();
   </script>
-
 </body>
 </html>
