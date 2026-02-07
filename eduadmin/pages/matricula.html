@@ -25,55 +25,36 @@
     th,td{border-bottom:1px solid #eef0f6;padding:10px;text-align:left;font-size:14px}
     .muted{color:#6b7280;font-size:13px}
     .dangerText{color:#b00020;font-weight:600}
-    /* Modal */
-    #modalMatricula{display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); padding:18px; z-index:9999;}
-    #modalMatricula.open{display:flex; align-items:flex-start; justify-content:center;}
   </style>
 </head>
 
 <body>
   <div class="wrap">
 
-    <!-- CABECERA -->
     <div class="card">
       <h1>Matrícula</h1>
       <div class="muted" id="metaInfo">Cargando colegio y año...</div>
       <div class="dangerText" id="msg"></div>
     </div>
 
-    <!-- BUSCAR / SELECCIONAR ALUMNO -->
     <div class="card">
       <h3 style="margin:0 0 10px">Buscar alumno</h3>
 
       <div class="row">
-        <!-- Nuevo -->
         <input id="qAlumno" placeholder="Buscar por DNI, código o apellidos/nombres..." />
-
         <button id="btnBuscarAlumno" class="secondary" type="button">Buscar</button>
-
         <select id="alumnoSelect">
           <option value="">— Selecciona un alumno —</option>
         </select>
       </div>
 
-      <!-- Compatibilidad con IDs viejos (si tu JS viejo usa q / btnBuscar) -->
-      <input id="q" style="display:none" />
-      <button id="btnBuscar" style="display:none" type="button"></button>
-
-      <div class="muted" id="infoBusqueda" style="margin-top:8px">
-        Tip: escribe DNI o apellido y pulsa Buscar.
-      </div>
+      <div class="muted" id="infoBusqueda" style="margin-top:8px">Tip: busca y selecciona un alumno.</div>
 
       <div style="margin-top:10px">
         <button id="btnAbrirModal" type="button">Abrir opciones de matrícula</button>
       </div>
-
-      <div class="muted" style="margin-top:8px">
-        Tip: un alumno solo puede tener 1 matrícula por año académico (por el UNIQUE).
-      </div>
     </div>
 
-    <!-- LISTA DE MATRICULADOS -->
     <div class="card">
       <h3 style="margin:0 0 10px">Lista de matriculados (año actual)</h3>
       <div class="muted" id="countInfo">0 matriculados</div>
@@ -86,6 +67,7 @@
               <th>DNI</th>
               <th>Apellidos</th>
               <th>Nombres</th>
+              <th>Nivel</th>
               <th>Grado</th>
               <th>Sección</th>
               <th>Estado</th>
@@ -98,9 +80,9 @@
 
   </div>
 
-  <!-- MODAL DE OPCIONES -->
-  <div id="modalMatricula" aria-hidden="true">
-    <div style="max-width:560px; width:100%; margin:40px auto; background:#fff; border-radius:14px; padding:16px; border:1px solid #e6e8f0;">
+  <!-- MODAL -->
+  <div id="modalMatricula" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); padding:18px; z-index:9999;">
+    <div style="max-width:640px; margin:40px auto; background:#fff; border-radius:14px; padding:16px; border:1px solid #e6e8f0;">
       <h3 style="margin:0 0 10px">Opciones de matrícula</h3>
 
       <div class="muted" id="mAlumno"></div>
@@ -108,12 +90,22 @@
 
       <div class="row2">
         <input id="mFecha" type="date" />
-        <input id="mSeccion" placeholder="Sección (A,B,C)" maxlength="2" />
+        <input id="mMotivo" placeholder="Motivo / Observación (opcional)" />
       </div>
 
-      <div class="row2" style="margin-top:10px">
-        <input id="mGrado" placeholder="Grado (1-6)" />
-        <input id="mMotivo" placeholder="Motivo / Observación" />
+      <!-- Cascada: Nivel -> Grado -> Sección -->
+      <div class="row" style="margin-top:10px">
+        <select id="mNivel">
+          <option value="">— Nivel —</option>
+        </select>
+
+        <select id="mGrado" disabled>
+          <option value="">— Grado —</option>
+        </select>
+
+        <select id="mSeccion" disabled>
+          <option value="">— Sección —</option>
+        </select>
       </div>
 
       <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:12px;">
@@ -130,29 +122,9 @@
     </div>
   </div>
 
-  <!-- SCRIPTS (una sola vez y con rutas correctas) -->
+  <!-- SCRIPTS: SOLO UNA VEZ -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../assets/js/supabaseClient.js"></script>
-
-  <!-- Si usas context.js, cárgalo SOLO si realmente existe y se necesita -->
-  <!-- <script src="../assets/js/context.js"></script> -->
-
-  <script>
-    // Compatibilidad: si tu matricula.js viejo usa q/btnBuscar,
-    // hacemos que apunten a los nuevos.
-    document.getElementById("btnBuscar").addEventListener("click", () => {
-      document.getElementById("btnBuscarAlumno").click();
-    });
-
-    document.getElementById("q").addEventListener("input", (e) => {
-      document.getElementById("qAlumno").value = e.target.value;
-    });
-
-    document.getElementById("qAlumno").addEventListener("input", (e) => {
-      document.getElementById("q").value = e.target.value;
-    });
-  </script>
-
+  <script src="../../assets/js/supabaseClient.js"></script>
   <script src="./js/matricula.js"></script>
 </body>
 </html>
