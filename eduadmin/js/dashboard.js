@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ======================================================
   if (!colegioId) {
     // sin alert (molesta y se siente "aleatorio")
-    window.location.href = "/eduadmin/pages/colegio.html";
+    window.location.href = "/eduadmin/pages/select-colegio.html";
     return;
   }
 
