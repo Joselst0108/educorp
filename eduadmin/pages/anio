@@ -1,1 +1,112 @@
+<!DOCTYPE html>
+<html lang="es" data-app="eduadmin">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduAdmin | Año académico</title>
+
+  <link rel="stylesheet" href="/assets/css/variables.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
+</head>
+
+<body>
+<div class="app-shell">
+
+  <!-- SIDEBAR (idéntico en todas) -->
+  <aside class="sidebar">
+    <div class="brand">
+      <img id="uiAppLogo" src="/assets/img/eduadmin.svg" alt="EduAdmin" />
+      <div class="titles">
+        <b>EduAdmin</b>
+        <span>Administración real</span>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a href="/eduadmin/pages/dashboard.html"><div class="nav-item">Dashboard</div></a>
+
+      <div class="muted" style="margin:10px 6px 6px;font-size:12px;">COLEGIO</div>
+      <a href="/eduadmin/pages/colegio.html"><div class="nav-item">Datos del colegio</div></a>
+      <a href="/eduadmin/pages/usuarios.html"><div class="nav-item">Usuarios y roles</div></a>
+
+      <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTRUCTURA ACADÉMICA</div>
+      <a href="/eduadmin/pages/anio.html"><div class="nav-item active">Año académico</div></a>
+      <a href="/eduadmin/pages/niveles.html"><div class="nav-item">Niveles</div></a>
+      <a href="/eduadmin/pages/grados.html"><div class="nav-item">Grados</div></a>
+      <a href="/eduadmin/pages/aulas.html"><div class="nav-item">Secciones / Aulas</div></a>
+
+      <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTUDIANTES</div>
+      <a href="/eduadmin/pages/alumnos.html"><div class="nav-item">Registrar alumnos</div></a>
+      <a href="/eduadmin/pages/matriculas.html"><div class="nav-item">Matrículas</div></a>
+
+      <div class="muted" style="margin:10px 6px 6px;font-size:12px;">FINANZAS REALES</div>
+      <a href="/eduadmin/pages/conceptos.html"><div class="nav-item">Conceptos de pago</div></a>
+      <a href="/eduadmin/pages/pagos.html"><div class="nav-item">Registrar pagos</div></a>
+      <a href="#" id="logoutBtn"><div class="nav-item">Cerrar sesión</div></a>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="left">
+        <div class="school-chip">
+          <img id="uiSchoolLogo" src="/assets/img/eduadmin.svg" alt="Colegio" />
+          <div class="meta">
+            <b id="uiSchoolName">Cargando colegio…</b>
+            <span id="uiYearName">Cargando año…</span>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-secondary" id="btnRefresh">Actualizar</button>
+    </div>
+
+    <section class="page">
+      <div class="card">
+        <h1 class="h1">Año académico</h1>
+        <p class="muted" id="status">Cargando…</p>
+      </div>
+
+      <div class="card">
+        <h3>Crear año académico</h3>
+        <form id="formAnio" style="display:grid; gap:10px; max-width:520px;">
+          <input id="nombre" placeholder="Nombre (ej: 2026)" required />
+          <input id="anio" type="number" placeholder="Año (ej: 2026)" />
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <input id="inicio" type="date" />
+            <input id="fin" type="date" />
+          </div>
+          <label style="display:flex; gap:10px; align-items:center;">
+            <input type="checkbox" id="activo" />
+            Activar este año
+          </label>
+          <button class="btn btn-primary" type="submit">Guardar</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Años registrados</h3>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Año</th>
+              <th>Activo</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyAnios"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/assets/js/supabaseClient.js"></script>
+<script src="/assets/js/context.js"></script>
+<script src="/eduadmin/js/anio.js"></script>
+</body>
+</html>
 
