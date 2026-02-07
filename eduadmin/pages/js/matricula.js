@@ -1,16 +1,21 @@
 document.addEventListener("DOMContentLoaded", async () => {
+  // =========================
+  // Helpers UI
+  // =========================
   const $ = (id) => document.getElementById(id);
 
-  const msg = $("msg");
   const metaInfo = $("metaInfo");
+  const msg = $("msg");
   const countInfo = $("countInfo");
   const tbodyMatriculas = $("tbodyMatriculas");
 
   const qAlumno = $("qAlumno");
   const btnBuscarAlumno = $("btnBuscarAlumno");
   const alumnoSelect = $("alumnoSelect");
+  const infoBusqueda = $("infoBusqueda");
   const btnAbrirModal = $("btnAbrirModal");
 
+  // Modal
   const modal = $("modalMatricula");
   const mAlumno = $("mAlumno");
   const mEstadoActual = $("mEstadoActual");
@@ -29,609 +34,711 @@ document.addEventListener("DOMContentLoaded", async () => {
   const btnAnular = $("btnAnular");
   const btnCerrarModal = $("btnCerrarModal");
 
-  // ====== CONTEXTO (localStorage) ======
+  // Registrar alumno (si no existe)
+  const boxNuevoAlumno = $("boxNuevoAlumno");
+  const nDni = $("nDni");
+  const nNombres = $("nNombres");
+  const nApellidos = $("nApellidos");
+  const btnCrearAlumno = $("btnCrearAlumno");
+  const nuevoAlumnoInfo = $("nuevoAlumnoInfo");
+
+  // =========================
+  // Contexto
+  // =========================
   const colegioId = localStorage.getItem("colegio_id");
-  const anioAcademicoId = localStorage.getItem("anio_academico_id"); // OJO: debe existir
-  const anioLabel = localStorage.getItem("anio") || "";
+  let anioAcademicoId = localStorage.getItem("anio_academico_id");
+  let anioTexto = localStorage.getItem("anio") || ""; // solo display
+  const role = (localStorage.getItem("role") || "").toLowerCase();
 
-  // Estado en memoria
-  let alumnoActual = null;           // objeto alumno
-  let matriculaActual = null;        // objeto matrícula del alumno en año actual
-  let configAulas = [];              // del director
-  let gradosPorNivel = {};           // { PRIMARIA: ['1','2'] ... }
-  let seccionesPorNivelGrado = {};   // { 'PRIMARIA|1': ['A','B'] ... }
-
-  const hoyISO = new Date().toISOString().slice(0, 10);
-  mFecha.value = hoyISO;
-
-  function setTopError(text) {
-    msg.textContent = text || "";
-  }
-  function setModalError(text) {
-    mMsg.textContent = text || "";
-  }
-
-  // No "botar": si falta colegio o año, mostramos y no rompemos toda la UI
   if (!colegioId) {
-    setTopError("No hay colegio seleccionado. Ve a seleccionar colegio.");
-    metaInfo.textContent = "Sin colegio.";
-    disableUI(true);
-    return;
-  }
-  if (!anioAcademicoId) {
-    setTopError("No hay año académico activo (no existe anio_academico_id en localStorage).");
-    metaInfo.textContent = "Sin año académico activo.";
-    disableUI(true);
+    alert("No hay colegio seleccionado");
+    window.location.href = "/eduadmin/pages/select-colegio.html";
     return;
   }
 
-  function disableUI(disabled) {
-    btnBuscarAlumno.disabled = disabled;
-    alumnoSelect.disabled = disabled;
-    btnAbrirModal.disabled = disabled;
-  }
+  // Fecha default hoy
+  const today = new Date().toISOString().slice(0, 10);
+  if (mFecha) mFecha.value = today;
 
-  // ====== Cargar colegio ======
-  const { data: colegio, error: errCol } = await window.supabaseClient
-    .from("colegios")
-    .select("nombre")
-    .eq("id", colegioId)
-    .maybeSingle(); // recomendado para evitar crash si no existe 0
+  // =========================
+  // Cargar colegio + año activo (si falta)
+  // =========================
+  async function cargarColegioYAno() {
+    msg.textContent = "";
+    const { data: colegio, error: errCol } = await window.supabaseClient
+      .from("colegios")
+      .select("nombre")
+      .eq("id", colegioId)
+      .single();
 
-  if (errCol || !colegio) {
-    setTopError("Error cargando colegio (mira consola).");
-    console.log(errCol);
-    disableUI(true);
-    return;
-  }
-  metaInfo.textContent = `Colegio: ${colegio.nombre} | Año: ${anioLabel || "(activo)"}`;
-
-  // ====== Cargar configuración del director: niveles/grados/secciones ======
-  async function cargarConfigAulas() {
-    // Si no creaste config_aulas aún, esto fallará. Entonces el sistema no podrá “generar” grados/secciones.
-    const { data, error } = await window.supabaseClient
-      .from("config_aulas")
-      .select("nivel, grado, seccion, activo")
-      .eq("colegio_id", colegioId)
-      .eq("anio_academico_id", anioAcademicoId)
-      .eq("activo", true);
-
-    if (error) {
-      console.log("config_aulas error:", error);
-      // No detenemos toda la app, pero avisamos
-      setTopError("Aviso: No existe config_aulas o no tiene datos. El director debe crear grados y secciones.");
-      configAulas = [];
-      gradosPorNivel = {};
-      seccionesPorNivelGrado = {};
+    if (errCol || !colegio) {
+      msg.textContent = "Error cargando colegio (mira consola)";
+      console.log(errCol);
       return;
     }
 
-    configAulas = data || [];
-    gradosPorNivel = {};
-    seccionesPorNivelGrado = {};
+    if (!anioAcademicoId) {
+      // Buscar año activo sin reventar si no existe
+      const { data: anioActivo, error: errAnio } = await window.supabaseClient
+        .from("anios_academicos")
+        .select("id, anio")
+        .eq("colegio_id", colegioId)
+        .eq("activo", true)
+        .maybeSingle(); // 0 o 1 fila 2
 
-    for (const r of configAulas) {
-      const nivel = (r.nivel || "").toUpperCase();
-      const grado = String(r.grado || "").trim();
-      const seccion = String(r.seccion || "").trim().toUpperCase();
+      if (errAnio) {
+        msg.textContent = "Error buscando año activo (mira consola)";
+        console.log(errAnio);
+        return;
+      }
 
-      if (!gradosPorNivel[nivel]) gradosPorNivel[nivel] = new Set();
-      gradosPorNivel[nivel].add(grado);
+      if (!anioActivo) {
+        metaInfo.textContent = `Colegio: ${colegio.nombre} | Año: (NO hay año activo)`;
+        msg.textContent = "No existe un año académico activo. Crea/activa uno en Supabase.";
+        // NO redirigimos: solo bloqueamos acciones
+        deshabilitarAccionesPorFaltaDeAnio(true);
+        return;
+      }
 
-      const key = `${nivel}|${grado}`;
-      if (!seccionesPorNivelGrado[key]) seccionesPorNivelGrado[key] = new Set();
-      seccionesPorNivelGrado[key].add(seccion);
+      anioAcademicoId = anioActivo.id;
+      anioTexto = String(anioActivo.anio || "");
+      localStorage.setItem("anio_academico_id", anioAcademicoId);
+      if (anioTexto) localStorage.setItem("anio", anioTexto);
     }
 
-    // convertir Sets a arrays ordenadas
-    Object.keys(gradosPorNivel).forEach(k => {
-      gradosPorNivel[k] = Array.from(gradosPorNivel[k]).sort((a, b) => a.localeCompare(b, "es"));
-    });
-    Object.keys(seccionesPorNivelGrado).forEach(k => {
-      seccionesPorNivelGrado[k] = Array.from(seccionesPorNivelGrado[k]).sort((a, b) => a.localeCompare(b, "es"));
-    });
+    metaInfo.textContent = `Colegio: ${colegio.nombre} | Año: ${anioTexto || "(activo)"}`;
+    deshabilitarAccionesPorFaltaDeAnio(false);
   }
 
-  await cargarConfigAulas();
-
-  // ====== Cascada Nivel → Grado → Sección ======
-  function resetGradoSeccion() {
-    mGrado.innerHTML = `<option value="">— Grado —</option>`;
-    mSeccion.innerHTML = `<option value="">— Sección —</option>`;
-    mGrado.disabled = true;
-    mSeccion.disabled = true;
+  function deshabilitarAccionesPorFaltaDeAnio(on) {
+    if (btnAbrirModal) btnAbrirModal.disabled = on;
+    if (btnBuscarAlumno) btnBuscarAlumno.disabled = on;
+    if (btnMatricular) btnMatricular.disabled = on;
+    if (btnReingreso) btnReingreso.disabled = on;
+    if (btnRetiro) btnRetiro.disabled = on;
+    if (btnTraslado) btnTraslado.disabled = on;
+    if (btnCambio) btnCambio.disabled = on;
+    if (btnAnular) btnAnular.disabled = on;
   }
 
-  function fillGrados(nivel) {
-    resetGradoSeccion();
-    const lista = gradosPorNivel[nivel] || [];
-    if (!lista.length) {
-      setModalError("No hay grados configurados para este nivel. El director debe crearlos.");
-      return;
-    }
-    mGrado.disabled = false;
-    mGrado.innerHTML = `<option value="">— Grado —</option>` + lista.map(g => `<option value="${g}">${g}</option>`).join("");
-  }
+  // =========================
+  // Datos en memoria
+  // =========================
+  let alumnosBuscados = [];        // resultados de búsqueda
+  let alumnoActual = null;         // alumno seleccionado
+  let matriculaActual = null;      // matrícula del alumno actual (si existe)
+  let catalogo = { niveles: [], grados: {}, secciones: {} }; // niveles -> grados -> secciones
 
-  function fillSecciones(nivel, grado) {
-    mSeccion.innerHTML = `<option value="">— Sección —</option>`;
-    const key = `${nivel}|${grado}`;
-    const lista = seccionesPorNivelGrado[key] || [];
-    if (!lista.length) {
-      setModalError("No hay secciones configuradas para este grado. El director debe crearlas.");
-      mSeccion.disabled = true;
-      return;
-    }
-    mSeccion.disabled = false;
-    mSeccion.innerHTML = `<option value="">— Sección —</option>` + lista.map(s => `<option value="${s}">${s}</option>`).join("");
-  }
-
-  mNivel.addEventListener("change", () => {
-    setModalError("");
-    const nivel = mNivel.value;
-    if (!nivel) return resetGradoSeccion();
-    fillGrados(nivel);
-  });
-
-  mGrado.addEventListener("change", () => {
-    setModalError("");
-    const nivel = mNivel.value;
-    const grado = mGrado.value;
-    if (!nivel || !grado) {
-      mSeccion.disabled = true;
-      mSeccion.innerHTML = `<option value="">— Sección —</option>`;
-      return;
-    }
-    fillSecciones(nivel, grado);
-  });
-
-  // ====== Buscar alumnos ======
-  async function buscarAlumnos() {
-    setTopError("");
-    const q = (qAlumno.value || "").trim();
-
-    alumnoSelect.innerHTML = `<option value="">Buscando...</option>`;
-
-    if (!q || q.length < 2) {
-      alumnoSelect.innerHTML = `<option value="">— Escribe al menos 2 caracteres —</option>`;
-      return;
-    }
-
-    // ilike (insensible a mayúsculas) es lo ideal para texto 1
-    const pattern = `%${q}%`;
-
-    // PostgREST OR: or("col.ilike.%q%,col2.ilike.%q%")
+  // =========================
+  // Catálogo (niveles/grados/secciones)
+  // 1) Ideal: tabla config (cuando la crees)
+  // 2) Fallback: deducir de alumnos existentes
+  // =========================
+  async function cargarCatalogoDesdeAlumnos() {
+    // Traemos alumnos del año (del colegio) y armamos catálogo único
     const { data, error } = await window.supabaseClient
       .from("alumnos")
-      .select("id,dni,codigo_alumno,nombres,apellidos,nivel,grado,seccion")
+      .select("nivel, grado, seccion")
       .eq("colegio_id", colegioId)
       .eq("anio_academico_id", anioAcademicoId)
-      .or(`dni.ilike.${pattern},codigo_alumno.ilike.${pattern},apellidos.ilike.${pattern},nombres.ilike.${pattern}`)
-      .order("apellidos", { ascending: true })
-      .limit(50);
+      .limit(5000);
+
+    if (error) {
+      console.log("Error catálogo desde alumnos:", error);
+      return;
+    }
+
+    const nivelesSet = new Set();
+    const gradosMap = {};    // nivel -> set(grado)
+    const seccionesMap = {}; // nivel|grado -> set(seccion)
+
+    (data || []).forEach((r) => {
+      const nivel = (r.nivel || "").trim().toUpperCase();
+      const grado = (r.grado || "").trim();
+      const seccion = (r.seccion || "").trim().toUpperCase();
+      if (!nivel) return;
+
+      nivelesSet.add(nivel);
+
+      if (!gradosMap[nivel]) gradosMap[nivel] = new Set();
+      if (grado) gradosMap[nivel].add(grado);
+
+      const key = `${nivel}||${grado}`;
+      if (!seccionesMap[key]) seccionesMap[key] = new Set();
+      if (seccion) seccionesMap[key].add(seccion);
+    });
+
+    catalogo.niveles = Array.from(nivelesSet).sort();
+    catalogo.grados = {};
+    catalogo.secciones = {};
+
+    Object.keys(gradosMap).forEach((nivel) => {
+      catalogo.grados[nivel] = Array.from(gradosMap[nivel]).sort((a, b) => String(a).localeCompare(String(b), "es"));
+    });
+
+    Object.keys(seccionesMap).forEach((key) => {
+      catalogo.secciones[key] = Array.from(seccionesMap[key]).sort();
+    });
+  }
+
+  function llenarSelect(select, items, placeholder = "— Selecciona —") {
+    select.innerHTML = "";
+    const opt0 = document.createElement("option");
+    opt0.value = "";
+    opt0.textContent = placeholder;
+    select.appendChild(opt0);
+
+    (items || []).forEach((it) => {
+      const opt = document.createElement("option");
+      opt.value = it;
+      opt.textContent = it;
+      select.appendChild(opt);
+    });
+  }
+
+  function resetDependientes() {
+    if (!mGrado || !mSeccion) return;
+
+    mGrado.value = "";
+    mSeccion.value = "";
+    mGrado.disabled = true;
+    mSeccion.disabled = true;
+
+    llenarSelect(mGrado, [], "— Grado —");
+    llenarSelect(mSeccion, [], "— Sección —");
+  }
+
+  function onNivelChange() {
+    const nivel = (mNivel.value || "").trim().toUpperCase();
+    resetDependientes();
+
+    if (!nivel) return;
+
+    const grados = catalogo.grados[nivel] || [];
+    llenarSelect(mGrado, grados, "— Grado —");
+    mGrado.disabled = grados.length === 0;
+
+    if (grados.length === 0) {
+      mMsg.textContent = "No hay grados configurados para este nivel (director).";
+    } else {
+      mMsg.textContent = "";
+    }
+  }
+
+  function onGradoChange() {
+    const nivel = (mNivel.value || "").trim().toUpperCase();
+    const grado = (mGrado.value || "").trim();
+
+    mSeccion.value = "";
+    mSeccion.disabled = true;
+    llenarSelect(mSeccion, [], "— Sección —");
+
+    if (!nivel || !grado) return;
+
+    const key = `${nivel}||${grado}`;
+    const secciones = catalogo.secciones[key] || [];
+    llenarSelect(mSeccion, secciones, "— Sección —");
+    mSeccion.disabled = secciones.length === 0;
+
+    if (secciones.length === 0) {
+      mMsg.textContent = "No hay secciones configuradas para este grado (director).";
+    } else {
+      mMsg.textContent = "";
+    }
+  }
+
+  // =========================
+  // Buscar alumnos
+  // =========================
+  async function buscarAlumnos() {
+    msg.textContent = "";
+    infoBusqueda.textContent = "Buscando...";
+    boxNuevoAlumno.style.display = "none";
+    alumnoSelect.innerHTML = `<option value="">Buscando...</option>`;
+    alumnosBuscados = [];
+    alumnoActual = null;
+    matriculaActual = null;
+
+    const q = (qAlumno.value || "").trim();
+    if (!q) {
+      infoBusqueda.textContent = "Escribe un DNI o apellido/nombre para buscar.";
+      alumnoSelect.innerHTML = `<option value="">— Selecciona un alumno —</option>`;
+      return;
+    }
+
+    // OR + ILIKE (case-insensitive) 3
+    const orFilter = [
+      `dni.ilike.%${q}%`,
+      `codigo_alumno.ilike.%${q}%`,
+      `apellidos.ilike.%${q}%`,
+      `nombres.ilike.%${q}%`
+    ].join(",");
+
+    const { data, error } = await window.supabaseClient
+      .from("alumnos")
+      .select("id,dni,codigo_alumno,nombres,apellidos,nivel,grado,seccion,estado")
+      .eq("colegio_id", colegioId)
+      .eq("anio_academico_id", anioAcademicoId)
+      .or(orFilter)
+      .limit(50)
+      .order("apellidos", { ascending: true });
 
     if (error) {
       console.log(error);
-      alumnoSelect.innerHTML = `<option value="">Error buscando (mira consola)</option>`;
+      infoBusqueda.textContent = "Error buscando (mira consola).";
       return;
     }
 
-    const rows = data || [];
-    if (!rows.length) {
-      alumnoSelect.innerHTML = `<option value="">Sin resultados</option>`;
+    alumnosBuscados = data || [];
+
+    if (!alumnosBuscados.length) {
+      infoBusqueda.textContent = "No existe. Puedes registrarlo abajo y luego matricular.";
+      alumnoSelect.innerHTML = `<option value="">— Sin resultados —</option>`;
+
+      // prellenar DNI si parece DNI
+      boxNuevoAlumno.style.display = "block";
+      if (nDni) nDni.value = q;
+      if (nuevoAlumnoInfo) nuevoAlumnoInfo.textContent = "";
       return;
     }
 
-    alumnoSelect.innerHTML =
-      `<option value="">— Selecciona un alumno —</option>` +
-      rows.map(a => {
-        const label = `${a.apellidos || ""} ${a.nombres || ""} | DNI: ${a.dni || "-"} | ${a.nivel || "-"} ${a.grado || "-"} ${a.seccion || "-"}`;
-        return `<option value="${a.id}">${label}</option>`;
-      }).join("");
+    infoBusqueda.textContent = `Encontrados: ${alumnosBuscados.length}. Selecciona uno.`;
+
+    alumnoSelect.innerHTML = `<option value="">— Selecciona un alumno —</option>`;
+    alumnosBuscados.forEach((a) => {
+      const opt = document.createElement("option");
+      opt.value = a.id;
+      opt.textContent = `${a.apellidos || ""} ${a.nombres || ""} | DNI: ${a.dni || "-"} | ${a.nivel || ""} ${a.grado || ""}${a.seccion ? " " + a.seccion : ""}`;
+      alumnoSelect.appendChild(opt);
+    });
   }
 
-  btnBuscarAlumno.addEventListener("click", buscarAlumnos);
-  qAlumno.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") buscarAlumnos();
-  });
+  async function crearAlumnoSiNoExiste() {
+    const dni = (nDni.value || "").trim();
+    const nombres = (nNombres.value || "").trim();
+    const apellidos = (nApellidos.value || "").trim();
 
-  // ====== Consultar matrícula del alumno en el año actual ======
-  async function cargarMatriculaActual(alumnoId) {
+    if (!nombres || !apellidos) {
+      nuevoAlumnoInfo.textContent = "Completa nombres y apellidos.";
+      return;
+    }
+
+    const payload = {
+      colegio_id: colegioId,
+      anio_academico_id: anioAcademicoId,
+      dni: dni || null,
+      nombres,
+      apellidos,
+      // nivel/grado/seccion: se asignan en matrícula (director define)
+      estado: "ACTIVO"
+    };
+
     const { data, error } = await window.supabaseClient
+      .from("alumnos")
+      .insert(payload)
+      .select("id,dni,nombres,apellidos,nivel,grado,seccion,estado")
+      .single();
+
+    if (error) {
+      console.log(error);
+      nuevoAlumnoInfo.textContent = "Error creando alumno (mira consola).";
+      return;
+    }
+
+    nuevoAlumnoInfo.textContent = "Alumno creado. Ahora selecciónalo y abre opciones de matrícula.";
+    // recargar búsqueda con dni
+    qAlumno.value = dni || `${apellidos}`;
+    await buscarAlumnos();
+
+    // auto seleccionar el nuevo si aparece
+    if (data?.id) {
+      alumnoSelect.value = data.id;
+      await onAlumnoSeleccionado();
+    }
+  }
+
+  async function onAlumnoSeleccionado() {
+    const id = alumnoSelect.value;
+    alumnoActual = alumnosBuscados.find((x) => x.id === id) || null;
+    matriculaActual = null;
+
+    if (!alumnoActual) return;
+
+    // traer matrícula del alumno en este año
+    const { data: mat, error } = await window.supabaseClient
       .from("matriculas")
       .select("*")
       .eq("colegio_id", colegioId)
       .eq("anio_academico_id", anioAcademicoId)
-      .eq("alumno_id", alumnoId)
-      .maybeSingle();
+      .eq("alumno_id", alumnoActual.id)
+      .maybeSingle(); // 0 o 1 4
 
     if (error) {
-      console.log("matriculaActual error:", error);
-      return null;
+      console.log(error);
+      msg.textContent = "Error leyendo matrícula del alumno (mira consola).";
+      return;
     }
-    return data || null;
+
+    matriculaActual = mat || null;
   }
 
-  // ====== UI Modal ======
-  function openModal() {
-    setModalError("");
+  // =========================
+  // Modal
+  // =========================
+  function abrirModal() {
+    mMsg.textContent = "";
+    if (!alumnoActual) {
+      msg.textContent = "Selecciona un alumno primero.";
+      return;
+    }
+
+    const label = `${alumnoActual.apellidos || ""} ${alumnoActual.nombres || ""} | DNI: ${alumnoActual.dni || "-"} | ${alumnoActual.codigo_alumno || ""}`;
+    mAlumno.textContent = label;
+
+    const estado = (matriculaActual?.estado || "NO MATRICULADO");
+    mEstadoActual.textContent = `Estado actual: ${estado}`;
+
+    // Botones según estado
+    const est = String(estado).toUpperCase();
+    btnMatricular.disabled = !!matriculaActual; // si ya existe, por UNIQUE
+    btnReingreso.disabled = !matriculaActual || (est === "MATRICULADO");
+    btnRetiro.disabled = !matriculaActual || (est !== "MATRICULADO");
+    btnTraslado.disabled = !matriculaActual || (est !== "MATRICULADO");
+    btnCambio.disabled = !matriculaActual || (est !== "MATRICULADO");
+    btnAnular.disabled = !matriculaActual || role !== "superadmin";
+
+    // Selects: cargar niveles, luego dependientes
+    if (mNivel) {
+      llenarSelect(mNivel, catalogo.niveles, "— Nivel —");
+      mNivel.value = (matriculaActual?.nivel || alumnoActual?.nivel || "").toUpperCase() || "";
+      resetDependientes();
+      onNivelChange();
+
+      // Preseleccionar grado/seccion si ya existen
+      const g = (matriculaActual?.grado || alumnoActual?.grado || "").trim();
+      if (g && mGrado) {
+        mGrado.value = g;
+        onGradoChange();
+      }
+      const s = (matriculaActual?.seccion || alumnoActual?.seccion || "").trim().toUpperCase();
+      if (s && mSeccion) mSeccion.value = s;
+    }
+
+    if (mMotivo) mMotivo.value = "";
+    if (mFecha) mFecha.value = today;
+
     modal.style.display = "block";
-    modal.style.display = "block";
-    modal.style.alignItems = "stretch";
   }
 
-  function closeModal() {
+  function cerrarModal() {
     modal.style.display = "none";
   }
 
-  btnCerrarModal.addEventListener("click", closeModal);
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) closeModal();
-  });
+  // =========================
+  // Acciones DB
+  // =========================
+  function getCamposModal() {
+    const fecha = (mFecha.value || "").trim() || today;
+    const nivel = (mNivel.value || "").trim().toUpperCase();
+    const grado = (mGrado.value || "").trim();
+    const seccion = (mSeccion.value || "").trim().toUpperCase();
+    const motivo = (mMotivo.value || "").trim() || null;
 
-  function syncModalWithAlumno() {
-    if (!alumnoActual) {
-      mAlumno.textContent = "Selecciona un alumno.";
-      mEstadoActual.textContent = "";
-      return;
-    }
-    const base = `${alumnoActual.apellidos || ""} ${alumnoActual.nombres || ""} | DNI: ${alumnoActual.dni || "-"} | Código: ${alumnoActual.codigo_alumno || "-"}`;
-    mAlumno.textContent = base;
+    if (!nivel) throw new Error("Selecciona nivel.");
+    if (!grado) throw new Error("Selecciona grado.");
+    if (!seccion) throw new Error("Selecciona sección.");
 
-    if (!matriculaActual) {
-      mEstadoActual.textContent = "Estado matrícula actual: (NO matriculado en este año)";
-    } else {
-      mEstadoActual.textContent = `Estado matrícula actual: ${matriculaActual.estado || "MATRICULADO"}`;
-    }
+    return { fecha, nivel, grado, seccion, motivo };
+  }
 
-    // Preseleccionar nivel/grado/sección del alumno si existen
-    const niv = (alumnoActual.nivel || "").toUpperCase();
-    if (niv) {
-      mNivel.value = ["INICIAL","PRIMARIA","SECUNDARIA"].includes(niv) ? niv : "";
-      if (mNivel.value) {
-        fillGrados(mNivel.value);
-        if (alumnoActual.grado) {
-          mGrado.value = String(alumnoActual.grado);
-          fillSecciones(mNivel.value, mGrado.value);
-          if (alumnoActual.seccion) mSeccion.value = String(alumnoActual.seccion).toUpperCase();
-        }
-      } else {
-        resetGradoSeccion();
+  async function insertarMatricula(payloadPreferido) {
+    // Intento 1: usando columnas comunes (fecha)
+    let { error } = await window.supabaseClient.from("matriculas").insert(payloadPreferido);
+    if (!error) return;
+
+    // Fallback: algunas veces tu tabla usa fecha_matricula
+    if (String(error.message || "").includes("fecha") || String(error.message || "").includes("column")) {
+      const alt = { ...payloadPreferido };
+      if (alt.fecha && !alt.fecha_matricula) {
+        alt.fecha_matricula = alt.fecha;
+        delete alt.fecha;
       }
-    } else {
-      mNivel.value = "";
-      resetGradoSeccion();
+      const r2 = await window.supabaseClient.from("matriculas").insert(alt);
+      if (!r2.error) return;
+      console.log("Insert error:", error, "Fallback error:", r2.error);
+      throw r2.error;
     }
 
-    // Fecha default hoy
-    mFecha.value = hoyISO;
-    mMotivo.value = "";
+    console.log("Insert error:", error);
+    throw error;
   }
 
-  btnAbrirModal.addEventListener("click", async () => {
-    setTopError("");
-    const alumnoId = alumnoSelect.value;
-    if (!alumnoId) {
-      setTopError("Selecciona un alumno primero.");
-      return;
-    }
-
-    // cargar alumno
-    const { data: a, error } = await window.supabaseClient
-      .from("alumnos")
-      .select("id,dni,codigo_alumno,nombres,apellidos,nivel,grado,seccion")
-      .eq("id", alumnoId)
-      .maybeSingle();
-
-    if (error || !a) {
-      console.log(error);
-      setTopError("No se pudo cargar el alumno.");
-      return;
-    }
-
-    alumnoActual = a;
-    matriculaActual = await cargarMatriculaActual(alumnoActual.id);
-
-    syncModalWithAlumno();
-    openModal();
-  });
-
-  // ====== Acciones de matrícula ======
-
-  function requireAlumno() {
-    if (!alumnoActual) {
-      setModalError("Selecciona un alumno.");
-      return false;
-    }
-    return true;
-  }
-
-  function requireNivelGradoSeccion() {
-    const nivel = mNivel.value;
-    const grado = mGrado.value;
-    const seccion = mSeccion.value;
-
-    if (!nivel) return (setModalError("Selecciona el nivel."), false);
-    if (!grado) return (setModalError("Selecciona el grado."), false);
-    if (!seccion) return (setModalError("Selecciona la sección."), false);
-    return true;
-  }
-
-  async function refrescarListas() {
-    await cargarMatriculados();
-    // refresca estado actual del alumno si está seleccionado
-    if (alumnoActual) matriculaActual = await cargarMatriculaActual(alumnoActual.id);
-    syncModalWithAlumno();
-  }
-
-  // MATRICULAR
-  btnMatricular.addEventListener("click", async () => {
-    setModalError("");
-    if (!requireAlumno()) return;
-    if (!requireNivelGradoSeccion()) return;
-
-    const fecha = mFecha.value || hoyISO;
-    const nivel = mNivel.value;
-    const grado = mGrado.value;
-    const seccion = mSeccion.value;
-    const motivo = (mMotivo.value || "").trim();
-
-    // Si ya tiene matrícula, no insertar (UNIQUE)
-    if (matriculaActual) {
-      setModalError("Ya está matriculado en este año. Usa Cambio/Reingreso/Retiro/Traslado.");
-      return;
-    }
-
-    // 1) Insert matrícula
-    const payloadM = {
-      colegio_id: colegioId,
-      anio_academico_id: anioAcademicoId,
-      alumno_id: alumnoActual.id,
-      fecha,
-      grado,
-      seccion,
-      motivo: motivo || null,
-      estado: "MATRICULADO",
-    };
-
-    const { error: errIns } = await window.supabaseClient.from("matriculas").insert(payloadM);
-    if (errIns) {
-      console.log(errIns);
-      setModalError("Error al matricular (mira consola).");
-      return;
-    }
-
-    // 2) (Opcional) actualizar alumno con su aula actual
-    const { error: errUpdA } = await window.supabaseClient
-      .from("alumnos")
-      .update({ nivel, grado, seccion, estado: "ACTIVO" })
-      .eq("id", alumnoActual.id);
-
-    if (errUpdA) console.log("update alumno warn:", errUpdA);
-
-    await refrescarListas();
-  });
-
-  // REINGRESO (si estaba RETIRADO/TRASLADADO/ANULADO, lo reactivas)
-  btnReingreso.addEventListener("click", async () => {
-    setModalError("");
-    if (!requireAlumno()) return;
-    if (!matriculaActual) {
-      setModalError("No existe matrícula en este año. Usa Matricular.");
-      return;
-    }
-
-    const motivo = (mMotivo.value || "").trim();
+  async function actualizarMatricula(changes) {
+    if (!matriculaActual?.id) throw new Error("No hay matrícula para actualizar.");
 
     const { error } = await window.supabaseClient
       .from("matriculas")
-      .update({
-        estado: "MATRICULADO",
-        reingreso_at: new Date().toISOString(),
-        reingreso_motivo: motivo || null,
-        // opcional: limpiar retiro/traslado si quieres
-      })
+      .update(changes)
       .eq("id", matriculaActual.id);
 
-    if (error) {
-      console.log(error);
-      setModalError("Error en reingreso (mira consola).");
-      return;
-    }
+    if (error) throw error;
+  }
 
-    await refrescarListas();
-  });
+  async function accionMatricular() {
+    mMsg.textContent = "";
+    try {
+      const { fecha, nivel, grado, seccion, motivo } = getCamposModal();
 
-  // RETIRO
-  btnRetiro.addEventListener("click", async () => {
-    setModalError("");
-    if (!requireAlumno()) return;
-    if (!matriculaActual) {
-      setModalError("No existe matrícula para retirar en este año.");
-      return;
-    }
+      if (matriculaActual) {
+        mMsg.textContent = "Este alumno ya tiene matrícula en este año. Usa Reingreso/Cambio/Retiro/etc.";
+        return;
+      }
 
-    const motivo = (mMotivo.value || "").trim();
-    const fecha = mFecha.value || hoyISO;
-
-    const { error } = await window.supabaseClient
-      .from("matriculas")
-      .update({
-        estado: "RETIRADO",
-        retiro_fecha: fecha,
-        retiro_motivo: motivo || null,
-      })
-      .eq("id", matriculaActual.id);
-
-    if (error) {
-      console.log(error);
-      setModalError("Error en retiro (mira consola).");
-      return;
-    }
-
-    await refrescarListas();
-  });
-
-  // TRASLADO
-  btnTraslado.addEventListener("click", async () => {
-    setModalError("");
-    if (!requireAlumno()) return;
-    if (!matriculaActual) {
-      setModalError("No existe matrícula para trasladar en este año.");
-      return;
-    }
-
-    const motivo = (mMotivo.value || "").trim();
-    const fecha = mFecha.value || hoyISO;
-
-    const { error } = await window.supabaseClient
-      .from("matriculas")
-      .update({
-        estado: "TRASLADADO",
-        traslado_fecha: fecha,
-        traslado_motivo: motivo || null,
-      })
-      .eq("id", matriculaActual.id);
-
-    if (error) {
-      console.log(error);
-      setModalError("Error en traslado (mira consola).");
-      return;
-    }
-
-    await refrescarListas();
-  });
-
-  // CAMBIO GRADO/SECCIÓN (mismo año)
-  btnCambio.addEventListener("click", async () => {
-    setModalError("");
-    if (!requireAlumno()) return;
-    if (!matriculaActual) {
-      setModalError("No existe matrícula para cambiar (usa Matricular).");
-      return;
-    }
-    if (!requireNivelGradoSeccion()) return;
-
-    const nivel = mNivel.value;
-    const grado = mGrado.value;
-    const seccion = mSeccion.value;
-    const motivo = (mMotivo.value || "").trim();
-
-    // actualiza matrícula + alumno
-    const { error: e1 } = await window.supabaseClient
-      .from("matriculas")
-      .update({
+      const payload = {
+        colegio_id: colegioId,
+        anio_academico_id: anioAcademicoId,
+        alumno_id: alumnoActual.id,
+        nivel,
         grado,
         seccion,
-        motivo: motivo || matriculaActual.motivo || null,
-      })
-      .eq("id", matriculaActual.id);
+        fecha,
+        estado: "MATRICULADO",
+        motivo
+      };
 
-    if (e1) {
-      console.log(e1);
-      setModalError("Error cambiando grado/sección (mira consola).");
-      return;
+      await insertarMatricula(payload);
+
+      await refrescarTodoPostAccion("Matriculado correctamente.");
+    } catch (e) {
+      console.log(e);
+      mMsg.textContent = e.message || "Error matriculando (mira consola).";
     }
+  }
 
-    const { error: e2 } = await window.supabaseClient
-      .from("alumnos")
-      .update({ nivel, grado, seccion })
-      .eq("id", alumnoActual.id);
+  async function accionReingreso() {
+    mMsg.textContent = "";
+    try {
+      if (!matriculaActual) return;
 
-    if (e2) console.log("update alumno warn:", e2);
+      const { fecha, nivel, grado, seccion, motivo } = getCamposModal();
 
-    await refrescarListas();
-  });
+      await actualizarMatricula({
+        estado: "MATRICULADO",
+        nivel,
+        grado,
+        seccion,
+        fecha,
+        reingreso_at: new Date().toISOString(),
+        reingreso_motivo: motivo
+      });
 
-  // ANULAR (idealmente solo superadmin; aquí lo dejo funcional y tú lo limitas por UI/roles)
-  btnAnular.addEventListener("click", async () => {
-    setModalError("");
-    if (!requireAlumno()) return;
-    if (!matriculaActual) {
-      setModalError("No existe matrícula para anular.");
-      return;
+      await refrescarTodoPostAccion("Reingreso realizado.");
+    } catch (e) {
+      console.log(e);
+      mMsg.textContent = e.message || "Error reingreso (mira consola).";
     }
+  }
 
-    const motivo = (mMotivo.value || "").trim();
+  async function accionRetiro() {
+    mMsg.textContent = "";
+    try {
+      if (!matriculaActual) return;
 
-    const { error } = await window.supabaseClient
-      .from("matriculas")
-      .update({
+      const motivo = (mMotivo.value || "").trim();
+      if (!motivo) {
+        mMsg.textContent = "Escribe un motivo para retiro.";
+        return;
+      }
+
+      await actualizarMatricula({
+        estado: "RETIRADO",
+        retiro_fecha: mFecha.value || today,
+        retiro_motivo: motivo
+      });
+
+      await refrescarTodoPostAccion("Retiro registrado.");
+    } catch (e) {
+      console.log(e);
+      mMsg.textContent = e.message || "Error retiro (mira consola).";
+    }
+  }
+
+  async function accionTraslado() {
+    mMsg.textContent = "";
+    try {
+      if (!matriculaActual) return;
+
+      const motivo = (mMotivo.value || "").trim();
+      if (!motivo) {
+        mMsg.textContent = "Escribe un motivo para traslado.";
+        return;
+      }
+
+      await actualizarMatricula({
+        estado: "TRASLADADO",
+        traslado_fecha: mFecha.value || today,
+        traslado_motivo: motivo
+      });
+
+      await refrescarTodoPostAccion("Traslado registrado.");
+    } catch (e) {
+      console.log(e);
+      mMsg.textContent = e.message || "Error traslado (mira consola).";
+    }
+  }
+
+  async function accionCambio() {
+    mMsg.textContent = "";
+    try {
+      if (!matriculaActual) return;
+
+      const { nivel, grado, seccion, motivo } = getCamposModal();
+
+      await actualizarMatricula({
+        nivel,
+        grado,
+        seccion,
+        motivo: motivo || "Cambio grado/sección"
+      });
+
+      await refrescarTodoPostAccion("Cambio de grado/sección guardado.");
+    } catch (e) {
+      console.log(e);
+      mMsg.textContent = e.message || "Error cambio (mira consola).";
+    }
+  }
+
+  async function accionAnular() {
+    mMsg.textContent = "";
+    try {
+      if (role !== "superadmin") {
+        mMsg.textContent = "Solo superadmin puede anular.";
+        return;
+      }
+      if (!matriculaActual) return;
+
+      const motivo = (mMotivo.value || "").trim();
+      if (!motivo) {
+        mMsg.textContent = "Escribe un motivo para anular.";
+        return;
+      }
+
+      await actualizarMatricula({
         estado: "ANULADO",
         anulado_at: new Date().toISOString(),
-        anulado_motivo: motivo || null,
-      })
-      .eq("id", matriculaActual.id);
+        anulado_motivo: motivo
+      });
+
+      await refrescarTodoPostAccion("Matrícula anulada.");
+    } catch (e) {
+      console.log(e);
+      mMsg.textContent = e.message || "Error anular (mira consola).";
+    }
+  }
+
+  async function refrescarTodoPostAccion(okMsg) {
+    await onAlumnoSeleccionado();
+    await cargarMatriculados();
+    mMsg.textContent = okMsg;
+    // opcional: cerrarModal();
+  }
+
+  // =========================
+  // Lista de matriculados
+  // =========================
+  async function cargarMatriculados() {
+    tbodyMatriculas.innerHTML = `<tr><td colspan="7" class="muted">Cargando...</td></tr>`;
+
+    const { data, error } = await window.supabaseClient
+      .from("matriculas")
+      .select("fecha,fecha_matricula,estado,nivel,grado,seccion, alumno_id, alumnos:alumno_id (dni,apellidos,nombres)")
+      .eq("colegio_id", colegioId)
+      .eq("anio_academico_id", anioAcademicoId)
+      .order("created_at", { ascending: false })
+      .limit(200);
 
     if (error) {
       console.log(error);
-      setModalError("Error anulando (mira consola).");
-      return;
-    }
-
-    await refrescarListas();
-  });
-
-  // ====== Lista de matriculados (JOIN manual con alumnos) ======
-  async function cargarMatriculados() {
-    tbodyMatriculas.innerHTML = `<tr><td colspan="8" class="muted">Cargando...</td></tr>`;
-    setTopError("");
-
-    // 1) traer matriculas del año
-    const { data: mats, error: eM } = await window.supabaseClient
-      .from("matriculas")
-      .select("id,alumno_id,fecha,grado,seccion,estado")
-      .eq("colegio_id", colegioId)
-      .eq("anio_academico_id", anioAcademicoId)
-      .order("fecha", { ascending: false })
-      .limit(200);
-
-    if (eM) {
-      console.log(eM);
       tbodyMatriculas.innerHTML = "";
-      setTopError("Error cargando matriculados (mira consola).");
+      msg.textContent = "Error cargando matriculados (mira consola).";
       return;
     }
 
-    const list = mats || [];
-    countInfo.textContent = `${list.length} matriculados`;
+    const rows = data || [];
+    countInfo.textContent = `${rows.length} matriculados`;
 
-    if (!list.length) {
-      tbodyMatriculas.innerHTML = `<tr><td colspan="8" class="muted">Sin matrículas registradas</td></tr>`;
+    if (!rows.length) {
+      tbodyMatriculas.innerHTML = `<tr><td colspan="7" class="muted">Sin matrículas registradas</td></tr>`;
       return;
     }
 
-    // 2) traer alumnos de esos ids
-    const ids = list.map(x => x.alumno_id).filter(Boolean);
-    const { data: als, error: eA } = await window.supabaseClient
-      .from("alumnos")
-      .select("id,dni,nombres,apellidos,nivel")
-      .in("id", ids);
-
-    if (eA) {
-      console.log(eA);
-      tbodyMatriculas.innerHTML = "";
-      setTopError("Error cargando alumnos de matrícula (mira consola).");
-      return;
-    }
-
-    const mapA = new Map((als || []).map(a => [a.id, a]));
-
-    tbodyMatriculas.innerHTML = list.map(m => {
-      const a = mapA.get(m.alumno_id) || {};
+    tbodyMatriculas.innerHTML = rows.map((r) => {
+      const a = r.alumnos || {};
+      const fecha = r.fecha || r.fecha_matricula || "";
       return `
         <tr>
-          <td>${m.fecha || ""}</td>
+          <td>${fecha || ""}</td>
           <td>${a.dni || ""}</td>
           <td>${a.apellidos || ""}</td>
           <td>${a.nombres || ""}</td>
-          <td>${a.nivel || ""}</td>
-          <td>${m.grado || ""}</td>
-          <td>${m.seccion || ""}</td>
-          <td>${m.estado || ""}</td>
+          <td>${r.grado || ""}</td>
+          <td>${r.seccion || ""}</td>
+          <td>${r.estado || ""}</td>
         </tr>
       `;
     }).join("");
+  }
+
+  // =========================
+  // Eventos
+  // =========================
+  btnBuscarAlumno?.addEventListener("click", buscarAlumnos);
+  alumnoSelect?.addEventListener("change", onAlumnoSeleccionado);
+
+  btnAbrirModal?.addEventListener("click", () => {
+    if (!alumnoSelect.value) {
+      msg.textContent = "Selecciona un alumno primero.";
+      return;
+    }
+    abrirModal();
+  });
+
+  btnCerrarModal?.addEventListener("click", cerrarModal);
+  modal?.addEventListener("click", (e) => {
+    if (e.target === modal) cerrarModal();
+  });
+
+  mNivel?.addEventListener("change", onNivelChange);
+  mGrado?.addEventListener("change", onGradoChange);
+
+  btnMatricular?.addEventListener("click", accionMatricular);
+  btnReingreso?.addEventListener("click", accionReingreso);
+  btnRetiro?.addEventListener("click", accionRetiro);
+  btnTraslado?.addEventListener("click", accionTraslado);
+  btnCambio?.addEventListener("click", accionCambio);
+  btnAnular?.addEventListener("click", accionAnular);
+
+  btnCrearAlumno?.addEventListener("click", crearAlumnoSiNoExiste);
+
+  // =========================
+  // INIT
+  // =========================
+  await cargarColegioYAno();
+
+  if (!anioAcademicoId) return; // si no hay año activo, ya mostramos mensaje
+
+  await cargarCatalogoDesdeAlumnos();
+
+  // Si no hay catálogo (porque aún no hay alumnos con nivel/grado/seccion),
+  // al menos mostramos niveles base para no bloquear UI.
+  if (!catalogo.niveles.length) {
+    catalogo.niveles = ["INICIAL", "PRIMARIA", "SECUNDARIA"];
+    catalogo.grados = {
+      INICIAL: ["3", "4", "5"],
+      PRIMARIA: ["1", "2", "3", "4", "5", "6"],
+      SECUNDARIA: ["1", "2", "3", "4", "5"]
+    };
+    catalogo.secciones = {}; // secciones dependerán del director (si no hay, mostrará “no hay secciones”)
   }
 
   await cargarMatriculados();
