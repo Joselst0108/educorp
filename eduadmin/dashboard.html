@@ -1,84 +1,153 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin | Dashboard</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduCorp Dashboard</title>
 
-  <!-- Supabase CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="/assets/css/styles.css">
 
-  <!-- Cliente global -->
-  <script src="./assets/js/supabaseClient.js"></script>
+<style>
+body{
+  font-family:Arial, sans-serif;
+  background:#f4f6f9;
+  margin:0;
+}
 
-  <style>
-    body{margin:0;font-family:system-ui,Segoe UI,Arial}
-    .layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
-    aside{background:#0f172a;color:#fff;padding:16px}
-    aside h2{margin:0 0 10px 0;font-size:18px}
-    .small{font-size:12px;opacity:.85}
-    nav a{display:block;color:#e2e8f0;text-decoration:none;padding:10px 10px;border-radius:10px;margin:4px 0}
-    nav a:hover{background:#1e293b}
-    main{padding:18px;background:#f8fafc}
-    .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px;margin-bottom:14px}
-    .row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-    button{cursor:pointer;border:0;border-radius:10px;padding:10px 12px}
-    .btn{background:#0ea5e9;color:#fff}
-    .btn2{background:#ef4444;color:#fff}
-  </style>
+header{
+  background:#0f172a;
+  color:white;
+  padding:15px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.container{
+  padding:20px;
+}
+
+.card{
+  background:white;
+  padding:20px;
+  border-radius:12px;
+  margin-bottom:20px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+
+.btn{
+  padding:10px 15px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+.btn-primary{
+  background:#2563eb;
+  color:white;
+}
+
+.btn-secondary{
+  background:#e5e7eb;
+}
+
+.modal{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.4);
+  display:none;
+  justify-content:center;
+  align-items:center;
+}
+
+.modal-content{
+  background:white;
+  padding:20px;
+  border-radius:10px;
+  width:90%;
+  max-width:900px;
+}
+</style>
+
 </head>
 
 <body>
-  <div class="layout">
-    <aside>
-      <h2>EduAdmin</h2>
-      <div class="small" id="infoColegio">Cargando colegio...</div>
-      <div class="small" id="infoAnio">Cargando año...</div>
-      <hr style="border:0;border-top:1px solid rgba(255,255,255,.15);margin:14px 0" />
 
-      <nav>
-        <a href="./pages/alumnos.html">Alumnos</a>
-        <a href="./pages/matricula.html">Matrícula</a>
-        <a href="./pages/pagos.html">Pagos</a>
-        <a href="./pages/caja.html">Caja</a>
-        <a href="./pages/estado-cuenta.html">Estado de cuenta</a>
-        <a href="./pages/horarios.html">Horarios</a>
-        <a href="./pages/reportes.html">Reportes</a>
-        <a href="./pages/documentos.html">Documentos</a>
-        <a href="./pages/config-apps.html">Config Apps</a>
-        <a href="./pages/create-user.html">Crear usuario</a>
-      </nav>
-
-      <div style="margin-top:14px">
-        <button class="btn2" id="btnLogout">Cerrar sesión</button>
-      </div>
-    </aside>
-
-    <main>
-      <div class="card">
-        <h1 style="margin:0 0 6px 0">Dashboard</h1>
-        <div id="bienvenida">Preparando datos...</div>
-      </div>
-
-      <div class="row">
-        <div class="card">
-          <b>Alumnos</b>
-          <div id="statAlumnos" class="small">...</div>
-        </div>
-        <div class="card">
-          <b>Pagos del año</b>
-          <div id="statPagos" class="small">...</div>
-        </div>
-        <div class="card">
-          <b>Deudores</b>
-          <div id="statDeudores" class="small">...</div>
-        </div>
-      </div>
-    </main>
+<header>
+  <div>
+    <strong>EduCorp</strong>
   </div>
 
-  <!-- Debe cargar después del DOM -->
-  <script src="./js/academicYear.js"></script>
-  <script src="./js/dashboard.js"></script>
+  <div>
+    <span id="schoolName">Colegio...</span> |
+    <span id="yearName">Año...</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- CONTEXTO -->
+  <div class="card">
+    <h3>Contexto actual</h3>
+    <p id="estadoContexto">Cargando...</p>
+  </div>
+
+  <!-- ESTRUCTURA ACADÉMICA -->
+  <div class="card">
+    <h3>Estructura académica</h3>
+
+    <p id="estructuraEstado">Verificando...</p>
+
+    <button id="btnGenerarEstructura" class="btn btn-primary">
+      Generar grados y secciones
+    </button>
+
+    <button id="btnVerEstructura" class="btn btn-secondary">
+      Ver estructura
+    </button>
+
+    <div id="estructuraResumen" style="margin-top:15px;"></div>
+  </div>
+
+  <!-- ACCESOS -->
+  <div class="card">
+    <h3>Módulos</h3>
+
+    <a href="/eduadmin/pages/alumnos.html">
+      <button class="btn btn-primary">Alumnos</button>
+    </a>
+
+    <a href="/eduadmin/pages/docentes.html">
+      <button class="btn btn-primary">Docentes</button>
+    </a>
+
+    <a href="/eduadmin/pages/notas.html">
+      <button class="btn btn-primary">Notas</button>
+    </a>
+
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div id="modalEstructura" class="modal">
+  <div class="modal-content">
+    <h3>Estructura del colegio</h3>
+    <div id="estructuraDetalle"></div>
+
+    <br>
+    <button id="btnCerrarModal" class="btn btn-secondary">Cerrar</button>
+  </div>
+</div>
+
+<!-- SCRIPTS ORDEN CORRECTO -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/assets/js/supabaseClient.js"></script>
+<script src="/assets/js/context.js"></script>
+<script src="/eduadmin/js/dashboard.js"></script>
+
 </body>
 </html>
