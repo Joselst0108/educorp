@@ -121,7 +121,48 @@
         <button id="btnAnular" type="button" class="dark">Anular</button>
         <button id="btnCerrarModal" type="button" class="gray">Cerrar</button>
       </div>
+<!-- MODAL ASIGNAR APODERADO -->
+<div id="modalApoderado" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); padding:18px; z-index:10000;">
+  <div style="max-width:640px; margin:40px auto; background:#fff; border-radius:14px; padding:16px; border:1px solid #e6e8f0;">
+    <h3 style="margin:0 0 10px">Asignar apoderado</h3>
 
+    <div class="muted" id="aAlumno"></div>
+    <div class="dangerText" id="aMsg" style="margin:8px 0"></div>
+
+    <div class="row2">
+      <input id="aBuscar" placeholder="Buscar apoderado por DNI o apellidos..." />
+      <button id="btnBuscarApoderado" type="button" class="secondary">Buscar</button>
+    </div>
+
+    <div style="margin-top:10px">
+      <select id="apoderadoSelect">
+        <option value="">— Selecciona un apoderado encontrado —</option>
+      </select>
+      <div class="muted" style="margin-top:6px">Si no existe, créalo abajo.</div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid #eef0f6;margin:14px 0" />
+
+    <h4 style="margin:0 0 8px">Crear apoderado</h4>
+    <div class="row2">
+      <input id="aDni" placeholder="DNI (opcional)" />
+      <input id="aTelefono" placeholder="Teléfono (opcional)" />
+    </div>
+    <div class="row2" style="margin-top:10px">
+      <input id="aNombres" placeholder="Nombres" />
+      <input id="aApellidos" placeholder="Apellidos" />
+    </div>
+    <div style="margin-top:10px">
+      <input id="aParentesco" placeholder="Parentesco (Padre/Madre/Tutor)" />
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
+      <button id="btnVincularExistente" type="button">Vincular seleccionado</button>
+      <button id="btnCrearYVincular" type="button" class="teal">Crear y vincular</button>
+      <button id="btnCerrarApoderado" type="button" class="gray">Cerrar</button>
+    </div>
+  </div>
+</div>
       <div class="dangerText" id="mMsg" style="margin-top:10px"></div>
       <div class="muted" style="margin-top:8px">
         Estados: <span class="badge">MATRICULADO</span> <span class="badge">RETIRADO</span>
