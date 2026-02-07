@@ -1,4 +1,4 @@
-78<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -25,6 +25,9 @@
     th,td{border-bottom:1px solid #eef0f6;padding:10px;text-align:left;font-size:14px}
     .muted{color:#6b7280;font-size:13px}
     .dangerText{color:#b00020;font-weight:600}
+    /* Modal */
+    #modalMatricula{display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); padding:18px; z-index:9999;}
+    #modalMatricula.open{display:flex; align-items:flex-start; justify-content:center;}
   </style>
 </head>
 
@@ -42,16 +45,24 @@
     <div class="card">
       <h3 style="margin:0 0 10px">Buscar alumno</h3>
 
-      <!-- Compatibilidad: tu HTML viejo usaba id="q" y btnBuscar -->
       <div class="row">
-        <input id="qAlumno" placeholder="Buscar por DNI o apellidos/nombres..." />
+        <!-- Nuevo -->
+        <input id="qAlumno" placeholder="Buscar por DNI, código o apellidos/nombres..." />
+
         <button id="btnBuscarAlumno" class="secondary" type="button">Buscar</button>
+
         <select id="alumnoSelect">
           <option value="">— Selecciona un alumno —</option>
         </select>
       </div>
 
-      <div class="muted" id="infoBusqueda">Tip: escribe un DNI o apellido y pulsa Buscar.</div>
+      <!-- Compatibilidad con IDs viejos (si tu JS viejo usa q / btnBuscar) -->
+      <input id="q" style="display:none" />
+      <button id="btnBuscar" style="display:none" type="button"></button>
+
+      <div class="muted" id="infoBusqueda" style="margin-top:8px">
+        Tip: escribe DNI o apellido y pulsa Buscar.
+      </div>
 
       <div style="margin-top:10px">
         <button id="btnAbrirModal" type="button">Abrir opciones de matrícula</button>
@@ -88,8 +99,8 @@
   </div>
 
   <!-- MODAL DE OPCIONES -->
-  <div id="modalMatricula" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); padding:18px; z-index:9999;">
-    <div style="max-width:560px; margin:40px auto; background:#fff; border-radius:14px; padding:16px; border:1px solid #e6e8f0;">
+  <div id="modalMatricula" aria-hidden="true">
+    <div style="max-width:560px; width:100%; margin:40px auto; background:#fff; border-radius:14px; padding:16px; border:1px solid #e6e8f0;">
       <h3 style="margin:0 0 10px">Opciones de matrícula</h3>
 
       <div class="muted" id="mAlumno"></div>
@@ -119,30 +130,29 @@
     </div>
   </div>
 
-  <!-- SCRIPTS (orden IMPORTANTE, solo una vez) -->
+  <!-- SCRIPTS (una sola vez y con rutas correctas) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- OJO: desde eduadmin/pages/matricula.html, para llegar a /assets -->
-  <script src="../../assets/js/supabaseClient.js"></script>
+  <script src="../assets/js/supabaseClient.js"></script>
 
-  <!-- NO cargues context.js duplicado. Si lo necesitas, deja solo UNO -->
-  <!-- <script src="../../assets/js/context.js"></script> -->
+  <!-- Si usas context.js, cárgalo SOLO si realmente existe y se necesita -->
+  <!-- <script src="../assets/js/context.js"></script> -->
 
-  <!-- Tu JS real -->
-  <script src="./js/matricula.js"></script>
-
-  <!-- Alias de compatibilidad (por si tuviste IDs viejos q y btnBuscar) -->
   <script>
-    // Si algún código viejo usa #q y #btnBuscar, los enlazamos al nuevo sin romper.
-    (function () {
-      const qOld = document.getElementById("q");
-      const bOld = document.getElementById("btnBuscar");
-      const qNew = document.getElementById("qAlumno");
-      const bNew = document.getElementById("btnBuscarAlumno");
-      if (qOld && qNew && !qOld.value) qOld.value = qNew.value;
-      if (bOld && bNew) bOld.onclick = () => bNew.click();
-    })();
+    // Compatibilidad: si tu matricula.js viejo usa q/btnBuscar,
+    // hacemos que apunten a los nuevos.
+    document.getElementById("btnBuscar").addEventListener("click", () => {
+      document.getElementById("btnBuscarAlumno").click();
+    });
 
+    document.getElementById("q").addEventListener("input", (e) => {
+      document.getElementById("qAlumno").value = e.target.value;
+    });
 
+    document.getElementById("qAlumno").addEventListener("input", (e) => {
+      document.getElementById("q").value = e.target.value;
+    });
   </script>
+
+  <script src="./js/matricula.js"></script>
 </body>
 </html>
