@@ -1,12 +1,30 @@
+// eduadmin/pages/js/alumnos.js
 document.addEventListener("DOMContentLoaded", async () => {
-  const msg = document.getElementById("msg");
+  const supabase = window.supabaseClient;
+  if (!supabase) {
+    alert("Supabase no cargó. Revisa /eduadmin/js/supabaseClient.js");
+    return;
+  }
+
+  // ===== DOM =====
   const metaInfo = document.getElementById("metaInfo");
-  const tbody = document.getElementById("tbodyAlumnos");
+  const msg = document.getElementById("msg");
+
+  const dniEl = document.getElementById("dni");
+  const nombresEl = document.getElementById("nombres");
+  const apellidosEl = document.getElementById("apellidos");
+  const codigoEl = document.getElementById("codigo");
+  const btnGuardar = document.getElementById("btnGuardar");
+
+  const qBuscar = document.getElementById("qBuscar");
+  const btnReload = document.getElementById("btnReload");
+  const tbodyAlumnos = document.getElementById("tbodyAlumnos");
   const countInfo = document.getElementById("countInfo");
 
+  // ===== Contexto =====
   const colegioId = localStorage.getItem("colegio_id");
-  const anioAcademicoId = localStorage.getItem("anio_id");
-  const anio = localStorage.getItem("anio") || "";
+  const anioAcademicoId = localStorage.getItem("anio_academico_id"); // opcional para alumnos
+  const anioLabel = localStorage.getItem("anio") || "";
 
   if (!colegioId) {
     alert("No hay colegio seleccionado");
@@ -14,104 +32,191 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  if (!anioAcademicoId) {
-    alert("No hay año académico activo");
-    window.location.href = "/eduadmin/index.html";
-    return;
+  // ===== Helpers =====
+  function setMsg(text = "", ok = false) {
+    if (!msg) return;
+    msg.textContent = text;
+    msg.className = ok ? "msg ok" : "msg";
   }
 
-  // Cargar nombre del colegio
-  const { data: colegio, error: errCol } = await window.supabaseClient
-    .from("colegios")
-    .select("nombre")
-    .eq("id", colegioId)
-    .single();
-
-  if (errCol || !colegio) {
-    msg.textContent = "Error cargando colegio";
-    console.log(errCol);
-    return;
+  function cleanDNI(v) {
+    return String(v || "").replace(/\D/g, "").trim();
   }
 
-  metaInfo.textContent = `Colegio: ${colegio.nombre} | Año: ${anio || "(activo)"}`;
+  function normText(v) {
+    return String(v || "").trim();
+  }
 
-  async function cargarAlumnos() {
-    msg.textContent = "";
-    tbody.innerHTML = `<tr><td colspan="5" class="muted">Cargando...</td></tr>`;
+  function escapeHtml(str) {
+    return String(str ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
 
-    const { data, error } = await window.supabaseClient
+  // ===== Cabecera: colegio + año =====
+  async function cargarCabecera() {
+    try {
+      const { data: col, error } = await supabase
+        .from("colegios")
+        .select("nombre")
+        .eq("id", colegioId)
+        .single();
+
+      if (error) throw error;
+
+      const colName = col?.nombre || "(sin nombre)";
+      const yearText = anioLabel ? `Año: ${anioLabel}` : (anioAcademicoId ? "Año activo" : "Sin año");
+      metaInfo.textContent = `Colegio: ${colName} | ${yearText}`;
+    } catch (e) {
+      console.log("No se pudo cargar colegio:", e);
+      metaInfo.textContent = anioLabel ? `Año: ${anioLabel}` : "Cargando colegio y año...";
+    }
+  }
+
+  // ===== Listar alumnos =====
+  let alumnosCache = [];
+
+  async function cargarLista() {
+    setMsg("");
+    tbodyAlumnos.innerHTML = `<tr><td colspan="5" class="muted">Cargando...</td></tr>`;
+
+    const { data, error } = await supabase
       .from("alumnos")
-      .select("dni, nombres, apellidos, grado, seccion")
+      .select("id, dni, apellidos, nombres, codigo_alumno, created_at")
       .eq("colegio_id", colegioId)
-      .eq("anio_academico_id", anioAcademicoId)
-      .order("apellidos", { ascending: true });
+      .order("apellidos", { ascending: true })
+      .limit(500);
 
     if (error) {
-      tbody.innerHTML = "";
-      msg.textContent = "Error cargando alumnos";
-      console.log(error);
+      console.log("Error cargando alumnos:", error);
+      tbodyAlumnos.innerHTML = `<tr><td colspan="5" class="muted">Error cargando (mira consola)</td></tr>`;
+      countInfo.textContent = "0 alumno(s)";
       return;
     }
 
-    countInfo.textContent = `${data.length} alumnos`;
-
-    if (!data.length) {
-      tbody.innerHTML = `<tr><td colspan="5" class="muted">Sin alumnos registrados</td></tr>`;
-      return;
-    }
-
-    tbody.innerHTML = data.map(a => `
-      <tr>
-        <td>${a.dni || ""}</td>
-        <td>${a.apellidos || ""}</td>
-        <td>${a.nombres || ""}</td>
-        <td>${a.grado || ""}</td>
-        <td>${a.seccion || ""}</td>
-      </tr>
-    `).join("");
+    alumnosCache = data || [];
+    renderTabla(alumnosCache);
   }
 
-  document.getElementById("btnGuardar").addEventListener("click", async () => {
-    msg.textContent = "";
+  function renderTabla(list) {
+    countInfo.textContent = `${(list || []).length} alumno(s)`;
 
-    const dni = document.getElementById("dni").value.trim();
-    const nombres = document.getElementById("nombres").value.trim();
-    const apellidos = document.getElementById("apellidos").value.trim();
-    const grado = document.getElementById("grado").value.trim();
-    const seccion = document.getElementById("seccion").value.trim().toUpperCase();
-
-    if (!nombres || !apellidos || !grado || !seccion) {
-      msg.textContent = "Completa nombres, apellidos, grado y sección.";
+    if (!list || list.length === 0) {
+      tbodyAlumnos.innerHTML = `<tr><td colspan="5" class="muted">Sin alumnos registrados</td></tr>`;
       return;
     }
 
-    const payload = {
-      colegio_id: colegioId,
-      anio_academico_id: anioAcademicoId,
-      dni: (dni ||"").trim(),
-      codigo_alumno: (codigo ||"").trim(), || bull,
-      nombres: (nombres, ||"").trim(),
-      apellidos: (apellidos ||"").trim(),
-      apoderado_id: null // opcional (puede ir null)
-          };
+    tbodyAlumnos.innerHTML = list.map(a => {
+      const created = a.created_at ? new Date(a.created_at).toLocaleString() : "";
+      return `
+        <tr>
+          <td>${escapeHtml(a.dni || "")}</td>
+          <td>${escapeHtml(a.apellidos || "")}</td>
+          <td>${escapeHtml(a.nombres || "")}</td>
+          <td>${escapeHtml(a.codigo_alumno || "")}</td>
+          <td>${escapeHtml(created)}</td>
+        </tr>
+      `;
+    }).join("");
+  }
 
-    const { error } = await window.supabaseClient.from("alumnos").insert(payload);
+  // ===== Buscar en la tabla =====
+  qBuscar?.addEventListener("input", () => {
+    const q = normText(qBuscar.value).toLowerCase();
+    if (!q) return renderTabla(alumnosCache);
 
-    if (error) {
-      msg.textContent = "Error guardando alumno (mira consola).";
-      console.log(error);
-      return;
-    }
+    const filtered = alumnosCache.filter(a => {
+      const s = `${a.dni || ""} ${a.apellidos || ""} ${a.nombres || ""} ${a.codigo_alumno || ""}`.toLowerCase();
+      return s.includes(q);
+    });
 
-    // limpiar
-    document.getElementById("dni").value = "";
-    document.getElementById("nombres").value = "";
-    document.getElementById("apellidos").value = "";
-    document.getElementById("grado").value = "";
-    document.getElementById("seccion").value = "";
-
-    await cargarAlumnos();
+    renderTabla(filtered);
   });
 
-  await cargarAlumnos();
+  // ===== Guardar alumno =====
+  btnGuardar?.addEventListener("click", async () => {
+    setMsg("");
+
+    const dni = cleanDNI(dniEl?.value);
+    const nombres = normText(nombresEl?.value);
+    const apellidos = normText(apellidosEl?.value);
+    const codigo = normText(codigoEl?.value);
+
+    if (!dni) return setMsg("Falta DNI.");
+    if (!nombres) return setMsg("Faltan nombres.");
+    if (!apellidos) return setMsg("Faltan apellidos.");
+
+    // opcional: validar DNI peruano 8 dígitos
+    if (dni.length < 8) return setMsg("DNI inválido (muy corto).");
+
+    btnGuardar.disabled = true;
+    btnGuardar.textContent = "Guardando...";
+
+    try {
+      // evitar duplicado por DNI dentro del colegio
+      const { data: existe, error: errExiste } = await supabase
+        .from("alumnos")
+        .select("id")
+        .eq("colegio_id", colegioId)
+        .eq("dni", dni)
+        .maybeSingle();
+
+      if (errExiste) console.log("check dni error:", errExiste);
+
+      if (existe?.id) {
+        setMsg("Ese DNI ya está registrado en este colegio.");
+        return;
+      }
+
+      // 👇 IMPORTANTE: aquí ya NO mandamos nivel/grado/sección
+      const payload = {
+        colegio_id: colegioId,
+        dni,
+        nombres,
+        apellidos,
+        codigo_alumno: codigo || null,
+
+        // ✅ opcional: si quieres “marcar” en qué año se creó (tu tabla lo permite)
+        anio_academico_id: anioAcademicoId || null,
+      };
+
+      const { error } = await supabase.from("alumnos").insert(payload);
+
+      if (error) {
+        console.log("Error insert alumnos:", error);
+        setMsg("Error guardando alumno (mira consola).");
+        return;
+      }
+
+      setMsg("✅ Alumno guardado correctamente.", true);
+
+      // limpiar inputs
+      dniEl.value = "";
+      nombresEl.value = "";
+      apellidosEl.value = "";
+      codigoEl.value = "";
+      dniEl.focus();
+
+      await cargarLista();
+    } finally {
+      btnGuardar.disabled = false;
+      btnGuardar.textContent = "Guardar";
+    }
+  });
+
+  // Enter para guardar desde cualquier input
+  [dniEl, nombresEl, apellidosEl, codigoEl].forEach(el => {
+    el?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") btnGuardar?.click();
+    });
+  });
+
+  btnReload?.addEventListener("click", cargarLista);
+
+  // ===== Init =====
+  await cargarCabecera();
+  await cargarLista();
 });
