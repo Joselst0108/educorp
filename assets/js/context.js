@@ -1,61 +1,13 @@
-(function () {
-  const KEY = "educorp_context";
+// /assets/js/context.js
+// Contexto global: colegio + año académico activo
+// Se guarda en localStorage para que todas las páginas lo usen.
 
-  async function getContext(force = false) {
-    if (!force) {
-      const cached = localStorage.getItem(KEY);
-      if (cached) return JSON.parse(cached);
-    }
+(() => {
+  const KEY = "EDUCORP_CONTEXT_V1";
 
-    if (!window.supabaseClient) {
-      throw new Error("supabaseClient no está listo. Carga supabaseClient.js antes.");
-    }
+  function log(...a) { console.log("[context]", ...a); }
 
-    const supabase = window.supabaseClient;
-
-    // Usuario
-    const { data: u, error: ue } = await supabase.auth.getUser();
-    if (ue) throw ue;
-    if (!u?.user) throw new Error("No hay sesión activa.");
-
-    // Perfil -> colegio
-    const { data: profile, error: pe } = await supabase
-      .from("profiles")
-      .select("school_id")
-      .eq("id", u.user.id)
-      .single();
-    if (pe) throw pe;
-    if (!profile?.school_id) throw new Error("El profile no tiene school_id.");
-
-    const school_id = profile.school_id;
-
-    // Colegio
-    const { data: col, error: ce } = await supabase
-      .from("colegios")
-      .select("id, nombre")
-      .eq("id", school_id)
-      .single();
-    if (ce) throw ce;
-
-    // Año activo
-    const { data: anio, error: ae } = await supabase
-      .from("anios_academicos")
-      .select("id, nombre, anio, activo")
-      .eq("colegio_id", school_id)
-      .eq("activo", true)
-      .maybeSingle();
-    if (ae) throw ae;
-    if (!anio?.id) throw new Error("No hay año académico ACTIVO para este colegio.");
-
-    const ctx = {
-      school_id,
-      school_name: col?.nombre || "",
-      year_id: anio.id,
-      year_name: anio.nombre || String(anio.anio || ""),
-      year_value: anio.anio || null,
-      cached_at: Date.now(),
-    };
-
+  function setContext(ctx) {
     localStorage.setItem(KEY, JSON.stringify(ctx));
     return ctx;
   }
@@ -64,9 +16,102 @@
     localStorage.removeItem(KEY);
   }
 
-  // ✅ IMPORTANTÍSIMO: exponer global
-  window.getContext = getContext;
-  window.clearContext = clearContext;
+  async function buildContextFromDB() {
+    const supabase = window.supabaseClient;
+    if (!supabase) throw new Error("SupabaseClient no está disponible");
 
-  console.log("context.js cargado ✅");
+    // 1) usuario
+    const { data: u, error: uErr } = await supabase.auth.getUser();
+    if (uErr) throw uErr;
+    if (!u?.user) throw new Error("No hay sesión");
+
+    // 2) profile → colegio
+    const { data: prof, error: pErr } = await supabase
+      .from("profiles")
+      .select("colegio_id, full_name, role")
+      .eq("id", u.user.id)
+      .single();
+
+    if (pErr) throw pErr;
+    if (!prof?.colegio_id) throw new Error("El usuario no tiene colegio_id en profiles");
+
+    // 3) colegio info (nombre, logo)
+    const { data: col, error: cErr } = await supabase
+      .from("colegios")
+      .select("id, nombre, logo_url")
+      .eq("id", prof.colegio_id)
+      .single();
+
+    if (cErr) throw cErr;
+
+    // 4) año activo
+    const { data: year, error: yErr } = await supabase
+      .from("anios_academicos")
+      .select("id, nombre, anio, activo")
+      .eq("colegio_id", prof.colegio_id)
+      .eq("activo", true)
+      .maybeSingle();
+
+    if (yErr) throw yErr;
+
+    return {
+      school_id: col.id,
+      school_name: col.nombre || "",
+      school_logo_url: col.logo_url || "",
+
+      year_id: year?.id || null,
+      year_name: year?.nombre || (year?.anio ? String(year.anio) : ""),
+      year_anio: year?.anio ?? null,
+
+      user_id: u.user.id,
+      user_name: prof.full_name || "",
+      user_role: prof.role || ""
+    };
+  }
+
+  /**
+   * getContext(force=false)
+   * - Si existe en cache, lo devuelve.
+   * - Si no existe o force=true, lo reconstruye desde DB.
+   * - Si no hay año activo, NO rompe: retorna ctx con year_id=null.
+   */
+  async function getContext(force = false) {
+    const cached = localStorage.getItem(KEY);
+    if (!force && cached) {
+      try {
+        const ctx = JSON.parse(cached);
+        log("cache ok", ctx);
+        return ctx;
+      } catch {
+        // cache corrupto
+        clearContext();
+      }
+    }
+
+    const ctx = await buildContextFromDB();
+    setContext(ctx);
+    log("construido", ctx);
+    return ctx;
+  }
+
+  /**
+   * Requiere año activo; si no hay → redirige a anio.html
+   */
+  async function requireYearOrRedirect() {
+    const ctx = await getContext();
+    if (!ctx.year_id) {
+      alert("No hay año académico activo. Activa uno primero.");
+      location.href = "/eduadmin/pages/anio.html";
+      throw new Error("No hay año activo");
+    }
+    return ctx;
+  }
+
+  // Exponer global
+  window.getContext = getContext;
+  window.setContext = setContext;
+  window.clearContext = clearContext;
+  window.requireYearOrRedirect = requireYearOrRedirect;
+
+  log("cargado ✅");
 })();
