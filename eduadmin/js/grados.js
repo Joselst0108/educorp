@@ -69,14 +69,16 @@
       .from("niveles")
       .select("id,nombre")
       .eq("colegio_id", ctx.school_id)
+      .eq("anio_academico_id", ctx.year_id) // ✅ AMARRE A AÑO
       .order("nombre");
 
     if (error){
       console.error(error);
+      setStatus("Error cargando niveles ❌");
       return;
     }
 
-    data.forEach(n=>{
+    (data || []).forEach(n=>{
       sel.innerHTML += `<option value="${n.id}" data-name="${esc(n.nombre)}">${esc(n.nombre)}</option>`;
     });
   }
@@ -87,7 +89,8 @@
 
     sel.innerHTML = `<option value="">Selecciona un grado</option>`;
 
-    const list = GRADE_CATALOG[nivelName.toLowerCase()] || [];
+    const key = (nivelName || "").toLowerCase();
+    const list = GRADE_CATALOG[key] || [];
     list.forEach(g=>{
       sel.innerHTML += `<option value="${g.nombre}" data-orden="${g.orden}">${g.nombre}</option>`;
     });
@@ -112,14 +115,16 @@
       .from("grados")
       .select("id,nombre,orden,activo,niveles(nombre)")
       .eq("colegio_id", ctx.school_id)
+      .eq("anio_academico_id", ctx.year_id) // ✅ AMARRE A AÑO
       .order("orden");
 
     if (error){
       console.error(error);
+      tbody.innerHTML = `<tr><td colspan="5">Error al cargar</td></tr>`;
       return;
     }
 
-    if (!data.length){
+    if (!data?.length){
       tbody.innerHTML = `<tr><td colspan="5">Sin registros</td></tr>`;
       return;
     }
@@ -130,13 +135,27 @@
         <td>${esc(g.nombre)}</td>
         <td>${g.orden}</td>
         <td>${g.activo ? "Sí":"No"}</td>
-        <td><button data-del="${g.id}">Eliminar</button></td>
+        <td><button class="btn btn-danger btn-sm" type="button" data-del="${g.id}">Eliminar</button></td>
       </tr>
     `).join("");
 
     tbody.querySelectorAll("[data-del]").forEach(btn=>{
       btn.onclick = async ()=>{
-        await supabase().from("grados").delete().eq("id",btn.dataset.del);
+        if (!confirm("¿Eliminar este grado?")) return;
+
+        // ✅ delete más seguro (colegio + año)
+        const { error } = await supabase()
+          .from("grados")
+          .delete()
+          .eq("id", btn.dataset.del)
+          .eq("colegio_id", ctx.school_id)
+          .eq("anio_academico_id", ctx.year_id);
+
+        if (error) {
+          alert(error.message);
+          return;
+        }
+
         loadGrados(ctx);
       };
     });
@@ -155,6 +174,7 @@
 
     const { error } = await supabase().from("grados").insert({
       colegio_id: ctx.school_id,
+      anio_academico_id: ctx.year_id, // ✅ AMARRE A AÑO
       nivel_id,
       nombre,
       orden,
@@ -172,15 +192,31 @@
 
   async function init(){
     try{
-      const ctx = await window.getContext(false);
+      let ctx = await window.getContext(false);
+
+      // ✅ Normaliza año (por si viene como anio_academico_id)
+      ctx.year_id = ctx.year_id || ctx.anio_academico_id;
+
       paintTopbar(ctx);
+
+      if (!ctx.school_id) {
+        setStatus("Sin colegio en contexto");
+        location.href = "/login.html";
+        return;
+      }
+
+      if (!ctx.year_id) {
+        setStatus("Sin año activo. Ve a Año Académico.");
+        location.href = "/eduadmin/pages/anio.html";
+        return;
+      }
 
       await loadNiveles(ctx);
       await loadGrados(ctx);
 
       els.nivel().addEventListener("change",()=>{
         const opt = els.nivel().options[els.nivel().selectedIndex];
-        const name = opt.getAttribute("data-name") || "";
+        const name = opt?.getAttribute("data-name") || "";
         populateGrados(name);
       });
 
@@ -191,9 +227,12 @@
         createGrado(ctx);
       });
 
-      els.btnRefresh().addEventListener("click",()=>loadGrados(ctx));
+      els.btnRefresh()?.addEventListener("click",()=>loadGrados(ctx));
+
+      setStatus("Listo ✅");
     }catch(e){
       console.error(e);
+      setStatus("Error");
     }
   }
 
