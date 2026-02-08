@@ -1,72 +1,117 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-app="eduadmin">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin | Niveles</title>
+  <title>EduAdmin | Vacantes</title>
 
+  <!-- ✅ MISMO CSS QUE NIVELES -->
   <link rel="stylesheet" href="/assets/css/variables.css">
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/components.css">
 </head>
 
 <body>
- <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin | Niveles</title>
+  <div class="app-shell">
 
-  <link rel="stylesheet" href="/assets/css/variables.css">
-  <link rel="stylesheet" href="/assets/css/main.css">
-  <link rel="stylesheet" href="/assets/css/components.css">
-</head>
-      <section class="card">
-        <div class="hint">
-          <b>¿Cómo se calcula?</b>
-          <div class="muted" style="margin-top:6px;">
-            Vacantes = <b>Cupo</b> (secciones.metadata.cupo) − <b>Matriculados</b> (alumnos por sección).
+    <!-- ✅ SIDEBAR DINÁMICO (MISMO QUE NIVELES) -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
+        </div>
+      </div>
+
+      <!-- 🔥 Menú generado por /assets/js/ui.js -->
+      <nav id="uiSidebarNav" class="nav"></nav>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+
+      <!-- ✅ TOPBAR (MISMO QUE NIVELES) -->
+      <div class="topbar">
+        <div class="left">
+          <div class="school-chip">
+            <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio" />
+            <div class="meta">
+              <b id="uiSchoolName">Cargando colegio…</b>
+              <span id="uiYearName">Año: —</span>
+            </div>
           </div>
         </div>
 
-        <div class="row">
-          <div>
-            <b>Secciones</b> <span class="muted small">(del año académico seleccionado)</span>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-secondary" id="btnRefresh" type="button">Actualizar</button>
+        </div>
+      </div>
+
+      <!-- ✅ CONTENIDO -->
+      <section class="page">
+
+        <div class="card">
+          <h1 class="h1">Vacantes (Cupos)</h1>
+          <p class="muted" id="status">Cargando…</p>
+        </div>
+
+        <div class="card" style="margin-top:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+            <div>
+              <h2 class="h2" style="margin:0;">Vacantes por sección</h2>
+              <div class="muted" style="margin-top:6px;">
+                Vacantes = <b>Cupo</b> − <b>Matriculados</b>.
+                (Cupo desde tabla <b>vacantes</b>, matriculados desde <b>alumnos</b>)
+              </div>
+            </div>
+
+            <div class="muted">
+              Total secciones: <b id="countVacantes">0</b>
+            </div>
           </div>
-          <div class="muted">
-            Total: <b id="countVacantes">0</b>
+
+          <div style="overflow:auto; margin-top:12px;">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Sección</th>
+                  <th style="text-align:center;">Matriculados</th>
+                  <th style="text-align:center;">Cupo</th>
+                  <th style="text-align:center;">Vacantes</th>
+                  <th style="width:180px;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="vacantesTbody">
+                <tr><td colspan="5" class="muted">Cargando…</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="muted" style="margin-top:10px; font-size:12px;">
+            * Si una sección aún no tiene cupo creado en la tabla <b>vacantes</b>, se asumirá <b>30</b> por defecto.
           </div>
         </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>Sección</th>
-              <th class="center">Matriculados</th>
-              <th class="center">Cupo</th>
-              <th class="center">Vacantes</th>
-              <th class="center">Editar cupo</th>
-            </tr>
-          </thead>
-          <tbody id="vacantesTbody">
-            <tr><td colspan="5" class="muted">Cargando...</td></tr>
-          </tbody>
-        </table>
-
-        <div class="muted" style="margin-top:10px; font-size:12px;">
-          Nota: Si una sección no tiene <b>metadata.cupo</b>, se usará <b>30</b> por defecto.
-        </div>
       </section>
+
     </main>
   </div>
 
-  <!-- Scripts -->
+  <!-- ✅ Scripts (MISMO ORDEN QUE NIVELES) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- Ajusta estos paths si tu estructura es distinta -->
   <script src="/assets/js/supabaseClient.js"></script>
   <script src="/assets/js/context.js"></script>
+  <script src="/assets/js/ui.js"></script>
 
-  <!-- Tu JS real (pages/js) -->
-  <script src="../pages/js/vacantes.js"></script>
+  <!-- ✅ Activa menú desplegable -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
+    });
+  </script>
+
+  <!-- ✅ TU JS DE VACANTES -->
+  <script src="./pages/js/vacantes.js"></script>
 </body>
 </html>
