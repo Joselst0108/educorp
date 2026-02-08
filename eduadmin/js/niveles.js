@@ -1,105 +1,122 @@
-document.addEventListener("DOMContentLoaded", async () => {
-  const supabase = window.supabaseClient;
+<!DOCTYPE html>
+<html lang="es" data-app="eduadmin">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduAdmin | Niveles</title>
 
-  const statusEl = document.getElementById("status");
-  const tbody = document.getElementById("tbodyNiveles");
-  const form = document.getElementById("formNivel");
-  const btnRefresh = document.getElementById("btnRefresh");
-  const logoutBtn = document.getElementById("logoutBtn");
+  <link rel="stylesheet" href="/assets/css/variables.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
+</head>
 
-  const uiSchoolName = document.getElementById("uiSchoolName");
-  const uiYearName = document.getElementById("uiYearName");
-  const uiSchoolLogo = document.getElementById("uiSchoolLogo");
+<body>
+  <div class="app-shell">
 
-  const setStatus = (t) => statusEl && (statusEl.textContent = t);
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="/assets/img/eduadmin.jpeg" alt="EduAdmin" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
+        </div>
+      </div>
 
-  if (!supabase || !window.getContext) {
-    alert("Falta supabaseClient.js o context.js");
-    return;
-  }
+      <nav class="nav">
+        <a href="/eduadmin/pages/dashboard.html"><div class="nav-item">Dashboard</div></a>
 
-  // Requiere año activo
-  let ctx;
-  try { ctx = await getContext(); } catch (e) {
-    alert("No hay año activo. Ve a Año académico y activa uno.");
-    location.href = "/eduadmin/pages/anio.html";
-    return;
-  }
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">COLEGIO</div>
+        <a href="/eduadmin/pages/colegio.html"><div class="nav-item">Datos del colegio</div></a>
+        <a href="/eduadmin/pages/usuarios.html"><div class="nav-item">Usuarios y roles</div></a>
 
-  uiSchoolName.textContent = ctx.school_name || "Colegio";
-  uiYearName.textContent = ctx.year_name || "Año";
-  try {
-    const { data: col } = await supabase.from("colegios").select("logo_url").eq("id", ctx.school_id).single();
-    if (col?.logo_url) uiSchoolLogo.src = col.logo_url;
-  } catch {}
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTRUCTURA ACADÉMICA</div>
+        <a href="/eduadmin/pages/anio.html"><div class="nav-item">Año académico</div></a>
+        <a href="/eduadmin/pages/niveles.html"><div class="nav-item active">Niveles</div></a>
+        <a href="/eduadmin/pages/grados.html"><div class="nav-item">Grados</div></a>
+        <a href="/eduadmin/pages/aulas.html"><div class="nav-item">Secciones / Aulas</div></a>
 
-  async function loadNiveles() {
-    setStatus("Cargando…");
-    const { data, error } = await supabase
-      .from("niveles")
-      .select("id, nombre, orden")
-      .eq("colegio_id", ctx.school_id)
-      .eq("anio_academico_id", ctx.year_id)
-      .order("orden", { ascending: true });
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">SISTEMA</div>
+        <a href="#" id="logoutBtn"><div class="nav-item">Cerrar sesión</div></a>
+      </nav>
+    </aside>
 
-    if (error) { console.error(error); setStatus("Error ❌"); return; }
+    <!-- MAIN -->
+    <main class="main">
 
-    tbody.innerHTML = "";
-    if (!data?.length) {
-      tbody.innerHTML = `<tr><td colspan="3">Sin niveles</td></tr>`;
-      setStatus("Listo ✅");
-      return;
-    }
+      <div class="topbar">
+        <div class="left">
+          <div class="school-chip">
+            <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio" />
+            <div class="meta">
+              <b id="uiSchoolName">Cargando colegio…</b>
+              <span id="uiYearName">Año: —</span>
+            </div>
+          </div>
+        </div>
 
-    data.forEach(n => {
-      tbody.innerHTML += `
-        <tr>
-          <td>${n.nombre}</td>
-          <td>${n.orden ?? ""}</td>
-          <td><button class="btn btn-secondary" data-del="${n.id}">Eliminar</button></td>
-        </tr>
-      `;
-    });
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-secondary" id="btnRefresh">Actualizar</button>
+        </div>
+      </div>
 
-    setStatus("Listo ✅");
-  }
+      <section class="page">
+        <div class="card">
+          <h1 class="h1">Niveles</h1>
+          <p class="muted" id="status">Cargando…</p>
+        </div>
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const nombre = document.getElementById("nombre").value.trim();
-    const orden = Number(document.getElementById("orden").value || 1);
+        <div style="display:grid; grid-template-columns: repeat(12,1fr); gap:14px; margin-top:14px;">
+          <!-- Crear nivel -->
+          <div class="card" style="grid-column: span 5;">
+            <h2 class="h2">Crear nivel</h2>
 
-    if (!nombre) return;
+            <form id="formNivel" class="form" style="margin-top:10px;">
+              <label class="label">Nombre del nivel</label>
+              <input class="input" id="nombre" placeholder="Primaria / Secundaria / Inicial" required />
 
-    const { error } = await supabase
-      .from("niveles")
-      .insert([{ colegio_id: ctx.school_id, anio_academico_id: ctx.year_id, nombre, orden }]);
+              <label style="display:flex; align-items:center; gap:8px; margin-top:12px;">
+                <input type="checkbox" id="activo" checked />
+                <span>Activo</span>
+              </label>
 
-    if (error) { console.error(error); return alert("No se pudo guardar."); }
+              <button class="btn btn-primary" style="margin-top:12px;">Guardar</button>
+            </form>
+          </div>
 
-    form.reset();
-    document.getElementById("orden").value = 1;
-    await loadNiveles();
-  });
+          <!-- Lista niveles -->
+          <div class="card" style="grid-column: span 7;">
+            <h2 class="h2">Niveles registrados</h2>
 
-  tbody.addEventListener("click", async (e) => {
-    const btn = e.target.closest("button[data-del]");
-    if (!btn) return;
-    const id = btn.getAttribute("data-del");
-    if (!confirm("¿Eliminar nivel? (Afecta grados vinculados)")) return;
+            <div style="overflow:auto; margin-top:10px;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Activo</th>
+                    <th style="width:210px;">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyNiveles">
+                  <tr><td colspan="3" class="muted">Cargando…</td></tr>
+                </tbody>
+              </table>
+            </div>
 
-    const { error } = await supabase.from("niveles").delete().eq("id", id);
-    if (error) { console.error(error); alert("No se pudo eliminar."); return; }
-    await loadNiveles();
-  });
+            <div class="muted" style="margin-top:10px; font-size:12px;">
+              * Los niveles pertenecen al colegio (no dependen del año).
+            </div>
+          </div>
+        </div>
+      </section>
 
-  btnRefresh?.addEventListener("click", loadNiveles);
-  logoutBtn?.addEventListener("click", async (e) => {
-    e.preventDefault();
-    window.clearContext?.();
-    await supabase.auth.signOut();
-    location.href = "/login.html";
-  });
+    </main>
+  </div>
 
-  await loadNiveles();
-});
+  <!-- Scripts (orden obligatorio) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/assets/js/supabaseClient.js"></script>
+  <script src="/assets/js/context.js"></script>
+  <script src="/eduadmin/js/niveles.js"></script>
+</body>
+</html>
