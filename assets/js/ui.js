@@ -1,160 +1,201 @@
-document.addEventListener("DOMContentLoaded", async () => {
-  const app = document.documentElement.getAttribute("data-app") || "eduadmin";
-  document.documentElement.setAttribute("data-app", app);
-
-  const schoolNameEl = document.getElementById("uiSchoolName");
-  const yearNameEl   = document.getElementById("uiYearName");
-  const schoolLogoEl = document.getElementById("uiSchoolLogo");
-  const appLogoEl    = document.getElementById("uiAppLogo");
-
-  // ✅ Detecta si estamos dentro de /eduadmin/ o no (base path dinámico)
-  // Ejemplos:
-  // /eduadmin/pages/grados.html  -> basePath = ".." (porque assets está en ../../assets)
-  // /pages/eduadmin/anios.html   -> basePath = ".." (ajustará igual)
-  // Si tu repo está en / (raíz) igual funciona.
-  const path = window.location.pathname;
-
-  // Si la página está dentro de /eduadmin/pages/ o /eduadmin/...
-  // necesitamos subir 2 niveles para llegar a /assets.
-  // Si está en /pages/eduadmin/ también sube 2.
-  let assetsBase = "/assets";
-
-  if (path.includes("/eduadmin/pages/")) assetsBase = "../../assets";
-  else if (path.includes("/pages/eduadmin/")) assetsBase = "../../assets";
-  else if (path.includes("/eduadmin/")) assetsBase = "../assets";
-  else if (path.includes("/pages/")) assetsBase = "../assets";
-
-  const defaultLogos = {
-    educorp:  `${assetsBase}/img/educorp.jpeg`,
-    eduadmin: `${assetsBase}/img/eduadmin.jpeg`,
-    edubank:  `${assetsBase}/img/edubank.jpeg`,
-    eduia:    `${assetsBase}/img/eduia.jpeg`,
-    eduasist: `${assetsBase}/img/eduasist.jpeg`,
-  };
-
-  const fallback = defaultLogos[app] || defaultLogos.educorp;
-
-  // ✅ Coloca fallback por defecto
-  if (appLogoEl) {
-    appLogoEl.src = fallback;
-    appLogoEl.onerror = () => { appLogoEl.src = defaultLogos.educorp; };
-  }
-
-  if (schoolLogoEl) {
-    schoolLogoEl.src = fallback;
-    schoolLogoEl.onerror = () => { schoolLogoEl.src = defaultLogos.eduadmin; };
-  }
-
-  if (!window.getContext || !window.supabaseClient) return;
-
-  try {
-    // si tu getContext acepta param, no pasa nada: aquí lo llamamos simple
-    const ctx = await window.getContext();
-
-    if (schoolNameEl) schoolNameEl.textContent = ctx.school_name || "Colegio";
-    if (yearNameEl) yearNameEl.textContent = ctx.year_name ? `Año: ${ctx.year_name}` : "Año: —";
-
-    // ✅ Traer logo real del colegio desde DB
-    if (ctx?.school_id) {
-      const supabase = window.supabaseClient;
-      const { data: col, error } = await supabase
-        .from("colegios")
-        .select("logo_url, nombre")
-        .eq("id", ctx.school_id)
-        .single();
-
-      if (!error && col?.logo_url && schoolLogoEl) {
-        schoolLogoEl.src = col.logo_url;
-      }
-      if (!error && col?.nombre && schoolNameEl) {
-        schoolNameEl.textContent = col.nombre;
-      }
-    }
-  } catch (e) {
-    console.warn("UI: no se pudo cargar contexto/logo", e);
-  }
-});
-
 // ===============================
-// SIDEBAR EDUADMIN DINÁMICO
+// SIDEBAR EDUADMIN DINÁMICO (FIX)
 // ===============================
-(function(){
+(function () {
 
-window.renderEduAdminSidebar = function(){
+  function isActiveLink(href) {
+    const current = location.pathname;
+    // match exacto (mejor que includes)
+    return current === href;
+  }
 
-  const mount = document.getElementById("uiSidebarNav");
-  if(!mount) return;
+  function getUserRole() {
+    // Si context.js setea rol aquí, lo tomamos
+    return window.APP?.userRole || window.APP?.role || null;
+  }
 
-  const path = location.pathname;
+  function createLink(label, href) {
+    const a = document.createElement("a");
+    a.href = href;
 
-  const menu = [
-    {
-      title: "Gestión académica",
-      items: [
-        {label:"Dashboard", href:"/eduadmin/pages/dashboard.html"},
-        {label:"Año académico", href:"/eduadmin/pages/anio.html"},
-        {label:"Niveles", href:"/eduadmin/pages/niveles.html"},
-        {label:"Grados", href:"/eduadmin/pages/grados.html"},
-        {label:"Secciones", href:"/eduadmin/pages/secciones.html"},
-      ]
-    },
-    {
-      title: "Matrícula",
-      items: [
-        {label:"Vacantes", href:"/eduadmin/pages/vacantes.html"},
-      ]
-    }
-  ];
+    const item = document.createElement("div");
+    item.className = "nav-item";
+    item.textContent = label;
 
-  mount.innerHTML = "";
+    if (isActiveLink(href)) item.classList.add("active");
 
-  menu.forEach(cat=>{
-    const box = document.createElement("div");
-    box.className="nav-cat";
+    a.appendChild(item);
+    return a;
+  }
 
-    const header = document.createElement("div");
-    header.className="nav-cat-header";
-    header.innerHTML=`<span>${cat.title}</span><span class="chev">▾</span>`;
+  window.renderEduAdminSidebar = function () {
 
-    const list = document.createElement("div");
-    list.className="nav-cat-list";
-    list.style.display="none";
+    const mount = document.getElementById("uiSidebarNav");
+    if (!mount) return;
 
-    let active=false;
+    const role = getUserRole(); // "superadmin", "director", etc.
 
-    cat.items.forEach(it=>{
-      const a=document.createElement("a");
-      a.href=it.href;
+    // ✅ MENÚ COMPLETO (todas tus secciones)
+    const menu = [
+      {
+        title: "Dashboard",
+        type: "single",
+        items: [{ label: "Dashboard", href: "/eduadmin/pages/dashboard.html" }]
+      },
 
-      const item=document.createElement("div");
-      item.className="nav-item";
-      item.textContent=it.label;
+      {
+        title: "COLEGIO",
+        type: "group",
+        items: [
+          { label: "Datos del colegio", href: "/eduadmin/pages/colegio.html" },
+          { label: "Usuarios y roles", href: "/eduadmin/pages/usuarios.html" },
 
-      if(path.includes(it.href)){
-        item.classList.add("active");
-        active=true;
+          // (Opcional) pantalla colegios para superadmin
+          { label: "Colegios (SuperAdmin)", href: "/eduadmin/pages/colegios.html", onlyRole: "superadmin" },
+        ]
+      },
+
+      {
+        title: "ESTRUCTURA ACADÉMICA",
+        type: "group",
+        items: [
+          { label: "Año académico", href: "/eduadmin/pages/anio.html" },
+          { label: "Niveles", href: "/eduadmin/pages/niveles.html" },
+          { label: "Grados", href: "/eduadmin/pages/grados.html" },
+          { label: "Secciones / Aulas", href: "/eduadmin/pages/secciones.html" },
+          { label: "Vacantes", href: "/eduadmin/pages/vacantes.html" },
+        ]
+      },
+
+      {
+        title: "ESTUDIANTES",
+        type: "group",
+        items: [
+          { label: "Registrar alumnos", href: "/eduadmin/pages/alumnos.html" },
+          { label: "Lista de alumnos", href: "/eduadmin/pages/lista-alumnos.html" },
+          { label: "Apoderados", href: "/eduadmin/pages/apoderados.html" },
+          { label: "Matrículas", href: "/eduadmin/pages/matriculas.html" },
+        ]
+      },
+
+      {
+        title: "FINANZAS REALES",
+        type: "group",
+        items: [
+          { label: "Conceptos de pago", href: "/eduadmin/pages/conceptos.html" },
+          { label: "Registrar pagos", href: "/eduadmin/pages/pagos.html" },
+          { label: "Caja", href: "/eduadmin/pages/caja.html" },
+          { label: "Morosidad", href: "/eduadmin/pages/morosidad.html" },
+          { label: "Reportes financieros", href: "/eduadmin/pages/reportes-financieros.html" },
+        ]
+      },
+
+      {
+        title: "REPORTES",
+        type: "group",
+        items: [
+          { label: "Alumnos por grado", href: "/eduadmin/pages/reporte-alumnos-grado.html" },
+          { label: "Matrículas por aula", href: "/eduadmin/pages/reporte-matriculas-aula.html" },
+        ]
+      },
+
+      {
+        title: "SISTEMA",
+        type: "group",
+        items: [
+          { label: "Configuración", href: "/eduadmin/pages/configuracion.html" },
+          { label: "Cerrar sesión", href: "#logout" },
+        ]
+      }
+    ];
+
+    // limpiar
+    mount.innerHTML = "";
+
+    // render
+    menu.forEach(cat => {
+
+      // Filtrar items por rol (soloRole)
+      const visibleItems = (cat.items || []).filter(it => {
+        if (!it.onlyRole) return true;
+        return role === it.onlyRole;
+      });
+
+      if (cat.type === "single") {
+        // Solo un link sin desplegable
+        visibleItems.forEach(it => mount.appendChild(createLink(it.label, it.href)));
+        return;
       }
 
-      a.appendChild(item);
-      list.appendChild(a);
+      // Grupo desplegable
+      const box = document.createElement("div");
+      box.className = "nav-cat";
+
+      const header = document.createElement("button");
+      header.type = "button";
+      header.className = "nav-cat-header";
+      header.innerHTML = `<span>${cat.title}</span><span class="chev">▾</span>`;
+
+      const list = document.createElement("div");
+      list.className = "nav-cat-list";
+      list.style.display = "none";
+
+      let hasActive = false;
+
+      visibleItems.forEach(it => {
+        // Logout (href especial)
+        if (it.href === "#logout") {
+          const a = document.createElement("a");
+          a.href = "#";
+
+          const item = document.createElement("div");
+          item.className = "nav-item";
+          item.textContent = it.label;
+
+          a.appendChild(item);
+
+          a.addEventListener("click", async (e) => {
+            e.preventDefault();
+            try {
+              if (window.logout) {
+                await window.logout();
+              } else if (window.supabaseClient?.auth) {
+                await window.supabaseClient.auth.signOut();
+              }
+            } finally {
+              window.location.href = "/login.html";
+            }
+          });
+
+          list.appendChild(a);
+          return;
+        }
+
+        const link = createLink(it.label, it.href);
+
+        // Si quedó active, abrir grupo
+        if (isActiveLink(it.href)) hasActive = true;
+
+        list.appendChild(link);
+      });
+
+      // Abrir automáticamente si hay active dentro
+      if (hasActive) {
+        list.style.display = "block";
+        box.classList.add("open");
+      }
+
+      header.addEventListener("click", () => {
+        const open = list.style.display === "block";
+        list.style.display = open ? "none" : "block";
+        box.classList.toggle("open", !open);
+      });
+
+      box.appendChild(header);
+      box.appendChild(list);
+      mount.appendChild(box);
     });
 
-    if(active){
-      list.style.display="block";
-      box.classList.add("open");
-    }
-
-    header.onclick=()=>{
-      const open=list.style.display==="block";
-      list.style.display=open?"none":"block";
-      box.classList.toggle("open");
-    };
-
-    box.appendChild(header);
-    box.appendChild(list);
-    mount.appendChild(box);
-  });
-
-};
+  };
 
 })();
