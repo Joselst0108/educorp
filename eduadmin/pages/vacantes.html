@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin | Vacantes</title>
+  <title>EduAdmin | Niveles</title>
 
   <link rel="stylesheet" href="/assets/css/variables.css">
   <link rel="stylesheet" href="/assets/css/main.css">
@@ -11,9 +11,9 @@
 </head>
 
 <body>
+  <div class="app-shell">
 
-  <!-- ✅ TU SIDEBAR REAL AQUÍ (no lo cambio) -->
-
+    <!-- ✅ SIDEBAR DINÁMICO (DESPLEGABLE) -->
     <aside class="sidebar">
       <div class="brand">
         <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin" />
@@ -46,6 +46,7 @@
         </div>
       </div>
 
+
       <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
         <div class="badge">Secciones: <b id="countSecciones">0</b></div>
         <div class="badge">Total matriculados: <b id="countMatriculados">0</b></div>
@@ -73,7 +74,19 @@
       </p>
     </section>
   </main>
+  <!-- Scripts (orden correcto) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/assets/js/supabaseClient.js"></script>
+  <script src="/assets/js/context.js"></script>
+  <script src="/assets/js/ui.js"></script>
 
-  <script src="/pages/js/vacantes.js"></script>
+  <!-- ✅ Activa menú desplegable -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
+    });
+  </script>
+
+  <script src="/eduadmin/js/niveles.js"></script>
 </body>
 </html>
