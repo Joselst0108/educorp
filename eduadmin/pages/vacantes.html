@@ -1,135 +1,300 @@
-U7<!DOCTYPE html>
-<html lang="es" data-app="eduadmin">
+<!DOCTYPE html>
+<html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>EduAdmin | Vacantes</title>
 
-  <link rel="stylesheet" href="/assets/css/variables.css">
-  <link rel="stylesheet" href="/assets/css/main.css">
-  <link rel="stylesheet" href="/assets/css/components.css">
+  <!-- (Opcional) FontAwesome si ya lo usas en todo el panel -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <!-- Scripts base (orden recomendado) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/assets/js/supabaseClient.js"></script>
-  <script src="/assets/js/context.js"></script>
-  <script src="/assets/js/ui.js"></script>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#101a2c;
+      --text:#e6eefc;
+      --muted:#9fb3d1;
+      --line:rgba(255,255,255,.08);
+      --btn:#2d6cdf;
+      --btn2:#1c2a44;
+      --ok:#1db954;
+      --warn:#ffb020;
+      --bad:#ff4d4f;
+      --card:rgba(255,255,255,.03);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 600px at 10% 10%, #0f2446, #060b14 60%, #05070d);
+      color:var(--text);
+      min-height:100vh;
+    }
+    .layout{display:flex; min-height:100vh;}
+    .sidebar{
+      width:260px;
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border-right:1px solid var(--line);
+      padding:18px 14px;
+    }
+    .brand{
+      display:flex; align-items:center; gap:10px;
+      padding:10px 10px 14px; border-bottom:1px solid var(--line);
+      margin-bottom:12px;
+    }
+    .brand .logo{
+      width:34px;height:34px;border-radius:10px;
+      background:linear-gradient(135deg, #27d07d, #ffd45a);
+      display:grid;place-items:center;color:#081018;font-weight:900;
+    }
+    .brand .t{
+      display:flex;flex-direction:column; line-height:1.1;
+    }
+    .brand .t b{font-size:14px}
+    .brand .t span{font-size:12px;color:var(--muted)}
+    .menu h4{
+      margin:14px 10px 8px;
+      font-size:11px;
+      letter-spacing:.12em;
+      color:rgba(255,255,255,.45);
+    }
+    .menu a{
+      display:flex; align-items:center; gap:10px;
+      padding:10px 10px;
+      margin:4px 6px;
+      color:var(--text);
+      text-decoration:none;
+      border-radius:12px;
+      transition:.15s;
+    }
+    .menu a:hover{background:rgba(255,255,255,.05)}
+    .menu a.active{background:rgba(45,108,223,.22); border:1px solid rgba(45,108,223,.35)}
+    .menu a i{width:18px;text-align:center;color:rgba(255,255,255,.7)}
+    .main{flex:1; padding:22px;}
+    .topbar{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px;
+      margin-bottom:16px;
+    }
+    .title{
+      display:flex; flex-direction:column;
+    }
+    .title h1{margin:0; font-size:22px}
+    .title p{margin:4px 0 0; color:var(--muted); font-size:13px}
+    .actions{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+    }
+    .pill{
+      background:rgba(255,255,255,.04);
+      border:1px solid var(--line);
+      color:var(--muted);
+      padding:8px 10px;
+      border-radius:999px;
+      font-size:12px;
+    }
+    .btn{
+      border:0;
+      cursor:pointer;
+      padding:10px 12px;
+      border-radius:12px;
+      background:var(--btn);
+      color:white;
+      font-weight:600;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+    }
+    .btn.secondary{background:var(--btn2); border:1px solid var(--line); color:var(--text)}
+    .grid{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:14px;
+    }
+    @media (max-width: 980px){
+      .sidebar{display:none;}
+      .grid{grid-template-columns: 1fr;}
+    }
+    .card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:16px;
+    }
+    .card h3{
+      margin:0 0 10px;
+      font-size:14px;
+      color:rgba(255,255,255,.85);
+    }
+    label{font-size:12px; color:var(--muted)}
+    input, select{
+      width:100%;
+      padding:10px 12px;
+      margin-top:6px;
+      margin-bottom:10px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.22);
+      color:var(--text);
+      outline:none;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      overflow:hidden;
+      border-radius:16px;
+      border:1px solid var(--line);
+    }
+    thead th{
+      text-align:left;
+      font-size:12px;
+      color:rgba(255,255,255,.7);
+      background:rgba(255,255,255,.04);
+      padding:12px 12px;
+      border-bottom:1px solid var(--line);
+    }
+    tbody td{
+      padding:12px 12px;
+      border-bottom:1px solid var(--line);
+      font-size:13px;
+      color:rgba(255,255,255,.9);
+    }
+    tbody tr:hover{background:rgba(255,255,255,.03)}
+    .badge{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px; border-radius:999px;
+      font-size:12px;
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.18);
+      color:var(--muted);
+    }
+    .badge.ok{color:#b9ffd7; border-color:rgba(29,185,84,.35); background:rgba(29,185,84,.12)}
+    .badge.warn{color:#ffe2b0; border-color:rgba(255,176,32,.35); background:rgba(255,176,32,.12)}
+    .badge.bad{color:#ffc1c2; border-color:rgba(255,77,79,.35); background:rgba(255,77,79,.12)}
+    .muted{color:var(--muted)}
+    .small{font-size:12px}
+    .row{
+      display:flex; gap:10px; flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .hint{
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px dashed rgba(255,255,255,.12);
+      background:rgba(0,0,0,.18);
+      color:rgba(255,255,255,.8);
+      font-size:13px;
+    }
+  </style>
 </head>
 
 <body>
-  <div class="app-shell">
-
+  <div class="layout">
     <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="brand">
-        <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin">
-        <div class="titles">
+        <div class="logo">E</div>
+        <div class="t">
           <b>EduAdmin</b>
           <span>Administración real</span>
         </div>
       </div>
 
-      <!-- 🔥 MENÚ DINÁMICO -->
-      <nav id="uiSidebarNav" class="nav"></nav>
+      <nav class="menu">
+        <a href="./dashboard.html"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+
+        <h4>COLEGIO</h4>
+        <a href="./colegio.html"><i class="fa-solid fa-school"></i> Colegio</a>
+
+        <h4>ESTRUCTURA ACADÉMICA</h4>
+        <a href="./anio-academico.html"><i class="fa-solid fa-calendar"></i> Año académico</a>
+        <a href="./niveles.html"><i class="fa-solid fa-layer-group"></i> Niveles</a>
+        <a href="./grados.html"><i class="fa-solid fa-diagram-project"></i> Grados</a>
+        <a href="./secciones.html"><i class="fa-solid fa-chalkboard-user"></i> Secciones / Aulas</a>
+        <a class="active" href="./vacantes.html"><i class="fa-solid fa-user-plus"></i> Vacantes</a>
+
+        <h4>GESTIÓN</h4>
+        <a href="./estudiantes.html"><i class="fa-solid fa-user-graduate"></i> Estudiantes</a>
+        <a href="./finanzas.html"><i class="fa-solid fa-coins"></i> Finanzas reales</a>
+        <a href="./reportes.html"><i class="fa-solid fa-file-lines"></i> Reportes</a>
+
+        <h4>SISTEMA</h4>
+        <a href="./sistema.html"><i class="fa-solid fa-gear"></i> Sistema</a>
+      </nav>
     </aside>
 
     <!-- MAIN -->
     <main class="main">
-
       <div class="topbar">
-        <div class="school-chip">
-          <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio"
-               onerror="this.src='/assets/img/eduadmin.jpeg'">
-          <div class="meta">
-            <b id="uiSchoolName">Cargando...</b>
-            <span id="uiYearName">Año: —</span>
-          </div>
+        <div class="title">
+          <h1>Vacantes</h1>
+          <p>Gestiona vacantes por colegio y año académico (sin bucles de carga).</p>
+        </div>
+
+        <div class="actions">
+          <span class="pill" id="pillContext">Contexto: cargando...</span>
+          <button class="btn secondary" id="btnRefresh"><i class="fa-solid fa-rotate"></i> Actualizar</button>
         </div>
       </div>
 
-      <section class="page">
-
-        <div class="card">
-          <h1 class="h1">Vacantes por sección</h1>
-          <p class="muted" id="status">Cargando…</p>
-        </div>
-
-        <div class="grid-2">
-
-          <div class="card">
-            <h2 class="h2">Asignar vacantes</h2>
-
-            <form id="formVacante" class="form">
-
-              <label class="label">Nivel</label>
-              <select class="select" id="nivel_id" required>
-                <option value="">Nivel</option>
-              </select>
-
-              <label class="label">Grado</label>
-              <select class="select" id="grado_id" required>
-                <option value="">Grado</option>
-              </select>
-
-              <label class="label">Sección</label>
-              <select class="select" id="seccion_id" required>
-                <option value="">Sección</option>
-              </select>
-
-              <label class="label">Vacantes</label>
-              <input class="input" type="number" id="vacantes" min="0" required>
-
-              <!-- Campo espejo para tu lógica actual -->
-              <input type="hidden" id="cupo_total">
-
-              <button class="btn btn-primary" type="submit">Guardar</button>
-            </form>
+      <div class="grid">
+        <!-- FORM -->
+        <section class="card">
+          <h3>Crear vacante</h3>
+          <div class="hint small" id="contextHint">
+            Debes tener seleccionado un <b>Colegio</b> y un <b>Año Académico</b>. Si no, te redirigirá.
           </div>
 
-          <div class="card">
-            <h2 class="h2">Vacantes registradas</h2>
+          <form id="formVacante">
+            <label for="cargo">Cargo / Puesto</label>
+            <input id="cargo" name="cargo" type="text" placeholder="Ej: Docente de Inglés" required />
 
-            <div style="overflow:auto;">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Nivel</th>
-                    <th>Grado</th>
-                    <th>Sección</th>
-                    <th>Vacantes</th>
-                  </tr>
-                </thead>
-                <tbody id="tbodyVacantes">
-                  <tr><td colspan="4" class="muted">Cargando…</td></tr>
-                </tbody>
-              </table>
-            </div>
+            <label for="area">Área</label>
+            <input id="area" name="area" type="text" placeholder="Ej: Inglés / Comunicación" />
+
+            <label for="estado">Estado</label>
+            <select id="estado" name="estado">
+              <option value="activa">Activa</option>
+              <option value="pausada">Pausada</option>
+              <option value="cerrada">Cerrada</option>
+            </select>
+
+            <button class="btn" type="submit"><i class="fa-solid fa-plus"></i> Guardar</button>
+            <p class="muted small" id="formMsg" style="margin:10px 0 0;"></p>
+          </form>
+        </section>
+
+        <!-- TABLE -->
+        <section class="card">
+          <div class="row" style="margin-bottom:10px;">
+            <h3 style="margin:0;">Vacantes registradas</h3>
+            <span class="muted small" id="countVacantes">0</span>
           </div>
 
-        </div>
-      </section>
+          <table id="vacantesTable">
+            <thead>
+              <tr>
+                <th>Cargo</th>
+                <th>Área</th>
+                <th>Estado</th>
+                <th>Fecha</th>
+              </tr>
+            </thead>
+            <tbody id="vacantesTbody">
+              <tr><td colspan="4" class="muted">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
     </main>
   </div>
 
-  <!-- Inicialización única -->
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      // ✅ Puente vacantes -> cupo_total (compatibilidad con tu lógica actual)
-      const a = document.getElementById("vacantes");
-      const b = document.getElementById("cupo_total");
-      if (a && b) {
-        b.value = a.value || "";
-        a.addEventListener("input", () => (b.value = a.value || ""));
-      }
+  <!-- Scripts (IMPORTANTE: rutas relativas correctas para /eduadmin/pages/vacantes.html) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-      // ✅ Render menú dinámico (si ui.js lo expone)
-      if (window.renderEduAdminSidebar) {
-        window.renderEduAdminSidebar();
-      }
-    });
-  </script>
-
-  <!-- JS de la página (ruta correcta) -->
-  <script src="/eduadmin/pages/js/vacantes.js"></script>
+  <!-- Ajusta estos paths a tu estructura real -->
+  <script src="../../js/supabaseClient.js"></script>
+  <script src="../../js/context.js"></script>
+  <script src="../js/vacantes.js"></script>
 </body>
 </html>
