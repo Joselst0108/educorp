@@ -1,49 +1,62 @@
 document.addEventListener("DOMContentLoaded", async () => {
-  const supabase = window.supabaseClient;
+  console.log("NIVELES JS CARGADO");
 
-  const statusEl = document.getElementById("status");
-  const tbody = document.getElementById("tbodyNiveles");
-  const form = document.getElementById("formNivel");
-  const btnRefresh = document.getElementById("btnRefresh");
-  const logoutBtn = document.getElementById("logoutBtn");
-
-  const uiSchoolName = document.getElementById("uiSchoolName");
-  const uiYearName = document.getElementById("uiYearName");
-  const uiSchoolLogo = document.getElementById("uiSchoolLogo");
-
-  const setStatus = (t) => { if (statusEl) statusEl.textContent = t; };
-
-  if (!supabase) return alert("Supabase no cargó. Revisa /assets/js/supabaseClient.js");
-  if (!window.getContext) return alert("Contexto no cargó. Revisa /assets/js/context.js");
-
-  // En niveles sí queremos que ya exista año activo (flujo real del sistema)
-  const ctx = await getContext(true);
-
-  if (!ctx.year_id) {
-    alert("Primero activa un Año Académico.");
-    location.href = "/eduadmin/pages/anio.html";
+  // 1) validar supabase
+  if (!window.supabaseClient) {
+    console.error("supabaseClient.js no cargó");
+    alert("Error: Supabase no inicializado.");
     return;
   }
 
-  if (uiSchoolName) uiSchoolName.textContent = ctx.school_name || "Colegio";
-  if (uiYearName) uiYearName.textContent = `Año: ${ctx.year_name || ctx.year_anio || "Activo"}`;
+  // 2) validar contexto
+  if (!window.getContext) {
+    console.error("context.js no cargó");
+    alert("Error: Contexto no cargado.");
+    return;
+  }
 
-  // Logo colegio
-  if (uiSchoolLogo) uiSchoolLogo.src = "/assets/img/eduadmin.jpeg";
+  // 3) obtener contexto
+  let ctx;
   try {
-    const { data: col } = await supabase
-      .from("colegios")
-      .select("logo_url")
-      .eq("id", ctx.school_id)
-      .single();
-    if (col?.logo_url && uiSchoolLogo) uiSchoolLogo.src = col.logo_url;
-  } catch {}
+    ctx = await window.getContext();
+    console.log("[CTX]", ctx);
+  } catch (e) {
+    console.error("Error getContext:", e);
+    alert("No se pudo cargar colegio/año");
+    return;
+  }
 
-  async function listar() {
-    setStatus("Cargando niveles…");
-    tbody.innerHTML = `<tr><td colspan="3" class="muted">Cargando…</td></tr>`;
+  // Label arriba (opcional)
+  const ctxLabel = document.getElementById("ctxLabel");
+  if (ctxLabel) {
+    ctxLabel.textContent = `Colegio: ${ctx?.school_name || "—"} | Año: ${ctx?.year_name || "—"}`;
+  }
 
-    const { data, error } = await supabase
+  // elementos
+  const tbody = document.getElementById("tbodyNiveles");
+  const form = document.getElementById("formNivel");
+  const selNombre = document.getElementById("nivelNombre");
+  const chkActivo = document.getElementById("activo");
+  const btnLogout = document.getElementById("btnLogout");
+
+  if (!tbody || !form || !selNombre || !chkActivo) {
+    console.error("Faltan elementos en el HTML (tbodyNiveles/formNivel/nivelNombre/activo).");
+    return;
+  }
+
+  // logout simple (si lo usas)
+  if (btnLogout) {
+    btnLogout.addEventListener("click", async () => {
+      await window.supabaseClient.auth.signOut();
+      window.location.href = "/login.html";
+    });
+  }
+
+  // cargar niveles
+  async function cargarNiveles() {
+    tbody.innerHTML = `<tr><td colspan="3">Cargando…</td></tr>`;
+
+    const { data, error } = await window.supabaseClient
       .from("niveles")
       .select("*")
       .eq("colegio_id", ctx.school_id)
@@ -51,137 +64,120 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (error) {
       console.error(error);
-      setStatus("Error cargando niveles ❌");
-      tbody.innerHTML = `<tr><td colspan="3">Error</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="3">Error al cargar niveles</td></tr>`;
       return;
     }
 
-    if (!data?.length) {
-      setStatus("Sin niveles aún. Crea uno ✅");
-      tbody.innerHTML = `<tr><td colspan="3" class="muted">No hay registros</td></tr>`;
+    if (!data || data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3">Sin niveles</td></tr>`;
       return;
     }
 
-    setStatus("Listo ✅");
     tbody.innerHTML = "";
 
-    data.forEach(row => {
-      const activo = (row.activo === undefined || row.activo === null) ? true : !!row.activo;
+    data.forEach((n) => {
+      const activo = (n.activo === true || n.activo === "true") ? "✅" : "❌";
 
       tbody.innerHTML += `
         <tr>
-          <td>${row.nombre ?? ""}</td>
-          <td>${activo ? "✅" : "—"}</td>
+          <td>${n.nombre ?? ""}</td>
+          <td>${activo}</td>
           <td>
-            <button class="btn btn-secondary btn-sm" data-tg="${row.id}" data-act="${activo ? "1" : "0"}">
-              ${activo ? "Desactivar" : "Activar"}
-            </button>
-            <button class="btn btn-danger btn-sm" data-del="${row.id}">
-              Eliminar
+            <button class="btn btn-sm" data-action="toggle" data-id="${n.id}">
+              Activar/Desactivar
             </button>
           </td>
         </tr>
       `;
     });
-
-    // toggle activo
-    tbody.querySelectorAll("[data-tg]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const id = btn.getAttribute("data-tg");
-        const act = btn.getAttribute("data-act") === "1";
-        await toggleActivo(id, !act);
-      });
-    });
-
-    // delete
-    tbody.querySelectorAll("[data-del]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const id = btn.getAttribute("data-del");
-        if (!confirm("¿Eliminar este nivel?")) return;
-        await eliminar(id);
-      });
-    });
   }
 
-  async function toggleActivo(id, nuevo) {
-    setStatus("Actualizando…");
-    const { error } = await supabase
-      .from("niveles")
-      .update({ activo: nuevo })
-      .eq("id", id);
-
-    if (error) {
-      console.error(error);
-      alert("No se pudo actualizar.");
-      return;
-    }
-
-    setStatus("Actualizado ✅");
-    await listar();
-  }
-
-  async function eliminar(id) {
-    setStatus("Eliminando…");
-    const { error } = await supabase
-      .from("niveles")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      console.error(error);
-      alert("No se pudo eliminar (quizá ya está usado en grados).");
-      return;
-    }
-
-    setStatus("Eliminado ✅");
-    await listar();
-  }
-
-  form?.addEventListener("submit", async (e) => {
+  // guardar nivel
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const nombre = document.getElementById("nombre").value.trim();
-    const activo = document.getElementById("activo").checked;
+    const nombre = (selNombre.value || "").trim();
+    const activo = chkActivo.checked; // ✅ ya existe en HTML
 
-    if (!nombre) return alert("Ingresa el nombre.");
+    if (!nombre) {
+      alert("Selecciona un nivel.");
+      return;
+    }
 
-    setStatus("Guardando…");
+    // evita duplicados (mismo colegio + mismo nombre)
+    const { data: existe, error: errCheck } = await window.supabaseClient
+      .from("niveles")
+      .select("id")
+      .eq("colegio_id", ctx.school_id)
+      .eq("nombre", nombre)
+      .maybeSingle();
 
-    const payload = {
-      colegio_id: ctx.school_id,
-      nombre,
-      activo
-    };
+    if (errCheck) console.warn("check duplicado:", errCheck);
 
-    const { error } = await supabase.from("niveles").insert([payload]);
+    if (existe?.id) {
+      alert("Ese nivel ya existe en este colegio.");
+      return;
+    }
+
+    const { error } = await window.supabaseClient
+      .from("niveles")
+      .insert([{
+        nombre,
+        activo,
+        colegio_id: ctx.school_id
+      }]);
 
     if (error) {
       console.error(error);
-      alert("No se pudo guardar (quizá ya existe).");
-      setStatus("Error ❌");
+      alert("Error al guardar nivel");
       return;
     }
 
     form.reset();
-    document.getElementById("activo").checked = true;
-
-    setStatus("Guardado ✅");
-    await listar();
+    // por defecto check activo marcado otra vez
+    chkActivo.checked = true;
+    cargarNiveles();
   });
 
-  btnRefresh?.addEventListener("click", listar);
+  // activar/desactivar (delegación)
+  tbody.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-action]");
+    if (!btn) return;
 
-  logoutBtn?.addEventListener("click", async (e) => {
-    e.preventDefault();
-    try {
-      window.clearContext?.();
-      await supabase.auth.signOut();
-      location.href = "/login.html";
-    } catch (err) {
-      console.error(err);
-      alert("No se pudo cerrar sesión.");
+    const id = btn.getAttribute("data-id");
+    const action = btn.getAttribute("data-action");
+
+    if (action !== "toggle") return;
+
+    // leer actual
+    const { data: current, error: e1 } = await window.supabaseClient
+      .from("niveles")
+      .select("id, activo")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (e1 || !current) {
+      console.error(e1);
+      alert("No se pudo leer el nivel");
+      return;
     }
+
+    const nuevo = !current.activo;
+
+    const { error: e2 } = await window.supabaseClient
+      .from("niveles")
+      .update({ activo: nuevo })
+      .eq("id", id);
+
+    if (e2) {
+      console.error(e2);
+      alert("No se pudo actualizar");
+      return;
+    }
+
+    cargarNiveles();
   });
 
-  await listar();
+  // inicio
+  cargarNiveles();
 });
