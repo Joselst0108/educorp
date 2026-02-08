@@ -24,8 +24,31 @@
       .replaceAll("'", "&#039;");
   }
 
+  // ✅ Lista de grados por nivel (cascada)
+  const GRADE_CATALOG = {
+    inicial: [
+      { nombre: "3 años", orden: 1 },
+      { nombre: "4 años", orden: 2 },
+      { nombre: "5 años", orden: 3 },
+    ],
+    primaria: [
+      { nombre: "1°", orden: 1 },
+      { nombre: "2°", orden: 2 },
+      { nombre: "3°", orden: 3 },
+      { nombre: "4°", orden: 4 },
+      { nombre: "5°", orden: 5 },
+      { nombre: "6°", orden: 6 },
+    ],
+    secundaria: [
+      { nombre: "1°", orden: 1 },
+      { nombre: "2°", orden: 2 },
+      { nombre: "3°", orden: 3 },
+      { nombre: "4°", orden: 4 },
+      { nombre: "5°", orden: 5 },
+    ],
+  };
+
   async function fillMissingContext(ctx) {
-    // Completar colegio (nombre/logo) si falta
     if (ctx?.school_id && (!ctx.school_name || !ctx.school_logo_url)) {
       const { data: col } = await supabase()
         .from("colegios")
@@ -39,7 +62,6 @@
       }
     }
 
-    // Año: solo se muestra si existe en tu context.js; no es obligatorio para grados
     if (ctx?.school_id && !ctx.year_id) {
       const { data: yr } = await supabase()
         .from("anios_academicos")
@@ -67,7 +89,6 @@
     if (elLogo) elLogo.src = ctx.school_logo_url || "/assets/img/eduadmin.jpeg";
   }
 
-  // Niveles para el select
   async function loadNiveles(ctx) {
     const sel = els.nivel();
     if (!sel) return;
@@ -87,11 +108,38 @@
     }
 
     data?.forEach(n => {
-      sel.innerHTML += `<option value="${n.id}">${esc(n.nombre)}</option>`;
+      // Guardamos el nombre del nivel en data-name para la cascada
+      sel.innerHTML += `<option value="${n.id}" data-name="${esc(n.nombre)}">${esc(n.nombre)}</option>`;
     });
   }
 
-  // Listado grados (muestra nombre del nivel)
+  function populateGradoSelectByNivelName(nivelNameRaw) {
+    const selGrado = els.grado();
+    if (!selGrado) return;
+
+    const nivelName = String(nivelNameRaw || "").trim().toLowerCase();
+
+    selGrado.innerHTML = `<option value="">Selecciona un grado</option>`;
+
+    const list = GRADE_CATALOG[nivelName] || [];
+    list.forEach(g => {
+      selGrado.innerHTML += `<option value="${esc(g.nombre)}" data-orden="${g.orden}">${esc(g.nombre)}</option>`;
+    });
+
+    // Reset orden
+    if (els.orden()) els.orden().value = "";
+  }
+
+  function syncOrdenFromSelectedGrado() {
+    const selGrado = els.grado();
+    const ord = els.orden();
+    if (!selGrado || !ord) return;
+
+    const opt = selGrado.options[selGrado.selectedIndex];
+    const o = opt?.getAttribute("data-orden");
+    ord.value = o ? String(o) : "";
+  }
+
   async function loadGrados(ctx) {
     const tbody = els.tbody();
     if (!tbody) return;
@@ -142,12 +190,12 @@
 
   async function createGrado(ctx) {
     const nivel_id = els.nivel()?.value;
-    const nombre = els.grado()?.value?.trim();
+    const nombre = els.grado()?.value?.trim(); // viene del select
     const orden = Number(els.orden()?.value || 0);
     const activo = !!els.activo()?.checked;
 
     if (!nivel_id) return alert("Selecciona un nivel.");
-    if (!nombre) return alert("Ingresa el nombre del grado.");
+    if (!nombre) return alert("Selecciona un grado.");
 
     // Evitar duplicado por colegio + nivel + nombre
     const { data: exists } = await supabase()
@@ -177,6 +225,10 @@
 
     els.form()?.reset();
     if (els.activo()) els.activo().checked = true;
+
+    // Reset cascada
+    if (els.grado()) els.grado().innerHTML = `<option value="">Selecciona un grado</option>`;
+    if (els.orden()) els.orden().value = "";
 
     await loadGrados(ctx);
   }
@@ -214,6 +266,20 @@
         return;
       }
 
+      await loadNiveles(ctx);
+
+      // ✅ cascada: cuando cambias nivel, llenar grados
+      els.nivel()?.addEventListener("change", () => {
+        const opt = els.nivel().options[els.nivel().selectedIndex];
+        const nivelName = opt?.getAttribute("data-name") || "";
+        populateGradoSelectByNivelName(nivelName);
+      });
+
+      // ✅ orden automático al elegir grado
+      els.grado()?.addEventListener("change", () => {
+        syncOrdenFromSelectedGrado();
+      });
+
       els.form()?.addEventListener("submit", async (e) => {
         e.preventDefault();
         await createGrado(ctx);
@@ -221,9 +287,7 @@
 
       els.btnRefresh()?.addEventListener("click", () => loadGrados(ctx));
 
-      await loadNiveles(ctx);
       await loadGrados(ctx);
-
       setStatus("Listo ✅");
     } catch (err) {
       console.error("grados init error:", err);
