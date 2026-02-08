@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Secciones</title>
 
-  <link rel="stylesheet" href="/assets/css/variables.css">
-  <link rel="stylesheet" href="/assets/css/main.css">
-  <link rel="stylesheet" href="/assets/css/components.css">
+  <!-- ✅ RUTAS RELATIVAS DESDE /eduadmin/pages/ -->
+  <link rel="stylesheet" href="../../assets/css/variables.css">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/components.css">
 
   <style>
     /* Evita logo gigante */
@@ -33,7 +34,8 @@
     <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="brand">
-        <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin" />
+        <!-- ✅ Logo del menú lateral: Educorp -->
+        <img id="uiAppLogo" src="../../assets/img/educorp.jpeg" alt="Educorp" />
         <div class="titles">
           <b>EduAdmin</b>
           <span>Administración real</span>
@@ -82,11 +84,17 @@
     <!-- MAIN -->
     <main class="main">
 
-      <!-- TOPBAR (igual al dashboard) -->
+      <!-- TOPBAR -->
       <div class="topbar">
         <div class="left">
           <div class="school-chip">
-            <img id="uiSchoolLogo" src="/assets/img/eduadmin.svg" alt="Colegio" />
+            <!-- ✅ No uses eduadmin.svg porque te daba 404 -->
+            <img
+              id="uiSchoolLogo"
+              src="../../assets/img/eduadmin.jpeg"
+              alt="Colegio"
+              onerror="this.src='../../assets/img/eduadmin.jpeg';"
+            />
             <div class="meta">
               <b id="uiSchoolName">Cargando colegio…</b>
               <span id="uiYearName">Cargando año…</span>
@@ -177,9 +185,11 @@
 
   <!-- Scripts (orden obligatorio) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/assets/js/supabaseClient.js"></script>
-  <script src="/assets/js/context.js"></script>
-  <script src="/assets/js/ui.js"></script>
-  <script src="/eduadmin/js/secciones.js"></script>
+  <script src="../../assets/js/supabaseClient.js"></script>
+  <script src="../../assets/js/context.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+
+  <!-- ✅ RUTA RELATIVA A /eduadmin/js/ -->
+  <script src="../js/secciones.js"></script>
 </body>
 </html>
