@@ -1,5 +1,6 @@
 // /eduadmin/js/grados.js
 (() => {
+
   const supabase = () => window.supabaseClient;
 
   const els = {
@@ -18,29 +19,16 @@
     if (el) el.textContent = t;
   };
 
-  function esc(s) {
+  function esc(s){
     return String(s ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
   }
 
-  // ✅ Normaliza: " Inicial " => "inicial"
-  function normalizeNivelName(name) {
-    return String(name || "")
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, " ");
-  }
-
-  // ✅ Base path: si estás en /educorp/... usa /educorp, si no, usa ""
-  function getBasePath() {
-    return location.pathname.startsWith("/educorp") ? "/educorp" : "";
-  }
-
-  // ✅ Lista de grados por nivel (cascada)
+  // 📚 Catálogo grados por nivel
   const GRADE_CATALOG = {
     inicial: [
       { nombre: "3 años", orden: 1 },
@@ -64,56 +52,54 @@
     ],
   };
 
-  async function fillMissingContext(ctx) {
-    // Completar colegio
-    if (ctx?.school_id && (!ctx.school_name || !ctx.school_logo_url)) {
-      const { data: col, error } = await supabase()
+  // 🔵 Rellenar datos faltantes del contexto
+  async function fillMissingContext(ctx){
+
+    if(ctx?.school_id && (!ctx.school_name || !ctx.school_logo_url)){
+      const { data } = await supabase()
         .from("colegios")
         .select("nombre, logo_url")
         .eq("id", ctx.school_id)
         .single();
 
-      if (!error && col) {
-        ctx.school_name = ctx.school_name || col.nombre;
-        ctx.school_logo_url = ctx.school_logo_url || col.logo_url;
+      if(data){
+        ctx.school_name = data.nombre;
+        ctx.school_logo_url = data.logo_url;
       }
     }
 
-    // Completar año activo
-    if (ctx?.school_id && !ctx.year_id) {
-      const { data: yr, error } = await supabase()
+    if(ctx?.school_id && !ctx.year_id){
+      const { data } = await supabase()
         .from("anios_academicos")
         .select("id, nombre, anio")
         .eq("colegio_id", ctx.school_id)
         .eq("activo", true)
         .maybeSingle();
 
-      if (!error && yr?.id) {
-        ctx.year_id = yr.id;
-        ctx.year_name = yr.nombre || String(yr.anio || "");
+      if(data){
+        ctx.year_id = data.id;
+        ctx.year_name = data.nombre || data.anio;
       }
     }
 
     return ctx;
   }
 
-  function paintTopbar(ctx) {
-    const elSchool = document.getElementById("uiSchoolName");
-    const elYear = document.getElementById("uiYearName");
-    const elLogo = document.getElementById("uiSchoolLogo");
+  // 🔵 Pintar topbar
+  function paintTopbar(ctx){
+    const school = document.getElementById("uiSchoolName");
+    const year = document.getElementById("uiYearName");
+    const logo = document.getElementById("uiSchoolLogo");
 
-    const base = getBasePath();
-
-    if (elSchool) elSchool.textContent = ctx.school_name || "Colegio";
-    if (elYear) elYear.textContent = ctx.year_id ? `Año: ${ctx.year_name || "—"}` : "Año: —";
-
-    // ✅ fallback robusto
-    if (elLogo) elLogo.src = ctx.school_logo_url || /assets/img/eduadmin.jpeg`;
+    if(school) school.textContent = ctx.school_name || "Colegio";
+    if(year) year.textContent = ctx.year_name || "Año";
+    if(logo && ctx.school_logo_url) logo.src = ctx.school_logo_url;
   }
 
-  async function loadNiveles(ctx) {
+  // 🔵 Cargar niveles
+  async function loadNiveles(ctx){
     const sel = els.nivel();
-    if (!sel) return;
+    if(!sel) return;
 
     sel.innerHTML = `<option value="">Selecciona un nivel</option>`;
 
@@ -121,209 +107,181 @@
       .from("niveles")
       .select("id, nombre")
       .eq("colegio_id", ctx.school_id)
-      .order("nombre", { ascending: true });
+      .order("nombre");
 
-    if (error) {
-      console.error("load niveles:", error);
+    if(error){
+      console.error(error);
       setStatus("Error cargando niveles");
       return;
     }
 
-    data?.forEach((n) => {
-      // Guardamos el nombre del nivel en data-name para la cascada
-      sel.innerHTML += `<option value="${n.id}" data-name="${esc(n.nombre)}">${esc(n.nombre)}</option>`;
+    data?.forEach(n=>{
+      sel.innerHTML += `
+        <option value="${n.id}" data-name="${esc(n.nombre)}">
+          ${esc(n.nombre)}
+        </option>`;
     });
   }
 
-  function populateGradoSelectByNivelName(nivelNameRaw) {
+  // 🔵 Cascada nivel → grado
+  function populateGradoSelectByNivelName(nivelNameRaw){
     const selGrado = els.grado();
-    if (!selGrado) return;
+    if(!selGrado) return;
 
-    const nivelName = normalizeNivelName(nivelNameRaw);
+    const nivelName = String(nivelNameRaw || "").toLowerCase().trim();
 
     selGrado.innerHTML = `<option value="">Selecciona un grado</option>`;
 
     const list = GRADE_CATALOG[nivelName] || [];
-    list.forEach((g) => {
-      selGrado.innerHTML += `<option value="${esc(g.nombre)}" data-orden="${g.orden}">${esc(g.nombre)}</option>`;
+
+    list.forEach(g=>{
+      selGrado.innerHTML += `
+        <option value="${esc(g.nombre)}" data-orden="${g.orden}">
+          ${esc(g.nombre)}
+        </option>`;
     });
 
-    // Reset orden
-    if (els.orden()) els.orden().value = "";
+    if(els.orden()) els.orden().value = "";
   }
 
-  function syncOrdenFromSelectedGrado() {
-    const selGrado = els.grado();
+  // 🔵 Orden automático
+  function syncOrdenFromSelectedGrado(){
+    const sel = els.grado();
     const ord = els.orden();
-    if (!selGrado || !ord) return;
+    if(!sel || !ord) return;
 
-    const opt = selGrado.options[selGrado.selectedIndex];
+    const opt = sel.options[sel.selectedIndex];
     const o = opt?.getAttribute("data-orden");
-    ord.value = o ? String(o) : "";
+    ord.value = o ? o : "";
   }
 
-  async function loadGrados(ctx) {
+  // 🔵 Cargar grados
+  async function loadGrados(ctx){
     const tbody = els.tbody();
-    if (!tbody) return;
+    if(!tbody) return;
 
-    setStatus("Cargando grados…");
-    tbody.innerHTML = `<tr><td colspan="5" class="muted">Cargando…</td></tr>`;
+    setStatus("Cargando grados...");
+    tbody.innerHTML = `<tr><td colspan="5">Cargando...</td></tr>`;
 
     const { data, error } = await supabase()
       .from("grados")
-      .select("id, nombre, orden, activo, nivel_id, niveles(nombre)")
+      .select("id,nombre,orden,activo,nivel_id,niveles(nombre)")
       .eq("colegio_id", ctx.school_id)
-      .order("nivel_id", { ascending: true })
-      .order("orden", { ascending: true });
+      .order("nivel_id")
+      .order("orden");
 
-    if (error) {
-      console.error("load grados:", error);
+    if(error){
+      console.error(error);
       setStatus("Error cargando grados");
-      tbody.innerHTML = `<tr><td colspan="5">Error</td></tr>`;
       return;
     }
 
-    if (!data?.length) {
-      setStatus("Sin grados. Crea uno ✅");
-      tbody.innerHTML = `<tr><td colspan="5" class="muted">No hay registros</td></tr>`;
+    if(!data?.length){
+      tbody.innerHTML = `<tr><td colspan="5">Sin grados</td></tr>`;
       return;
     }
 
-    setStatus(`Grados: ${data.length}`);
-    tbody.innerHTML = data
-      .map(
-        (g) => `
+    tbody.innerHTML = data.map(g=>`
       <tr>
-        <td>${esc(g.niveles?.nombre || "")}</td>
+        <td>${esc(g.niveles?.nombre)}</td>
         <td>${esc(g.nombre)}</td>
-        <td>${g.orden ?? ""}</td>
-        <td>${g.activo ? "Sí" : "No"}</td>
+        <td>${g.orden}</td>
+        <td>${g.activo ? "Sí":"No"}</td>
         <td>
-          <button class="btn btn-danger btn-sm" data-del="${g.id}">Eliminar</button>
+          <button class="btn btn-danger btn-sm" data-del="${g.id}">
+            Eliminar
+          </button>
         </td>
       </tr>
-    `
-      )
-      .join("");
+    `).join("");
 
-    tbody.querySelectorAll("[data-del]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        if (!confirm("¿Eliminar este grado?")) return;
+    tbody.querySelectorAll("[data-del]").forEach(btn=>{
+      btn.addEventListener("click", async()=>{
+        if(!confirm("Eliminar grado?")) return;
         await deleteGrado(ctx, btn.dataset.del);
       });
     });
   }
 
-  async function createGrado(ctx) {
-    const nivel_id = els.nivel()?.value;
-    const nombre = els.grado()?.value?.trim();
-    const orden = Number(els.orden()?.value || 0);
-    const activo = !!els.activo()?.checked;
+  // 🔵 Crear grado
+  async function createGrado(ctx){
 
-    if (!nivel_id) return alert("Selecciona un nivel.");
-    if (!nombre) return alert("Selecciona un grado.");
+    const nivel_id = els.nivel().value;
+    const nombre = els.grado().value;
+    const orden = Number(els.orden().value || 0);
+    const activo = els.activo().checked;
 
-    const { data: exists, error: e1 } = await supabase()
-      .from("grados")
-      .select("id")
-      .eq("colegio_id", ctx.school_id)
-      .eq("nivel_id", nivel_id)
-      .eq("nombre", nombre)
-      .maybeSingle();
-
-    if (e1) console.warn("exists check:", e1);
-    if (exists?.id) return alert("Ese grado ya existe en ese nivel.");
+    if(!nivel_id) return alert("Selecciona nivel");
+    if(!nombre) return alert("Selecciona grado");
 
     const payload = {
       colegio_id: ctx.school_id,
       nivel_id,
       nombre,
       orden,
-      activo,
+      activo
     };
 
-    const { error } = await supabase().from("grados").insert(payload);
-    if (error) {
-      console.error("insert grado:", error);
-      alert(error.message || "No se pudo guardar.");
-      return;
-    }
-
-    els.form()?.reset();
-    if (els.activo()) els.activo().checked = true;
-
-    // Reset cascada
-    if (els.grado()) els.grado().innerHTML = `<option value="">Selecciona un grado</option>`;
-    if (els.orden()) els.orden().value = "";
-
-    await loadGrados(ctx);
-  }
-
-  async function deleteGrado(ctx, id) {
     const { error } = await supabase()
       .from("grados")
-      .delete()
-      .eq("id", id)
-      .eq("colegio_id", ctx.school_id);
+      .insert(payload);
 
-    if (error) {
-      console.error("delete grado:", error);
-      alert(error.message || "No se pudo eliminar.");
+    if(error){
+      console.error(error);
+      alert("Error al guardar");
       return;
     }
+
+    els.form().reset();
+    await loadGrados(ctx);
+  }
+
+  async function deleteGrado(ctx,id){
+    await supabase()
+      .from("grados")
+      .delete()
+      .eq("id",id);
 
     await loadGrados(ctx);
   }
 
-  async function init() {
-    try {
-      setStatus("Cargando…");
+  // 🔵 INIT
+  async function init(){
 
-      if (!supabase()) return alert("Supabase no cargó. Revisa /assets/js/supabaseClient.js");
-      if (!window.getContext) return alert("Contexto no cargó. Revisa /assets/js/context.js");
+    try{
+      setStatus("Cargando...");
 
       let ctx = await window.getContext(false);
       ctx = await fillMissingContext(ctx);
 
-      if (!ctx?.school_id) {
-        alert("No hay colegio en el contexto.");
-        location.href = "/login.html";
-        return;
-      }
-
       paintTopbar(ctx);
 
       await loadNiveles(ctx);
+      await loadGrados(ctx);
 
-      // cascada nivel -> grados
-      els.nivel()?.addEventListener("change", () => {
-        const selNivel = els.nivel();
-        const opt = selNivel?.options?.[selNivel.selectedIndex];
-        const nivelName = opt?.getAttribute("data-name") || "";
-        populateGradoSelectByNivelName(nivelName);
+      els.nivel()?.addEventListener("change", ()=>{
+        const opt = els.nivel().options[els.nivel().selectedIndex];
+        const name = opt?.getAttribute("data-name") || "";
+        populateGradoSelectByNivelName(name);
       });
 
-      // orden automático
-      els.grado()?.addEventListener("change", () => {
-        syncOrdenFromSelectedGrado();
-      });
+      els.grado()?.addEventListener("change", syncOrdenFromSelectedGrado);
 
-      els.form()?.addEventListener("submit", async (e) => {
+      els.form()?.addEventListener("submit", async(e)=>{
         e.preventDefault();
         await createGrado(ctx);
       });
 
-      els.btnRefresh()?.addEventListener("click", () => loadGrados(ctx));
+      els.btnRefresh()?.addEventListener("click", ()=>loadGrados(ctx));
 
-      await loadGrados(ctx);
-      setStatus("Listo ✅");
-    } catch (err) {
-      console.error("grados init error:", err);
-      setStatus("Error");
-      alert("Error cargando. Inicia sesión nuevamente.");
-      location.href = "/login.html";
+      setStatus("Listo");
+    }
+    catch(err){
+      console.error("INIT ERROR",err);
+      alert("Error cargando página");
     }
   }
 
   document.addEventListener("DOMContentLoaded", init);
+
 })();
