@@ -1,122 +1,187 @@
-<!DOCTYPE html>
-<html lang="es" data-app="eduadmin">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin | Niveles</title>
+document.addEventListener("DOMContentLoaded", async () => {
+  const supabase = window.supabaseClient;
 
-  <link rel="stylesheet" href="/assets/css/variables.css">
-  <link rel="stylesheet" href="/assets/css/main.css">
-  <link rel="stylesheet" href="/assets/css/components.css">
-</head>
+  const statusEl = document.getElementById("status");
+  const tbody = document.getElementById("tbodyNiveles");
+  const form = document.getElementById("formNivel");
+  const btnRefresh = document.getElementById("btnRefresh");
+  const logoutBtn = document.getElementById("logoutBtn");
 
-<body>
-  <div class="app-shell">
+  const uiSchoolName = document.getElementById("uiSchoolName");
+  const uiYearName = document.getElementById("uiYearName");
+  const uiSchoolLogo = document.getElementById("uiSchoolLogo");
 
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
-      <div class="brand">
-        <img id="uiAppLogo" src="/assets/img/eduadmin.jpeg" alt="EduAdmin" />
-        <div class="titles">
-          <b>EduAdmin</b>
-          <span>Administración real</span>
-        </div>
-      </div>
+  const setStatus = (t) => { if (statusEl) statusEl.textContent = t; };
 
-      <nav class="nav">
-        <a href="/eduadmin/pages/dashboard.html"><div class="nav-item">Dashboard</div></a>
+  if (!supabase) return alert("Supabase no cargó. Revisa /assets/js/supabaseClient.js");
+  if (!window.getContext) return alert("Contexto no cargó. Revisa /assets/js/context.js");
 
-        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">COLEGIO</div>
-        <a href="/eduadmin/pages/colegio.html"><div class="nav-item">Datos del colegio</div></a>
-        <a href="/eduadmin/pages/usuarios.html"><div class="nav-item">Usuarios y roles</div></a>
+  // En niveles sí queremos que ya exista año activo (flujo real del sistema)
+  const ctx = await getContext(true);
 
-        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTRUCTURA ACADÉMICA</div>
-        <a href="/eduadmin/pages/anio.html"><div class="nav-item">Año académico</div></a>
-        <a href="/eduadmin/pages/niveles.html"><div class="nav-item active">Niveles</div></a>
-        <a href="/eduadmin/pages/grados.html"><div class="nav-item">Grados</div></a>
-        <a href="/eduadmin/pages/aulas.html"><div class="nav-item">Secciones / Aulas</div></a>
+  if (!ctx.year_id) {
+    alert("Primero activa un Año Académico.");
+    location.href = "/eduadmin/pages/anio.html";
+    return;
+  }
 
-        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">SISTEMA</div>
-        <a href="#" id="logoutBtn"><div class="nav-item">Cerrar sesión</div></a>
-      </nav>
-    </aside>
+  if (uiSchoolName) uiSchoolName.textContent = ctx.school_name || "Colegio";
+  if (uiYearName) uiYearName.textContent = `Año: ${ctx.year_name || ctx.year_anio || "Activo"}`;
 
-    <!-- MAIN -->
-    <main class="main">
+  // Logo colegio
+  if (uiSchoolLogo) uiSchoolLogo.src = "/assets/img/eduadmin.jpeg";
+  try {
+    const { data: col } = await supabase
+      .from("colegios")
+      .select("logo_url")
+      .eq("id", ctx.school_id)
+      .single();
+    if (col?.logo_url && uiSchoolLogo) uiSchoolLogo.src = col.logo_url;
+  } catch {}
 
-      <div class="topbar">
-        <div class="left">
-          <div class="school-chip">
-            <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio" />
-            <div class="meta">
-              <b id="uiSchoolName">Cargando colegio…</b>
-              <span id="uiYearName">Año: —</span>
-            </div>
-          </div>
-        </div>
+  async function listar() {
+    setStatus("Cargando niveles…");
+    tbody.innerHTML = `<tr><td colspan="3" class="muted">Cargando…</td></tr>`;
 
-        <div style="display:flex; gap:10px;">
-          <button class="btn btn-secondary" id="btnRefresh">Actualizar</button>
-        </div>
-      </div>
+    const { data, error } = await supabase
+      .from("niveles")
+      .select("*")
+      .eq("colegio_id", ctx.school_id)
+      .order("nombre", { ascending: true });
 
-      <section class="page">
-        <div class="card">
-          <h1 class="h1">Niveles</h1>
-          <p class="muted" id="status">Cargando…</p>
-        </div>
+    if (error) {
+      console.error(error);
+      setStatus("Error cargando niveles ❌");
+      tbody.innerHTML = `<tr><td colspan="3">Error</td></tr>`;
+      return;
+    }
 
-        <div style="display:grid; grid-template-columns: repeat(12,1fr); gap:14px; margin-top:14px;">
-          <!-- Crear nivel -->
-          <div class="card" style="grid-column: span 5;">
-            <h2 class="h2">Crear nivel</h2>
+    if (!data?.length) {
+      setStatus("Sin niveles aún. Crea uno ✅");
+      tbody.innerHTML = `<tr><td colspan="3" class="muted">No hay registros</td></tr>`;
+      return;
+    }
 
-            <form id="formNivel" class="form" style="margin-top:10px;">
-              <label class="label">Nombre del nivel</label>
-              <input class="input" id="nombre" placeholder="Primaria / Secundaria / Inicial" required />
+    setStatus("Listo ✅");
+    tbody.innerHTML = "";
 
-              <label style="display:flex; align-items:center; gap:8px; margin-top:12px;">
-                <input type="checkbox" id="activo" checked />
-                <span>Activo</span>
-              </label>
+    data.forEach(row => {
+      const activo = (row.activo === undefined || row.activo === null) ? true : !!row.activo;
 
-              <button class="btn btn-primary" style="margin-top:12px;">Guardar</button>
-            </form>
-          </div>
+      tbody.innerHTML += `
+        <tr>
+          <td>${row.nombre ?? ""}</td>
+          <td>${activo ? "✅" : "—"}</td>
+          <td>
+            <button class="btn btn-secondary btn-sm" data-tg="${row.id}" data-act="${activo ? "1" : "0"}">
+              ${activo ? "Desactivar" : "Activar"}
+            </button>
+            <button class="btn btn-danger btn-sm" data-del="${row.id}">
+              Eliminar
+            </button>
+          </td>
+        </tr>
+      `;
+    });
 
-          <!-- Lista niveles -->
-          <div class="card" style="grid-column: span 7;">
-            <h2 class="h2">Niveles registrados</h2>
+    // toggle activo
+    tbody.querySelectorAll("[data-tg]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-tg");
+        const act = btn.getAttribute("data-act") === "1";
+        await toggleActivo(id, !act);
+      });
+    });
 
-            <div style="overflow:auto; margin-top:10px;">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Activo</th>
-                    <th style="width:210px;">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody id="tbodyNiveles">
-                  <tr><td colspan="3" class="muted">Cargando…</td></tr>
-                </tbody>
-              </table>
-            </div>
+    // delete
+    tbody.querySelectorAll("[data-del]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-del");
+        if (!confirm("¿Eliminar este nivel?")) return;
+        await eliminar(id);
+      });
+    });
+  }
 
-            <div class="muted" style="margin-top:10px; font-size:12px;">
-              * Los niveles pertenecen al colegio (no dependen del año).
-            </div>
-          </div>
-        </div>
-      </section>
+  async function toggleActivo(id, nuevo) {
+    setStatus("Actualizando…");
+    const { error } = await supabase
+      .from("niveles")
+      .update({ activo: nuevo })
+      .eq("id", id);
 
-    </main>
-  </div>
+    if (error) {
+      console.error(error);
+      alert("No se pudo actualizar.");
+      return;
+    }
 
-  <!-- Scripts (orden obligatorio) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/assets/js/supabaseClient.js"></script>
-  <script src="/assets/js/context.js"></script>
-  <script src="/eduadmin/js/niveles.js"></script>
-</body>
-</html>
+    setStatus("Actualizado ✅");
+    await listar();
+  }
+
+  async function eliminar(id) {
+    setStatus("Eliminando…");
+    const { error } = await supabase
+      .from("niveles")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error(error);
+      alert("No se pudo eliminar (quizá ya está usado en grados).");
+      return;
+    }
+
+    setStatus("Eliminado ✅");
+    await listar();
+  }
+
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const nombre = document.getElementById("nombre").value.trim();
+    const activo = document.getElementById("activo").checked;
+
+    if (!nombre) return alert("Ingresa el nombre.");
+
+    setStatus("Guardando…");
+
+    const payload = {
+      colegio_id: ctx.school_id,
+      nombre,
+      activo
+    };
+
+    const { error } = await supabase.from("niveles").insert([payload]);
+
+    if (error) {
+      console.error(error);
+      alert("No se pudo guardar (quizá ya existe).");
+      setStatus("Error ❌");
+      return;
+    }
+
+    form.reset();
+    document.getElementById("activo").checked = true;
+
+    setStatus("Guardado ✅");
+    await listar();
+  });
+
+  btnRefresh?.addEventListener("click", listar);
+
+  logoutBtn?.addEventListener("click", async (e) => {
+    e.preventDefault();
+    try {
+      window.clearContext?.();
+      await supabase.auth.signOut();
+      location.href = "/login.html";
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo cerrar sesión.");
+    }
+  });
+
+  await listar();
+});
