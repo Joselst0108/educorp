@@ -10,11 +10,6 @@
   <link rel="stylesheet" href="../../assets/css/main.css">
   <link rel="stylesheet" href="../../assets/css/components.css">
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../../assets/js/supabaseClient.js"></script>
-  <script src="../../assets/js/context.js"></script>
-  <script src="../../assets/js/ui.js"></script>
-
   <style>
     .grid-2 { display:grid; grid-template-columns: 1fr 1.2fr; gap:16px; }
     @media (max-width: 900px){ .grid-2 { grid-template-columns: 1fr; } }
@@ -25,7 +20,7 @@
 <body>
   <div class="app-shell">
 
-    <!-- ✅ SIDEBAR (igual al dashboard) -->
+    <!-- ✅ SIDEBAR DINÁMICO (DESPLEGABLE) -->
     <aside class="sidebar">
       <div class="brand">
         <img id="uiAppLogo" src="../../assets/img/educorp.jpeg" alt="EduAdmin" />
@@ -35,49 +30,14 @@
         </div>
       </div>
 
-      <nav class="nav">
-        <a href="./dashboard.html">
-          <div class="nav-item">Dashboard <span class="badge">Home</span></div>
-        </a>
-
-        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">COLEGIO</div>
-        <a href="./colegio.html"><div class="nav-item">Datos del colegio</div></a>
-        <a href="./usuarios.html"><div class="nav-item">Usuarios y roles</div></a>
-
-        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTRUCTURA ACADÉMICA</div>
-        <a href="./anio.html"><div class="nav-item">Año académico</div></a>
-        <a href="./niveles.html"><div class="nav-item">Niveles</div></a>
-        <a href="./grados.html"><div class="nav-item active">Grados</div></a>
-        <a href="./secciones.html"><div class="nav-item">Secciones / Aulas</div></a>
-        <a href="./vacantes.html"><div class="nav-item">Vacantes</div></a>
-
-        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTUDIANTES</div>
-        <a href="./alumnos.html"><div class="nav-item">Registrar alumnos</div></a>
-        <a href="./lista-alumnos.html"><div class="nav-item">Lista de alumnos</div></a>
-        <a href="./apoderados.html"><div class="nav-item">Apoderados</div></a>
-        <a href="./matriculas.html"><div class="nav-item">Matrículas</div></a>
-
-        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">FINANZAS REALES</div>
-        <a href="./conceptos.html"><div class="nav-item">Conceptos de pago</div></a>
-        <a href="./pagos.html"><div class="nav-item">Registrar pagos</div></a>
-        <a href="./caja.html"><div class="nav-item">Caja</div></a>
-        <a href="./morosidad.html"><div class="nav-item">Morosidad</div></a>
-        <a href="./reportes-financieros.html"><div class="nav-item">Reportes financieros</div></a>
-
-        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">REPORTES</div>
-        <a href="./reportes-alumnos.html"><div class="nav-item">Alumnos por grado</div></a>
-        <a href="./reportes-matriculas.html"><div class="nav-item">Matrículas por aula</div></a>
-
-        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">SISTEMA</div>
-        <a href="./config.html"><div class="nav-item">Configuración</div></a>
-        <a href="#" id="logoutBtn"><div class="nav-item">Cerrar sesión</div></a>
-      </nav>
+      <!-- 🔥 Menú dinámico -->
+      <nav id="uiSidebarNav" class="nav"></nav>
     </aside>
 
     <!-- ✅ MAIN -->
     <main class="main">
 
-      <!-- ✅ TU MISMA TOPBAR (no cambio IDs ni rutas) -->
+      <!-- ✅ TOPBAR -->
       <div class="topbar">
         <div class="topbar-left">
           <img
@@ -94,12 +54,12 @@
         </div>
 
         <div class="topbar-actions">
-          <button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
+          <button id="btnRefresh" class="btn btn-secondary" type="button">Actualizar</button>
           <a href="./dashboard.html" class="btn btn-secondary">Volver</a>
         </div>
       </div>
 
-      <!-- ✅ TU CONTENIDO EXACTO -->
+      <!-- ✅ CONTENIDO -->
       <div class="page-header">
         <h1>Grados</h1>
         <div id="status" class="status muted">Cargando…</div>
@@ -161,10 +121,27 @@
         </div>
       </div>
 
-      <!-- ✅ TU MISMO SCRIPT -->
-      <script src="../js/grados.js"></script>
     </main>
-
   </div>
+
+  <!-- ✅ Scripts al final (mejor práctica) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabaseClient.js"></script>
+  <script src="../../assets/js/context.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+
+  <!-- ✅ Activa menú desplegable -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.renderEduAdminSidebar) {
+        window.renderEduAdminSidebar();
+      } else {
+        console.error("renderEduAdminSidebar no existe. Revisa ../../assets/js/ui.js");
+      }
+    });
+  </script>
+
+  <!-- ✅ Tu JS real de página -->
+  <script src="../js/grados.js"></script>
 </body>
 </html>
