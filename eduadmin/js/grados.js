@@ -1,4 +1,4 @@
-// /eduadmin/js/grados.js
+rp// /eduadmin/js/grados.js
 (() => {
   const supabase = () => window.supabaseClient;
 
@@ -86,7 +86,7 @@
 
     if (elSchool) elSchool.textContent = ctx.school_name || "Colegio";
     if (elYear) elYear.textContent = ctx.year_id ? `Año: ${ctx.year_name || "—"}` : "Año: —";
-    if (elLogo) elLogo.src = ctx.school_logo_url || "/assets/img/eduadmin.jpeg";
+    if (elLogo) elLogo.src = ctx.school_logo_url || "educorp/assets/img/eduadmin.jpeg";
   }
 
   async function loadNiveles(ctx) {
