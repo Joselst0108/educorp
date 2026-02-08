@@ -1,11 +1,12 @@
 async function getUserData() {
-    const { data, error } = await supabase.auth.getUser();
-    if (error) {
-        console.error(error);
-        return null;
-    }
-    return data.user;
+  const { data, error } = await supabase.auth.getUser();
+  if (error) {
+    console.error(error);
+    return null;
+  }
+  return data.user;
 }
+
 // /eduadmin/js/niveles.js
 (() => {
   const supabase = () => window.supabaseClient;
@@ -40,16 +41,15 @@ async function getUserData() {
     tbody.innerHTML = `<tr><td colspan="3" class="muted">Cargando…</td></tr>`;
 
     // ✅ Tabla esperada: niveles
-    // Campos esperados: id, nombre, activo, colegio_id
-    // Si tu tabla se llama distinto, dime el nombre y lo ajusto.
+    // Campos esperados: id, nombre, activo, colegio_id, (opcional) anio_academico_id
     let q = supabase()
       .from("niveles")
       .select("id, nombre, activo")
       .eq("colegio_id", ctx.school_id)
       .order("nombre", { ascending: true });
 
-    // 👉 Si tus niveles dependen del año, descomenta:
-    // q = q.eq("anio_id", ctx.year_id);
+    // ✅ Si tus niveles dependen del año académico activo, filtramos por anio_academico_id
+    if (ctx.year_id) q = q.eq("anio_academico_id", ctx.year_id);
 
     const { data, error } = await q;
 
@@ -66,7 +66,9 @@ async function getUserData() {
       return;
     }
 
-    tbody.innerHTML = data.map(n => `
+    tbody.innerHTML = data
+      .map(
+        (n) => `
       <tr>
         <td>${esc(n.nombre)}</td>
         <td>${n.activo ? "Sí" : "No"}</td>
@@ -77,13 +79,16 @@ async function getUserData() {
           <button class="btn" data-action="delete" data-id="${n.id}">Eliminar</button>
         </td>
       </tr>
-    `).join("");
+    `
+      )
+      .join("");
 
     setStatus(`Niveles: ${data.length}`);
   }
 
   async function createNivel(ctx) {
-    const nombre = els.nivel()?.value?.trim();
+    // ✅ normalizamos a minúscula para pasar el CHECK (niveles_nombre_check)
+    const nombre = els.nivel()?.value?.trim()?.toLowerCase();
     const activo = !!els.activo()?.checked;
 
     if (!nombre) {
@@ -109,19 +114,17 @@ async function getUserData() {
     const payload = {
       colegio_id: ctx.school_id,
       nombre,
-      activo
+      activo,
     };
 
-    // 👉 Si tu tabla requiere anio_id, descomenta:
-    // payload.anio_id = ctx.year_id;
+    // ✅ tu DB usa anio_academico_id (lo mandamos si existe en el contexto)
+    if (ctx.year_id) payload.anio_academico_id = ctx.year_id;
 
-    const { error } = await supabase()
-      .from("niveles")
-      .insert(payload);
+    const { error } = await supabase().from("niveles").insert(payload);
 
     if (error) {
       console.error("insert nivel error:", error);
-      alert("No se pudo guardar el nivel.");
+      alert(error.message || "No se pudo guardar el nivel.");
       return;
     }
 
