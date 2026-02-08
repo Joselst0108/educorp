@@ -1,490 +1,275 @@
+// /eduadmin/pages/js/vacantes.js
+// Vacantes (Cupos) por sección - EduCorp
+// Requiere: window.supabaseClient + window.EduContext (context.js)
+
 (() => {
-  "use strict";
+  const $ = (id) => document.getElementById(id);
 
-  let started = false;
+  // ==========
+  // UI refs (ajusta SOLO si tus IDs difieren)
+  // ==========
+  const selNivel = $("selNivel");
+  const selGrado = $("selGrado");
+  const selSeccion = $("selSeccion");
+  const inpCupo = $("inpCupo");
 
-  const T_SECCIONES = "secciones";
-  const T_ALUMNOS = "alumnos";
-  const T_VACANTES = "vacantes";
+  const btnGuardar = $("btnGuardarCupo");
+  const btnLimpiar = $("btnLimpiar");
+  const btnActualizar = $("btnActualizar");
 
-  // Cache de estructura para combos
-  let estructura = {
-    niveles: [],   // [{id,nombre}]
-    grados: [],    // [{id,nombre,nivel_id}]
-    secciones: []  // [{id,nombre,grado_id,nivel_id, grado_nombre, nivel_nombre}]
-  };
+  const tbody = $("tbodyVacantes");
 
-  document.addEventListener("DOMContentLoaded", async () => {
-    if (started) return;
-    started = true;
+  const txtContexto = $("txtContexto"); // opcional
+  const txtRol = $("txtRol"); // opcional
 
-    try {
-      if (!window.supabaseClient) {
-        alert("Supabase no inicializado. Revisa supabaseClient.js");
-        return;
-      }
+  const txtSecciones = $("txtSecciones"); // opcional
+  const txtMatriculados = $("txtMatriculados"); // opcional
+  const txtTotalVacantes = $("txtTotalVacantes"); // opcional
 
-      const colegioId = localStorage.getItem("colegio_id");
-      const anioId = localStorage.getItem("anio_academico_id");
-      if (!colegioId || !anioId) {
-        alert("Selecciona Colegio y Año Académico primero.");
-        window.location.href = "./anio-academico.html";
-        return;
-      }
+  // ==========
+  // Estado
+  // ==========
+  let ctx = null; // { colegioId, anioId, colegioNombre, anioNombre, rol, ... }
+  let secciones = []; // secciones del colegio/año (con metadatos)
+  let vacantes = []; // vacantes existentes del año/colegio
 
-      safeSetText("pillContext", "Contexto: OK");
-
-      const role = await getMyRoleSafe();
-      safeSetText("pillRole", `Rol: ${role || "desconocido"}`);
-
-      const canEdit = role === "superadmin" || role === "director";
-      applyPermissionsUI(canEdit);
-
-      // Eventos
-      onClick("btnRefresh", async () => {
-        await cargarTodo(colegioId, anioId, canEdit);
-      });
-
-      onClick("btnGuardar", async () => {
-        await guardarCupo(colegioId, anioId, canEdit);
-      });
-
-      onClick("btnLimpiar", () => limpiarForm());
-
-      // Cambio de combos
-      onChange("selNivel", () => refreshGrados());
-      onChange("selGrado", () => refreshSecciones());
-
-      // Cargar todo
-      await cargarTodo(colegioId, anioId, canEdit);
-
-    } catch (e) {
-      console.error("Vacantes error:", e);
-      alert("Error en Vacantes. Revisa consola.");
-    }
-  });
-
-  async function cargarTodo(colegioId, anioId, canEdit) {
-    setStatus("saveStatus", "Cargando...");
-    await cargarEstructuraSecciones(colegioId, anioId); // arma niveles/grados/secciones desde lo existente
-    await cargarTablaVacantes(colegioId, anioId, canEdit);
-    initCombos();
-    setStatus("saveStatus", "");
+  // ==========
+  // Helpers UI
+  // ==========
+  function setLoadingSelect(selectEl, label = "Cargando...") {
+    if (!selectEl) return;
+    selectEl.innerHTML = `<option value="">${label}</option>`;
+    selectEl.disabled = true;
   }
 
-  // -----------------------------
-  // 1) ESTRUCTURA PARA COMBOS
-  // -----------------------------
-  async function cargarEstructuraSecciones(colegioId, anioId) {
-    // Intento #1: con relaciones (si tus FK están bien definidas)
-    // secciones -> grados -> niveles
-    let { data, error } = await window.supabaseClient
-      .from(T_SECCIONES)
-      .select(`
-        id, nombre, grado_id, nivel_id,
-        grados:grado_id ( id, nombre, nivel_id, niveles:nivel_id ( id, nombre ) )
-      `)
-      .eq("colegio_id", colegioId)
-      .eq("anio_academico_id", anioId)
+  function setOptions(selectEl, options, placeholder = "Seleccione...") {
+    if (!selectEl) return;
+    const html = [
+      `<option value="">${placeholder}</option>`,
+      ...options.map((o) => `<option value="${o.value}">${o.label}</option>`),
+    ].join("");
+    selectEl.innerHTML = html;
+    selectEl.disabled = false;
+  }
+
+  function setText(el, value) {
+    if (!el) return;
+    el.textContent = value ?? "";
+  }
+
+  function toast(msg) {
+    alert(msg);
+  }
+
+  function safeMetadatos(row) {
+    // puede venir null, {}, o string
+    const m = row?.metadatos;
+    if (!m) return {};
+    if (typeof m === "string") {
+      try { return JSON.parse(m); } catch { return {}; }
+    }
+    return m;
+  }
+
+  function normalizeNivel(nivel) {
+    if (!nivel) return "";
+    const s = String(nivel).trim();
+    // Normaliza a "Primaria" / "Secundaria" etc
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  }
+
+  function normalizeGrado(grado) {
+    if (grado === null || grado === undefined) return "";
+    return String(grado).trim();
+  }
+
+  // ==========
+  // Contexto
+  // ==========
+  async function loadContext() {
+    // Debe existir en tu proyecto (context.js)
+    // Si tu contexto usa otro nombre, dímelo y lo adapto.
+    if (!window.EduContext || typeof window.EduContext.get !== "function") {
+      throw new Error("EduContext no está disponible. Revisa context.js");
+    }
+    ctx = await window.EduContext.get(); // esperado: { colegioId, anioId, rol, ... }
+
+    // Mostrar chips si existen
+    setText(txtContexto, ctx ? "OK" : "NO");
+    setText(txtRol, ctx?.rol || "");
+
+    if (!ctx?.colegioId || !ctx?.anioId) {
+      toast("Debes seleccionar un Colegio y un Año Académico. Se redirigirá.");
+      // Ajusta esta ruta si tu app usa otra
+      window.location.href = "../dashboard.html";
+      return false;
+    }
+    return true;
+  }
+
+  // ==========
+  // Traer secciones + autocompletar metadatos si faltan
+  // ==========
+  async function fetchSecciones() {
+    setLoadingSelect(selNivel);
+    setLoadingSelect(selGrado, "Seleccione nivel primero...");
+    setLoadingSelect(selSeccion, "Seleccione grado primero...");
+
+    // Importante: tu tabla se llama secciones
+    // Debe tener: id, nombre, colegio_id, anio_academico_id, metadatos (jsonb)
+    const { data, error } = await window.supabaseClient
+      .from("secciones")
+      .select("id, nombre, metadatos, colegio_id, anio_academico_id")
+      .eq("colegio_id", ctx.colegioId)
+      .eq("anio_academico_id", ctx.anioId)
       .order("nombre", { ascending: true });
 
-    if (error) {
-      // Fallback: sin relaciones
-      console.warn("Relaciones no disponibles, usando fallback simple:", error.message);
-      const res2 = await window.supabaseClient
-        .from(T_SECCIONES)
-        .select("id, nombre, grado_id, nivel_id")
-        .eq("colegio_id", colegioId)
-        .eq("anio_academico_id", anioId)
-        .order("nombre", { ascending: true });
+    if (error) throw error;
 
-      data = res2.data || [];
-    }
+    secciones = (data || []).map((s) => ({
+      ...s,
+      metadatos: safeMetadatos(s),
+    }));
 
-    const secciones = (data || []).map(s => {
-      const grado = s?.grados || null;
-      const nivel = grado?.niveles || null;
+    setText(txtSecciones, String(secciones.length));
 
-      return {
-        id: s.id,
-        nombre: s.nombre || "-",
-        grado_id: s.grado_id || grado?.id || null,
-        nivel_id: s.nivel_id || grado?.nivel_id || nivel?.id || null,
-        grado_nombre: grado?.nombre || null,
-        nivel_nombre: nivel?.nombre || null
+    // Si metadatos está vacío {}, intentamos inferir desde el nombre
+    // Ej: "1 A" o "1° A" -> grado=1 ; nivel lo ponemos "Primaria" por defecto
+    // (si tu colegio tiene Secundaria, te conviene guardar nivel real al crear secciones)
+    const faltantes = secciones.filter((s) => {
+      const m = s.metadatos || {};
+      return !m.nivel || !m.grado;
+    });
+
+    // Autollenado (no rompe nada, solo completa si falta)
+    // Si no quieres que escriba nivel por defecto, dímelo.
+    for (const sec of faltantes) {
+      const inferred = inferMetaFromSectionName(sec.nombre);
+      if (!inferred) continue;
+
+      const nuevo = {
+        ...(sec.metadatos || {}),
+        nivel: sec.metadatos?.nivel || inferred.nivel,
+        grado: sec.metadatos?.grado || inferred.grado,
       };
-    });
 
-    estructura.secciones = secciones;
+      const { error: upErr } = await window.supabaseClient
+        .from("secciones")
+        .update({ metadatos: nuevo })
+        .eq("id", sec.id);
 
-    // Derivar grados y niveles desde secciones (sin depender de otras tablas)
-    const gradosMap = new Map();
-    const nivelesMap = new Map();
-
-    secciones.forEach(s => {
-      if (s.grado_id && !gradosMap.has(s.grado_id)) {
-        gradosMap.set(s.grado_id, {
-          id: s.grado_id,
-          nombre: s.grado_nombre || `Grado ${String(s.grado_id).slice(0, 6)}...`,
-          nivel_id: s.nivel_id || null
-        });
+      if (!upErr) {
+        sec.metadatos = nuevo;
       }
-      if (s.nivel_id && !nivelesMap.has(s.nivel_id)) {
-        nivelesMap.set(s.nivel_id, {
-          id: s.nivel_id,
-          nombre: s.nivel_nombre || `Nivel ${String(s.nivel_id).slice(0, 6)}...`
-        });
-      }
-    });
+    }
 
-    estructura.grados = Array.from(gradosMap.values());
-    estructura.niveles = Array.from(nivelesMap.values());
+    // Con secciones ya con metadatos -> llenar Nivel
+    const niveles = Array.from(
+      new Set(secciones.map((s) => normalizeNivel(s.metadatos?.nivel)).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b));
 
-    safeSetText("countSecciones", String(secciones.length));
+    setOptions(selNivel, niveles.map((n) => ({ value: n, label: n })), "Seleccione nivel");
+    setOptions(selGrado, [], "Seleccione nivel primero...");
+    setOptions(selSeccion, [], "Seleccione grado primero...");
   }
 
-  function initCombos() {
-    const selNivel = document.getElementById("selNivel");
-    const selGrado = document.getElementById("selGrado");
-    const selSeccion = document.getElementById("selSeccion");
+  function inferMetaFromSectionName(nombre) {
+    if (!nombre) return null;
+    const raw = String(nombre).trim();
 
-    if (!selNivel || !selGrado || !selSeccion) return;
+    // Caso "1 A", "1° A", "1º A", "1A"
+    const match = raw.match(/^(\d{1,2})\s*[°º]?\s*([A-Za-z])?$/) ||
+                  raw.match(/^(\d{1,2})\s*[°º]?\s*([A-Za-z])\b/);
+    if (!match) return null;
 
-    // Nivel
-    selNivel.innerHTML = `<option value="">Seleccione nivel</option>`;
-    if (estructura.niveles.length === 0) {
-      selNivel.innerHTML = `<option value="">No hay niveles (crea secciones primero)</option>`;
-      selGrado.disabled = true;
-      selSeccion.disabled = true;
-      return;
-    }
-
-    estructura.niveles
-      .sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""))
-      .forEach(n => {
-        const opt = document.createElement("option");
-        opt.value = n.id;
-        opt.textContent = n.nombre;
-        selNivel.appendChild(opt);
-      });
-
-    selGrado.disabled = false;
-    refreshGrados();
+    const grado = match[1];
+    // nivel por defecto (ajustable)
+    return { nivel: "Primaria", grado: String(parseInt(grado, 10)) };
   }
 
-  function refreshGrados() {
-    const selNivel = document.getElementById("selNivel");
-    const selGrado = document.getElementById("selGrado");
-    const selSeccion = document.getElementById("selSeccion");
-    if (!selNivel || !selGrado || !selSeccion) return;
+  // ==========
+  // Vacantes
+  // ==========
+  async function fetchVacantes() {
+    // tabla creada: vacantes
+    // esperado: id, colegio_id, anio_academico_id, nivel, grado, seccion_id, cupo, created_at
+    const { data, error } = await window.supabaseClient
+      .from("vacantes")
+      .select("id, nivel, grado, seccion_id, cupo, created_at, secciones:seccion_id (nombre)")
+      .eq("colegio_id", ctx.colegioId)
+      .eq("anio_academico_id", ctx.anioId)
+      .order("created_at", { ascending: false });
 
-    const nivelId = selNivel.value;
+    if (error) throw error;
 
-    selGrado.innerHTML = `<option value="">Seleccione grado</option>`;
-    selSeccion.innerHTML = `<option value="">Seleccione grado</option>`;
-    selSeccion.disabled = true;
-
-    const grados = estructura.grados
-      .filter(g => !nivelId || g.nivel_id === nivelId)
-      .sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
-
-    if (grados.length === 0) {
-      selGrado.innerHTML = `<option value="">No hay grados para este nivel</option>`;
-      selGrado.disabled = false;
-      return;
-    }
-
-    grados.forEach(g => {
-      const opt = document.createElement("option");
-      opt.value = g.id;
-      opt.textContent = g.nombre;
-      selGrado.appendChild(opt);
-    });
-
-    selGrado.disabled = false;
-    selSeccion.disabled = false;
-    refreshSecciones();
+    vacantes = data || [];
+    renderTable();
   }
 
-  function refreshSecciones() {
-    const selNivel = document.getElementById("selNivel");
-    const selGrado = document.getElementById("selGrado");
-    const selSeccion = document.getElementById("selSeccion");
-    if (!selNivel || !selGrado || !selSeccion) return;
-
-    const nivelId = selNivel.value;
-    const gradoId = selGrado.value;
-
-    selSeccion.innerHTML = `<option value="">Seleccione sección</option>`;
-
-    const secciones = estructura.secciones
-      .filter(s => (!nivelId || s.nivel_id === nivelId) && (!gradoId || s.grado_id === gradoId))
-      .sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
-
-    if (secciones.length === 0) {
-      selSeccion.innerHTML = `<option value="">No hay secciones para ese grado</option>`;
-      return;
-    }
-
-    secciones.forEach(s => {
-      const opt = document.createElement("option");
-      opt.value = s.id;
-      opt.textContent = s.nombre;
-      selSeccion.appendChild(opt);
-    });
-  }
-
-  // -----------------------------
-  // 2) GUARDAR CUPO (DIRECTOR)
-  // -----------------------------
-  async function guardarCupo(colegioId, anioId, canEdit) {
-    if (!canEdit) {
-      alert("No tienes permisos para editar cupos.");
-      return;
-    }
-
-    const seccionId = getVal("selSeccion");
-    const cupoStr = getVal("inpCupo");
-
-    if (!seccionId) {
-      alert("Seleccione una sección.");
-      return;
-    }
-
-    const cupo = Number(cupoStr);
-    if (!Number.isFinite(cupo) || cupo < 0 || cupo > 200) {
-      alert("Cupo inválido (0 a 200).");
-      return;
-    }
-
-    setStatus("saveStatus", "Guardando...");
-
-    // Upsert por constraint unique (colegio_id, anio_academico_id, seccion_id)
-    const payload = {
-      colegio_id: colegioId,
-      anio_academico_id: anioId,
-      seccion_id: seccionId,
-      cupo: Math.trunc(cupo)
-    };
-
-    const { error } = await window.supabaseClient
-      .from(T_VACANTES)
-      .upsert(payload, { onConflict: "colegio_id,anio_academico_id,seccion_id" });
-
-    if (error) {
-      console.error("Error guardando cupo:", error);
-      alert("No se pudo guardar: " + (error.message || "Error"));
-      setStatus("saveStatus", "");
-      return;
-    }
-
-    setStatus("saveStatus", "✅ Guardado");
-    await cargarTablaVacantes(colegioId, anioId, canEdit);
-    limpiarForm();
-  }
-
-  function limpiarForm() {
-    setVal("inpCupo", "");
-    setStatus("saveStatus", "");
-  }
-
-  // -----------------------------
-  // 3) TABLA VACANTES
-  // -----------------------------
-  async function cargarTablaVacantes(colegioId, anioId, canEdit) {
-    const tbody = document.getElementById("vacantesTbody");
-    if (tbody) tbody.innerHTML = `<tr><td colspan="7">Cargando...</td></tr>`;
-
-    // Conteo alumnos por seccion
-    const { data: alumnos, error: errA } = await window.supabaseClient
-      .from(T_ALUMNOS)
-      .select("id, seccion_id")
-      .eq("colegio_id", colegioId)
-      .eq("anio_academico_id", anioId);
-
-    if (errA) console.error("Error alumnos:", errA);
-
-    const conteo = new Map();
-    (alumnos || []).forEach(a => {
-      if (!a.seccion_id) return;
-      conteo.set(a.seccion_id, (conteo.get(a.seccion_id) || 0) + 1);
-    });
-
-    safeSetText("countMatriculados", String((alumnos || []).length));
-
-    // Traer vacantes existentes
-    const { data: vacRows, error: errV } = await window.supabaseClient
-      .from(T_VACANTES)
-      .select("id, seccion_id, cupo")
-      .eq("colegio_id", colegioId)
-      .eq("anio_academico_id", anioId);
-
-    if (errV) {
-      console.error("Error vacantes:", errV);
-      if (tbody) tbody.innerHTML = `<tr><td colspan="7">Error vacantes: ${escapeHtml(errV.message)}</td></tr>`;
-      return;
-    }
-
-    const vacMap = new Map();
-    (vacRows || []).forEach(v => vacMap.set(v.seccion_id, v));
-
+  function renderTable() {
     if (!tbody) return;
-    tbody.innerHTML = "";
 
-    // Si no hay secciones, mostrar aviso
-    if (!estructura.secciones || estructura.secciones.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7">No hay secciones para este colegio y año. Crea secciones primero.</td></tr>`;
+    if (!vacantes.length) {
+      tbody.innerHTML = `<tr><td colspan="7" style="opacity:.7">Sin registros</td></tr>`;
+      setText(txtTotalVacantes, "0");
       return;
     }
 
-    estructura.secciones.forEach(sec => {
-      const matriculados = conteo.get(sec.id) || 0;
-      const v = vacMap.get(sec.id);
-      const cupo = Number.isFinite(Number(v?.cupo)) ? Number(v.cupo) : 0;
-      const vacantes = Math.max(0, cupo - matriculados);
+    let total = 0;
 
-      const nivel = sec.nivel_nombre || "-";
-      const grado = sec.grado_nombre || "-";
+    tbody.innerHTML = vacantes
+      .map((v) => {
+        const secNombre = v?.secciones?.nombre || "-";
+        total += Number(v.cupo || 0);
 
-      const action = canEdit
-        ? `<button class="btn btn-mini" data-edit="1" data-seccion="${sec.id}" data-cupo="${cupo}">Editar</button>`
-        : `<span style="opacity:.7;">Solo lectura</span>`;
+        return `
+          <tr>
+            <td>${escapeHtml(v.nivel || "")}</td>
+            <td>${escapeHtml(String(v.grado || ""))}</td>
+            <td>${escapeHtml(secNombre)}</td>
+            <td style="text-align:right">${Number(v.cupo || 0)}</td>
+            <td>${new Date(v.created_at).toLocaleString()}</td>
+            <td>
+              <button class="btn btn-sm" data-edit="${v.id}">Editar</button>
+              <button class="btn btn-sm btn-danger" data-del="${v.id}">Eliminar</button>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
 
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHtml(nivel)}</td>
-        <td>${escapeHtml(grado)}</td>
-        <td>${escapeHtml(sec.nombre)}</td>
-        <td style="text-align:center;">${matriculados}</td>
-        <td style="text-align:center;"><b>${cupo}</b></td>
-        <td style="text-align:center; font-weight:700;">${vacantes}</td>
-        <td style="text-align:center;">${action}</td>
-      `;
-      tbody.appendChild(tr);
+    setText(txtTotalVacantes, String(total));
+
+    // acciones
+    tbody.querySelectorAll("[data-del]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-del");
+        if (!confirm("¿Eliminar este registro?")) return;
+        const { error } = await window.supabaseClient.from("vacantes").delete().eq("id", id);
+        if (error) return toast("Error eliminando: " + error.message);
+        await fetchVacantes();
+      });
     });
 
-    // Editar rápido
-    if (canEdit) {
-      tbody.querySelectorAll("button[data-edit='1']").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          const seccionId = btn.getAttribute("data-seccion");
-          const cupoActual = Number(btn.getAttribute("data-cupo") || 0);
+    tbody.querySelectorAll("[data-edit]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-edit");
+        const v = vacantes.find((x) => x.id === id);
+        if (!v) return;
 
-          const nuevoStr = prompt("Nuevo cupo:", String(cupoActual));
-          if (nuevoStr === null) return;
-
-          const nuevo = Number(nuevoStr);
-          if (!Number.isFinite(nuevo) || nuevo < 0 || nuevo > 200) {
-            alert("Cupo inválido (0 a 200).");
-            return;
-          }
-
-          const payload = {
-            colegio_id: colegioId,
-            anio_academico_id: anioId,
-            seccion_id: seccionId,
-            cupo: Math.trunc(nuevo)
-          };
-
-          const { error } = await window.supabaseClient
-            .from(T_VACANTES)
-            .upsert(payload, { onConflict: "colegio_id,anio_academico_id,seccion_id" });
-
-          if (error) {
-            console.error("Error editando cupo:", error);
-            alert("No se pudo actualizar: " + (error.message || "Error"));
-            return;
-          }
-
-          await cargarTablaVacantes(colegioId, anioId, canEdit);
+        // precargar selects + input
+        selNivel.value = v.nivel || "";
+        onNivelChange().then(() => {
+          selGrado.value = String(v.grado || "");
+          onGradoChange().then(() => {
+            selSeccion.value = v.seccion_id || "";
+          });
         });
+        inpCupo.value = String(v.cupo || "");
+        inpCupo.setAttribute("data-edit-id", id);
+        toast("Editando registro. Cambia cupo y vuelve a Guardar.");
       });
-    }
-  }
-
-  // -----------------------------
-  // PERMISOS UI
-  // -----------------------------
-  function applyPermissionsUI(canEdit) {
-    const msg = document.getElementById("permMsg");
-    const btnGuardar = document.getElementById("btnGuardar");
-    const inpCupo = document.getElementById("inpCupo");
-    const selNivel = document.getElementById("selNivel");
-    const selGrado = document.getElementById("selGrado");
-    const selSeccion = document.getElementById("selSeccion");
-
-    if (!canEdit) {
-      if (msg) {
-        msg.style.display = "inline-flex";
-        msg.textContent = "Solo lectura: Secretaría no puede editar cupos.";
-      }
-      if (btnGuardar) btnGuardar.disabled = true;
-      if (inpCupo) inpCupo.disabled = true;
-      if (selNivel) selNivel.disabled = true;
-      if (selGrado) selGrado.disabled = true;
-      if (selSeccion) selSeccion.disabled = true;
-    } else {
-      if (msg) msg.style.display = "none";
-      if (btnGuardar) btnGuardar.disabled = false;
-      if (inpCupo) inpCupo.disabled = false;
-      if (selNivel) selNivel.disabled = false;
-      // selGrado/selSeccion se activan según flujo
-    }
-  }
-
-  // -----------------------------
-  // ROL (profiles)
-  // -----------------------------
-  async function getMyRoleSafe() {
-    try {
-      const { data: sess } = await window.supabaseClient.auth.getSession();
-      const user = sess?.session?.user;
-      if (!user) return null;
-
-      const { data, error } = await window.supabaseClient
-        .from("profiles")
-        .select("rol, role, tipo")
-        .eq("id", user.id)
-        .single();
-
-      if (error) return null;
-      return data?.rol || data?.role || data?.tipo || null;
-    } catch {
-      return null;
-    }
-  }
-
-  // -----------------------------
-  // Helpers DOM
-  // -----------------------------
-  function onClick(id, fn) {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener("click", fn);
-  }
-
-  function onChange(id, fn) {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener("change", fn);
-  }
-
-  function safeSetText(id, text) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = text;
-  }
-
-  function setStatus(id, text) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = text || "";
-  }
-
-  function getVal(id) {
-    const el = document.getElementById(id);
-    return el ? el.value : "";
-  }
-
-  function setVal(id, v) {
-    const el = document.getElementById(id);
-    if (el) el.value = v;
+    });
   }
 
   function escapeHtml(str) {
@@ -495,4 +280,170 @@
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
   }
+
+  // ==========
+  // Cascada: Nivel -> Grado -> Sección
+  // ==========
+  async function onNivelChange() {
+    const nivel = selNivel.value;
+    if (!nivel) {
+      setOptions(selGrado, [], "Seleccione nivel primero...");
+      setOptions(selSeccion, [], "Seleccione grado primero...");
+      return;
+    }
+
+    const grados = Array.from(
+      new Set(
+        secciones
+          .filter((s) => normalizeNivel(s.metadatos?.nivel) === nivel)
+          .map((s) => normalizeGrado(s.metadatos?.grado))
+          .filter(Boolean)
+      )
+    ).sort((a, b) => Number(a) - Number(b));
+
+    setOptions(selGrado, grados.map((g) => ({ value: g, label: g })), "Seleccione grado");
+    setOptions(selSeccion, [], "Seleccione grado primero...");
+  }
+
+  async function onGradoChange() {
+    const nivel = selNivel.value;
+    const grado = selGrado.value;
+    if (!nivel || !grado) {
+      setOptions(selSeccion, [], "Seleccione grado primero...");
+      return;
+    }
+
+    const secs = secciones
+      .filter(
+        (s) =>
+          normalizeNivel(s.metadatos?.nivel) === nivel &&
+          normalizeGrado(s.metadatos?.grado) === grado
+      )
+      .map((s) => ({ value: s.id, label: s.nombre }));
+
+    setOptions(selSeccion, secs, "Seleccione sección");
+  }
+
+  // ==========
+  // Guardar / actualizar
+  // ==========
+  async function onGuardar() {
+    const nivel = selNivel.value;
+    const grado = selGrado.value;
+    const seccionId = selSeccion.value;
+    const cupo = Number(inpCupo.value);
+
+    if (!nivel || !grado || !seccionId) return toast("Seleccione nivel, grado y sección.");
+    if (!Number.isFinite(cupo) || cupo < 0) return toast("Ingrese un cupo válido (0 o más).");
+
+    // Permisos (según tu regla: Director y Superadmin editan; Secretaria solo ve)
+    if (ctx?.rol === "secretaria") return toast("Secretaría solo visualiza. No puede editar cupos.");
+
+    const editId = inpCupo.getAttribute("data-edit-id");
+
+    if (editId) {
+      const { error } = await window.supabaseClient
+        .from("vacantes")
+        .update({ nivel, grado, seccion_id: seccionId, cupo })
+        .eq("id", editId);
+
+      if (error) return toast("Error actualizando: " + error.message);
+
+      inpCupo.removeAttribute("data-edit-id");
+      inpCupo.value = "";
+      toast("Actualizado.");
+    } else {
+      // evitar duplicado por (colegio, año, sección) -> upsert lógico
+      const { data: existing, error: exErr } = await window.supabaseClient
+        .from("vacantes")
+        .select("id")
+        .eq("colegio_id", ctx.colegioId)
+        .eq("anio_academico_id", ctx.anioId)
+        .eq("seccion_id", seccionId)
+        .maybeSingle();
+
+      if (exErr && exErr.code !== "PGRST116") {
+        return toast("Error verificando duplicado: " + exErr.message);
+      }
+
+      if (existing?.id) {
+        const { error } = await window.supabaseClient
+          .from("vacantes")
+          .update({ nivel, grado, cupo })
+          .eq("id", existing.id);
+
+        if (error) return toast("Error actualizando: " + error.message);
+        toast("Ya existía. Se actualizó el cupo.");
+      } else {
+        const { error } = await window.supabaseClient.from("vacantes").insert({
+          colegio_id: ctx.colegioId,
+          anio_academico_id: ctx.anioId,
+          nivel,
+          grado,
+          seccion_id: seccionId,
+          cupo,
+        });
+
+        if (error) return toast("Error guardando: " + error.message);
+        toast("Guardado.");
+      }
+
+      inpCupo.value = "";
+    }
+
+    await fetchVacantes();
+  }
+
+  function onLimpiar() {
+    selNivel.value = "";
+    setOptions(selGrado, [], "Seleccione nivel primero...");
+    setOptions(selSeccion, [], "Seleccione grado primero...");
+    inpCupo.value = "";
+    inpCupo.removeAttribute("data-edit-id");
+  }
+
+  // ==========
+  // Init
+  // ==========
+  async function init() {
+    try {
+      console.log("Vacantes: iniciado");
+
+      if (!window.supabaseClient) {
+        toast("Supabase no está inicializado (window.supabaseClient).");
+        return;
+      }
+
+      const ok = await loadContext();
+      if (!ok) return;
+
+      // listeners
+      selNivel?.addEventListener("change", onNivelChange);
+      selGrado?.addEventListener("change", onGradoChange);
+      btnGuardar?.addEventListener("click", onGuardar);
+      btnLimpiar?.addEventListener("click", onLimpiar);
+      btnActualizar?.addEventListener("click", async () => {
+        await fetchSecciones();
+        await fetchVacantes();
+      });
+
+      // carga inicial
+      await fetchSecciones();
+      await fetchVacantes();
+
+      // si rol secretaria, deshabilitar inputs
+      if (ctx?.rol === "secretaria") {
+        if (selNivel) selNivel.disabled = true;
+        if (selGrado) selGrado.disabled = true;
+        if (selSeccion) selSeccion.disabled = true;
+        if (inpCupo) inpCupo.disabled = true;
+        if (btnGuardar) btnGuardar.disabled = true;
+      }
+    } catch (e) {
+      console.error(e);
+      toast("Error en Vacantes: " + (e?.message || e));
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
 })();
