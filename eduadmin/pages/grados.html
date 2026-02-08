@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Grados</title>
 
-  <!-- ✅ CSS principal -->
   <link rel="stylesheet" href="/assets/css/style.css" />
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -13,7 +12,6 @@
   <script src="/assets/js/context.js"></script>
   <script src="/assets/js/ui.js"></script>
 
-  <!-- (Opcional) Solo layout si tu CSS no tiene grid -->
   <style>
     .grid-2 { display:grid; grid-template-columns: 1fr 1.2fr; gap:16px; }
     @media (max-width: 900px){ .grid-2 { grid-template-columns: 1fr; } }
@@ -22,7 +20,6 @@
 </head>
 
 <body>
-  <!-- Topbar (igual a tus páginas) -->
   <div class="topbar">
     <div class="topbar-left">
       <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Logo" class="topbar-logo" />
@@ -44,7 +41,6 @@
   </div>
 
   <div class="grid-2">
-    <!-- Crear grado -->
     <div class="card">
       <h2 class="card-title">Crear grado</h2>
 
@@ -56,14 +52,17 @@
           </select>
         </div>
 
+        <!-- ✅ CASCADA -->
         <div class="form-group">
-          <label for="grado">Nombre del grado</label>
-          <input id="grado" type="text" placeholder="Ej: 1°, 2°, 3 años..." required />
+          <label for="grado">Grado</label>
+          <select id="grado" required>
+            <option value="">Selecciona un grado</option>
+          </select>
         </div>
 
         <div class="form-group">
-          <label for="orden">Orden (opcional)</label>
-          <input id="orden" type="number" placeholder="Ej: 1" />
+          <label for="orden">Orden</label>
+          <input id="orden" type="number" placeholder="Se llena automático" />
         </div>
 
         <div class="form-group" style="display:flex; gap:10px; align-items:center;">
@@ -72,11 +71,10 @@
         </div>
 
         <button type="submit" class="btn btn-primary" style="width:100%;">Guardar</button>
-        <div class="muted" style="margin-top:10px;">* Los grados se crean por colegio y nivel.</div>
+        <div class="muted" style="margin-top:10px;">* El grado depende del nivel seleccionado.</div>
       </form>
     </div>
 
-    <!-- Lista grados -->
     <div class="card">
       <h2 class="card-title">Grados registrados</h2>
 
