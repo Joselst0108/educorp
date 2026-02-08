@@ -1,3 +1,48 @@
+
+async function fillMissingContext(ctx) {
+  const supabase = window.supabaseClient;
+
+  // Completar colegio
+  if (ctx?.school_id && (!ctx.school_name || !ctx.school_logo_url)) {
+    const { data: col } = await supabase
+      .from("colegios")
+      .select("nombre, logo_url")
+      .eq("id", ctx.school_id)
+      .single();
+
+    if (col) {
+      ctx.school_name = ctx.school_name || col.nombre;
+      ctx.school_logo_url = ctx.school_logo_url || col.logo_url;
+    }
+  }
+
+  // Completar año activo
+  if (ctx?.school_id && !ctx.year_id) {
+    const { data: yr } = await supabase
+      .from("anios_academicos")
+      .select("id, nombre, anio")
+      .eq("colegio_id", ctx.school_id)
+      .eq("activo", true)
+      .maybeSingle();
+
+    if (yr?.id) {
+      ctx.year_id = yr.id;
+      ctx.year_name = yr.nombre || String(yr.anio || "");
+    }
+  }
+
+  return ctx;
+}
+
+function paintTopbar(ctx) {
+  const elSchool = document.getElementById("uiSchoolName");
+  const elYear = document.getElementById("uiYearName");
+  const elLogo = document.getElementById("uiSchoolLogo");
+
+  if (elSchool) elSchool.textContent = ctx.school_name || "Colegio";
+  if (elYear) elYear.textContent = ctx.year_id ? `Año: ${ctx.year_name || "—"}` : "Año: —";
+  if (elLogo) elLogo.src = ctx.school_logo_url || "/assets/img/eduadmin.jpeg";
+}
 // /eduadmin/js/niveles.js
 (() => {
   const supabase = () => window.supabaseClient;
