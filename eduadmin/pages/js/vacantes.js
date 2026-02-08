@@ -1,148 +1,159 @@
-(() => {
+document.addEventListener("DOMContentLoaded", async () => {
 
-const supabase = () => window.supabaseClient;
+  const supabase = window.supabaseClient;
+  const tbody = document.getElementById("tbodyVacantes");
+  const form = document.getElementById("formVacante");
 
-const els = {
-  nivel: () => document.getElementById("nivel_id"),
-  grado: () => document.getElementById("grado_id"),
-  seccion: () => document.getElementById("seccion_id"),
-  cupo: () => document.getElementById("cupo_total"),
-  vacantes: () => document.getElementById("vacantes_disponibles"),
-  btn: () => document.getElementById("btnGuardar"),
-  tbody: () => document.getElementById("tbodyVacantes"),
-  status: () => document.getElementById("status")
-};
-
-function setStatus(t){
-  const el = els.status();
-  if(el) el.textContent = t;
-}
-
-async function getCtx(){
-  let ctx = await window.getContext(false);
-  return ctx;
-}
-
-async function loadNiveles(ctx){
-  const {data} = await supabase()
-    .from("niveles")
-    .select("id,nombre")
-    .eq("colegio_id", ctx.school_id)
-    .eq("anio_academico_id", ctx.year_id)
-    .order("nombre");
-
-  els.nivel().innerHTML = `<option value="">Nivel</option>`;
-  data?.forEach(n=>{
-    els.nivel().innerHTML += `<option value="${n.id}">${n.nombre}</option>`;
-  });
-}
-
-async function loadGrados(ctx,nivel){
-  const {data} = await supabase()
-    .from("grados")
-    .select("id,nombre")
-    .eq("colegio_id", ctx.school_id)
-    .eq("anio_academico_id", ctx.year_id)
-    .eq("nivel_id", nivel);
-
-  els.grado().innerHTML = `<option value="">Grado</option>`;
-  data?.forEach(g=>{
-    els.grado().innerHTML += `<option value="${g.id}">${g.nombre}</option>`;
-  });
-}
-
-async function loadSecciones(ctx,grado){
-  const {data} = await supabase()
-    .from("secciones")
-    .select("id,nombre")
-    .eq("colegio_id", ctx.school_id)
-    .eq("anio_academico_id", ctx.year_id)
-    .eq("grado_id", grado);
-
-  els.seccion().innerHTML = `<option value="">Sección</option>`;
-  data?.forEach(s=>{
-    els.seccion().innerHTML += `<option value="${s.id}">${s.nombre}</option>`;
-  });
-}
-
-async function saveVacante(ctx){
-
-  const payload = {
-    colegio_id: ctx.school_id,
-    anio_academico_id: ctx.year_id,
-    nivel_id: els.nivel().value,
-    grado_id: els.grado().value,
-    seccion_id: els.seccion().value,
-    cupo_total: Number(els.cupo().value||0),
-    vacantes_disponibles: Number(els.vacantes().value||0)
-  };
-
-  const {error} = await supabase().from("vacantes").insert(payload);
-
-  if(error){
-    alert(error.message);
+  if (!form) {
+    console.error("No existe formVacante en HTML");
     return;
   }
 
-  loadVacantes(ctx);
-}
+  const nivelSelect   = document.getElementById("nivel_id");
+  const gradoSelect   = document.getElementById("grado_id");
+  const seccionSelect = document.getElementById("seccion_id");
 
-async function loadVacantes(ctx){
+  const cupoInput = document.getElementById("cupo");
 
-  setStatus("Cargando...");
+  const ctx = await getContext();
 
-  const {data,error} = await supabase()
-    .from("vacantes")
-    .select(`
-      id,
-      cupo_total,
-      vacantes_disponibles,
-      niveles(nombre),
-      grados(nombre),
-      secciones(nombre)
-    `)
-    .eq("colegio_id", ctx.school_id)
-    .eq("anio_academico_id", ctx.year_id);
+  const school_id = ctx.school_id;
+  const year_id   = ctx.year_id;
 
-  if(error){
-    console.error(error);
-    setStatus("Error");
-    return;
+  /* =========================
+     CARGAR NIVELES
+  ========================= */
+  async function loadNiveles() {
+    const { data } = await supabase
+      .from("niveles")
+      .select("*")
+      .eq("colegio_id", school_id)
+      .eq("anio_academico_id", year_id)
+      .order("nombre");
+
+    nivelSelect.innerHTML = `<option value="">Nivel</option>`;
+
+    data.forEach(n => {
+      nivelSelect.innerHTML += `<option value="${n.id}">${n.nombre}</option>`;
+    });
   }
 
-  els.tbody().innerHTML = data.map(v=>`
-    <tr>
-      <td>${v.niveles?.nombre||""}</td>
-      <td>${v.grados?.nombre||""}</td>
-      <td>${v.secciones?.nombre||""}</td>
-      <td>${v.cupo_total}</td>
-      <td>${v.vacantes_disponibles}</td>
-    </tr>
-  `).join("");
+  /* =========================
+     CARGAR GRADOS
+  ========================= */
+  nivelSelect.addEventListener("change", async () => {
 
-  setStatus("Listo");
-}
+    const nivel_id = nivelSelect.value;
 
-async function init(){
+    gradoSelect.innerHTML = `<option value="">Grado</option>`;
+    seccionSelect.innerHTML = `<option value="">Sección</option>`;
 
-  const ctx = await getCtx();
+    if (!nivel_id) return;
 
-  await loadNiveles(ctx);
-  await loadVacantes(ctx);
+    const { data } = await supabase
+      .from("grados")
+      .select("*")
+      .eq("nivel_id", nivel_id)
+      .eq("anio_academico_id", year_id)
+      .order("nombre");
 
-  els.nivel().addEventListener("change", e=>{
-    loadGrados(ctx,e.target.value);
+    data.forEach(g => {
+      gradoSelect.innerHTML += `<option value="${g.id}">${g.nombre}</option>`;
+    });
+
   });
 
-  els.grado().addEventListener("change", e=>{
-    loadSecciones(ctx,e.target.value);
+  /* =========================
+     CARGAR SECCIONES
+  ========================= */
+  gradoSelect.addEventListener("change", async () => {
+
+    const grado_id = gradoSelect.value;
+
+    seccionSelect.innerHTML = `<option value="">Sección</option>`;
+
+    if (!grado_id) return;
+
+    const { data } = await supabase
+      .from("secciones")
+      .select("*")
+      .eq("grado_id", grado_id)
+      .eq("anio_academico_id", year_id)
+      .order("nombre");
+
+    data.forEach(s => {
+      seccionSelect.innerHTML += `<option value="${s.id}">${s.nombre}</option>`;
+    });
+
   });
 
-  els.btn().addEventListener("click", ()=>{
-    saveVacante(ctx);
+  /* =========================
+     GUARDAR VACANTE
+  ========================= */
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const seccion_id = seccionSelect.value;
+    const cupo = cupoInput.value;
+
+    if (!seccion_id) {
+      alert("Selecciona sección");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("vacantes")
+      .insert({
+        colegio_id: school_id,
+        anio_academico_id: year_id,
+        seccion_id,
+        cupo_total: cupo
+      });
+
+    if (error) {
+      alert(error.message);
+      console.error(error);
+      return;
+    }
+
+    alert("Vacante guardada");
+    loadVacantes();
+    form.reset();
   });
-}
 
-document.addEventListener("DOMContentLoaded", init);
+  /* =========================
+     LISTAR VACANTES
+  ========================= */
+  async function loadVacantes() {
 
-})();
+    const { data } = await supabase
+      .from("vacantes")
+      .select(`
+        id,
+        cupo_total,
+        secciones(
+          nombre,
+          grados(nombre),
+          niveles(nombre)
+        )
+      `)
+      .eq("colegio_id", school_id)
+      .eq("anio_academico_id", year_id);
+
+    tbody.innerHTML = "";
+
+    data.forEach(v => {
+      tbody.innerHTML += `
+        <tr>
+          <td>${v.secciones.niveles.nombre}</td>
+          <td>${v.secciones.grados.nombre}</td>
+          <td>${v.secciones.nombre}</td>
+          <td>${v.cupo_total}</td>
+        </tr>
+      `;
+    });
+  }
+
+  await loadNiveles();
+  await loadVacantes();
+});
