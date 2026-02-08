@@ -48,55 +48,54 @@
         </div>
       </div>
 
-      <!-- ✅ CONTENIDO -->
-      <section class="page">
-
-        <div class="card">
-          <h1 class="h1">Vacantes (Cupos)</h1>
-          <p class="muted" id="status">Cargando…</p>
-        </div>
-
-        <div class="card" style="margin-top:14px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-            <div>
-              <h2 class="h2" style="margin:0;">Vacantes por sección</h2>
-              <div class="muted" style="margin-top:6px;">
-                Vacantes = <b>Cupo</b> − <b>Matriculados</b>.
-                (Cupo desde tabla <b>vacantes</b>, matriculados desde <b>alumnos</b>)
-              </div>
-            </div>
-
-            <div class="muted">
-              Total secciones: <b id="countVacantes">0</b>
-            </div>
-          </div>
-
-          <div style="overflow:auto; margin-top:12px;">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Sección</th>
-                  <th style="text-align:center;">Matriculados</th>
-                  <th style="text-align:center;">Cupo</th>
-                  <th style="text-align:center;">Vacantes</th>
-                  <th style="width:180px;">Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="vacantesTbody">
-                <tr><td colspan="5" class="muted">Cargando…</td></tr>
-              </tbody>
+    
+  
             </table>
           </div>
 
-          <div class="muted" style="margin-top:10px; font-size:12px;">
-            * Si una sección aún no tiene cupo creado en la tabla <b>vacantes</b>, se asumirá <b>30</b> por defecto.
-          </div>
+         <section class="card">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <div>
+          <h2 style="margin:0;">Vacantes (Cupos)</h2>
+          <p style="margin:6px 0 0; opacity:.8;">
+            Vacantes = Cupo (tabla <b>vacantes</b>) − Matriculados (tabla <b>alumnos</b>)
+          </p>
         </div>
 
-      </section>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <span id="pillContext" class="badge">Contexto: ...</span>
+          <span id="pillRole" class="badge">Rol: ...</span>
+          <button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
+        </div>
+      </div>
 
-    </main>
-  </div>
+      <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+        <div class="badge">Secciones: <b id="countSecciones">0</b></div>
+        <div class="badge">Total matriculados: <b id="countMatriculados">0</b></div>
+      </div>
+
+      <div style="margin-top:14px; overflow:auto;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Sección</th>
+              <th style="text-align:center;">Matriculados</th>
+              <th style="text-align:center;">Cupo</th>
+              <th style="text-align:center;">Vacantes</th>
+              <th style="text-align:center;">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="vacantesTbody">
+            <tr><td colspan="5">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p style="margin-top:10px; opacity:.75; font-size:13px;">
+        • Superadmin y Director pueden editar cupos. • Secretaría solo visualiza.
+      </p>
+    </section>
+  </main>
 
   <!-- ✅ Scripts (MISMO ORDEN QUE NIVELES) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
