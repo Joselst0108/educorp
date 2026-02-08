@@ -45,74 +45,79 @@
           <button class="btn btn-secondary" id="btnRefresh" type="button">Actualizar</button>
         </div>
       </div>
-desde aqui pegas el cuerpo
-<section class="card" style="margin-bottom:16px;">
+ <!-- =========================
+     CONTENIDO VACANTES (REEMPLAZA SOLO ESTA PARTE)
+     No toques <head> ni scripts
+========================== -->
+
+<section class="card">
   <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
     <div>
       <h2 style="margin:0;">Vacantes (Cupos)</h2>
-      <p style="margin:6px 0 0; opacity:.8;">
-        El director registra el <b>cupo</b> por sección. Luego el sistema calcula vacantes disponibles.
+      <p style="margin:6px 0 0; opacity:.85;">
+        El director registra el cupo por sección. Luego el sistema calcula vacantes disponibles.
       </p>
     </div>
 
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <!-- ✅ Estos 2 IDs son clave para que aparezca Rol y Contexto -->
       <span id="pillContext" class="badge">Contexto: ...</span>
       <span id="pillRole" class="badge">Rol: ...</span>
+
       <button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
     </div>
   </div>
-</section>
 
-<!-- FORMULARIO: Director/Superadmin -->
-<section class="card" id="cardCrearCupo" style="margin-bottom:16px; display:none;">
-  <h3 style="margin-top:0;">Registrar cupo por sección</h3>
+  <!-- ✅ Mensaje permisos -->
+  <div id="permMsg" class="badge" style="margin-top:12px; display:none;"></div>
 
-  <div style="display:grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap:12px;">
-    <div>
-      <label class="label">Nivel</label>
-      <select id="selNivel" class="input">
-        <option value="">-- Selecciona nivel --</option>
-      </select>
+  <!-- ✅ Formulario: Nivel -> Grado -> Sección -> Cupo -->
+  <div class="card" style="margin-top:14px;">
+    <h3 style="margin:0 0 10px;">Registrar cupo</h3>
+
+    <div style="display:grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap:12px;">
+      <div>
+        <label style="display:block; margin-bottom:6px;">Nivel</label>
+        <select id="selNivel" class="input">
+          <option value="">Cargando...</option>
+        </select>
+      </div>
+
+      <div>
+        <label style="display:block; margin-bottom:6px;">Grado</label>
+        <select id="selGrado" class="input" disabled>
+          <option value="">Seleccione nivel</option>
+        </select>
+      </div>
+
+      <div>
+        <label style="display:block; margin-bottom:6px;">Sección</label>
+        <select id="selSeccion" class="input" disabled>
+          <option value="">Seleccione grado</option>
+        </select>
+      </div>
+
+      <div>
+        <label style="display:block; margin-bottom:6px;">Cupo (vacantes)</label>
+        <input id="inpCupo" class="input" type="number" min="0" max="200" placeholder="Ej: 30" />
+      </div>
     </div>
 
-    <div>
-      <label class="label">Grado</label>
-      <select id="selGrado" class="input" disabled>
-        <option value="">-- Selecciona grado --</option>
-      </select>
-    </div>
-
-    <div>
-      <label class="label">Sección</label>
-      <select id="selSeccion" class="input" disabled>
-        <option value="">-- Selecciona sección --</option>
-      </select>
-    </div>
-
-    <div>
-      <label class="label">Cupo (vacantes)</label>
-      <input id="inpCupo" class="input" type="number" min="0" max="200" placeholder="Ej: 30" />
+    <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <button id="btnGuardar" class="btn btn-primary">Guardar cupo</button>
+      <button id="btnLimpiar" class="btn btn-secondary">Limpiar</button>
+      <span id="saveStatus" class="badge" style="opacity:.85;"></span>
     </div>
   </div>
 
-  <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-    <button id="btnGuardarCupo" class="btn btn-primary">Guardar cupo</button>
-    <span id="msgForm" style="opacity:.8;"></span>
-  </div>
-
-  <p style="margin-top:10px; opacity:.75; font-size:13px;">
-    * Solo Director y Superadmin pueden registrar/editar cupos. Secretaría solo visualiza.
-  </p>
-</section>
-
-<!-- TABLA -->
-<section class="card">
-  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+  <!-- ✅ Resumen -->
+  <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
     <div class="badge">Secciones: <b id="countSecciones">0</b></div>
     <div class="badge">Total matriculados: <b id="countMatriculados">0</b></div>
   </div>
 
-  <div style="overflow:auto;">
+  <!-- ✅ Tabla -->
+  <div style="margin-top:14px; overflow:auto;">
     <table class="table">
       <thead>
         <tr>
@@ -130,8 +135,13 @@ desde aqui pegas el cuerpo
       </tbody>
     </table>
   </div>
+
+  <p style="margin-top:10px; opacity:.75; font-size:13px;">
+    • Director y Superadmin pueden editar cupos. • Secretaría solo visualiza.
+  </p>
 </section>
-  </main>
+
+ 
   <!-- Scripts (orden correcto) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/assets/js/supabaseClient.js"></script>
