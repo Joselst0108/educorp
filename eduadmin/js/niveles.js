@@ -1,183 +1,195 @@
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("NIVELES JS CARGADO");
 
-  // 1) validar supabase
-  if (!window.supabaseClient) {
-    console.error("supabaseClient.js no cargó");
-    alert("Error: Supabase no inicializado.");
-    return;
-  }
-
-  // 2) validar contexto
   if (!window.getContext) {
     console.error("context.js no cargó");
-    alert("Error: Contexto no cargado.");
+    alert("No cargó el contexto (colegio/año). Revisa /assets/js/context.js");
     return;
   }
 
-  // 3) obtener contexto
+  // ========= CONTEXTO =========
   let ctx;
   try {
-    ctx = await window.getContext();
-    console.log("[CTX]", ctx);
+    ctx = await getContext();
+    console.log("[context] construido:", ctx);
   } catch (e) {
     console.error("Error getContext:", e);
-    alert("No se pudo cargar colegio/año");
+    alert("No se pudo cargar el colegio/año. Inicia sesión o crea un año activo.");
     return;
   }
 
-  // Label arriba (opcional)
-  const ctxLabel = document.getElementById("ctxLabel");
-  if (ctxLabel) {
-    ctxLabel.textContent = `Colegio: ${ctx?.school_name || "—"} | Año: ${ctx?.year_name || "—"}`;
-  }
+  const supabase = window.supabaseClient;
 
-  // elementos
-  const tbody = document.getElementById("tbodyNiveles");
+  // ========= ELEMENTOS =========
   const form = document.getElementById("formNivel");
-  const selNombre = document.getElementById("nivelNombre");
-  const chkActivo = document.getElementById("activo");
-  const btnLogout = document.getElementById("btnLogout");
+  const selectNivel = document.getElementById("nivelSelect");
+  const tbody = document.getElementById("tbodyNiveles");
+  const btnRecargar = document.getElementById("btnRecargarNiveles");
 
-  if (!tbody || !form || !selNombre || !chkActivo) {
-    console.error("Faltan elementos en el HTML (tbodyNiveles/formNivel/nivelNombre/activo).");
+  if (!selectNivel || !tbody) {
+    console.error("Faltan elementos HTML: nivelSelect o tbodyNiveles");
     return;
   }
 
-  // logout simple (si lo usas)
-  if (btnLogout) {
-    btnLogout.addEventListener("click", async () => {
-      await window.supabaseClient.auth.signOut();
-      window.location.href = "/login.html";
-    });
+  // ========= LISTA DESPLEGABLE (B) =========
+  // Puedes cambiar los nombres cuando quieras:
+  const NIVELES_PREDEFINIDOS = [
+    "Inicial",
+    "Primaria",
+    "Secundaria"
+  ];
+
+  function cargarCombo() {
+    selectNivel.innerHTML = `
+      <option value="" selected disabled>Selecciona un nivel...</option>
+      ${NIVELES_PREDEFINIDOS.map(n => `<option value="${n}">${n}</option>`).join("")}
+    `;
   }
 
-  // cargar niveles
-  async function cargarNiveles() {
-    tbody.innerHTML = `<tr><td colspan="3">Cargando…</td></tr>`;
+  cargarCombo();
 
-    const { data, error } = await window.supabaseClient
+  // ========= CARGAR NIVELES DE BD =========
+  async function cargarNiveles() {
+    tbody.innerHTML = `<tr><td colspan="4">Cargando...</td></tr>`;
+
+    const { data, error } = await supabase
       .from("niveles")
-      .select("*")
+      .select("id, nombre, activo, created_at")
       .eq("colegio_id", ctx.school_id)
+      .eq("anio_academico_id", ctx.year_id)
       .order("nombre", { ascending: true });
 
     if (error) {
-      console.error(error);
-      tbody.innerHTML = `<tr><td colspan="3">Error al cargar niveles</td></tr>`;
+      console.error("Error cargar niveles:", error);
+      tbody.innerHTML = `<tr><td colspan="4">Error al cargar niveles</td></tr>`;
       return;
     }
 
     if (!data || data.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="3">Sin niveles</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4">No hay niveles para este año</td></tr>`;
       return;
     }
 
     tbody.innerHTML = "";
-
-    data.forEach((n) => {
-      const activo = (n.activo === true || n.activo === "true") ? "✅" : "❌";
+    for (const n of data) {
+      const creado = n.created_at ? new Date(n.created_at).toLocaleString() : "";
 
       tbody.innerHTML += `
         <tr>
           <td>${n.nombre ?? ""}</td>
-          <td>${activo}</td>
-          <td>
-            <button class="btn btn-sm" data-action="toggle" data-id="${n.id}">
-              Activar/Desactivar
+          <td>${n.activo ? "✅" : "❌"}</td>
+          <td>${creado}</td>
+          <td style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn" data-action="toggle" data-id="${n.id}" data-activo="${n.activo}">
+              ${n.activo ? "Desactivar" : "Activar"}
+            </button>
+            <button class="btn danger" data-action="delete" data-id="${n.id}">
+              Eliminar
             </button>
           </td>
         </tr>
       `;
-    });
+    }
   }
 
-  // guardar nivel
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const nombre = (selNombre.value || "").trim();
-    const activo = chkActivo.checked; // ✅ ya existe en HTML
-
-    if (!nombre) {
-      alert("Selecciona un nivel.");
-      return;
-    }
-
-    // evita duplicados (mismo colegio + mismo nombre)
-    const { data: existe, error: errCheck } = await window.supabaseClient
-      .from("niveles")
-      .select("id")
-      .eq("colegio_id", ctx.school_id)
-      .eq("nombre", nombre)
-      .maybeSingle();
-
-    if (errCheck) console.warn("check duplicado:", errCheck);
-
-    if (existe?.id) {
-      alert("Ese nivel ya existe en este colegio.");
-      return;
-    }
-
-    const { error } = await window.supabaseClient
+  // ========= CREAR NIVEL =========
+  async function crearNivel(nombre) {
+    // Insert con activo=true sin checkbox
+    const { error } = await supabase
       .from("niveles")
       .insert([{
         nombre,
-        activo,
-        colegio_id: ctx.school_id
+        colegio_id: ctx.school_id,
+        anio_academico_id: ctx.year_id,
+        activo: true
       }]);
 
     if (error) {
-      console.error(error);
-      alert("Error al guardar nivel");
-      return;
+      // Si tienes índice único, puede saltar duplicado
+      console.error("Error crear nivel:", error);
+      alert(error.message || "No se pudo crear el nivel");
+      return false;
     }
+    return true;
+  }
 
-    form.reset();
-    // por defecto check activo marcado otra vez
-    chkActivo.checked = true;
-    cargarNiveles();
-  });
-
-  // activar/desactivar (delegación)
-  tbody.addEventListener("click", async (e) => {
-    const btn = e.target.closest("button[data-action]");
-    if (!btn) return;
-
-    const id = btn.getAttribute("data-id");
-    const action = btn.getAttribute("data-action");
-
-    if (action !== "toggle") return;
-
-    // leer actual
-    const { data: current, error: e1 } = await window.supabaseClient
+  // ========= TOGGLE ACTIVO =========
+  async function toggleActivo(id, activoActual) {
+    const { error } = await supabase
       .from("niveles")
-      .select("id, activo")
-      .eq("id", id)
-      .maybeSingle();
-
-    if (e1 || !current) {
-      console.error(e1);
-      alert("No se pudo leer el nivel");
-      return;
-    }
-
-    const nuevo = !current.activo;
-
-    const { error: e2 } = await window.supabaseClient
-      .from("niveles")
-      .update({ activo: nuevo })
+      .update({ activo: !activoActual })
       .eq("id", id);
 
-    if (e2) {
-      console.error(e2);
-      alert("No se pudo actualizar");
+    if (error) {
+      console.error("Error toggle activo:", error);
+      alert("No se pudo actualizar activo");
       return;
     }
+    await cargarNiveles();
+  }
 
-    cargarNiveles();
+  // ========= ELIMINAR =========
+  async function eliminarNivel(id) {
+    const ok = confirm("¿Eliminar este nivel? (Si ya tienes grados/sections ligados, puede fallar por FK)");
+    if (!ok) return;
+
+    const { error } = await supabase
+      .from("niveles")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error eliminar nivel:", error);
+      alert(error.message || "No se pudo eliminar");
+      return;
+    }
+    await cargarNiveles();
+  }
+
+  // ========= EVENTOS =========
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const nombre = (selectNivel.value || "").trim();
+      if (!nombre) {
+        alert("Selecciona un nivel");
+        return;
+      }
+
+      const ok = await crearNivel(nombre);
+      if (ok) {
+        selectNivel.value = "";
+        await cargarNiveles();
+      }
+    });
+  }
+
+  if (btnRecargar) {
+    btnRecargar.addEventListener("click", async () => {
+      cargarCombo();
+      await cargarNiveles();
+    });
+  }
+
+  // Delegación de eventos para botones de la tabla
+  tbody.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+
+    const action = btn.dataset.action;
+    const id = btn.dataset.id;
+
+    if (action === "toggle") {
+      const activoActual = btn.dataset.activo === "true";
+      await toggleActivo(id, activoActual);
+    }
+
+    if (action === "delete") {
+      await eliminarNivel(id);
+    }
   });
 
-  // inicio
-  cargarNiveles();
+  // ========= INICIO =========
+  await cargarNiveles();
 });
