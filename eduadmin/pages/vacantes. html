@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es" data-app="eduadmin">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduAdmin | Vacantes</title>
+
+<link rel="stylesheet" href="/assets/css/variables.css">
+<link rel="stylesheet" href="/assets/css/main.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/assets/js/supabaseClient.js"></script>
+<script src="/assets/js/context.js"></script>
+<script src="/assets/js/ui.js"></script>
+</head>
+
+<body>
+<div class="app-shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="brand">
+    <img id="uiAppLogo" src="/assets/img/educorp.jpeg">
+    <div class="titles">
+      <b>EduAdmin</b>
+      <span>Administración real</span>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <a href="/eduadmin/pages/dashboard.html"><div class="nav-item">Dashboard</div></a>
+    <a href="/eduadmin/pages/anio.html"><div class="nav-item">Año académico</div></a>
+    <a href="/eduadmin/pages/niveles.html"><div class="nav-item">Niveles</div></a>
+    <a href="/eduadmin/pages/grados.html"><div class="nav-item">Grados</div></a>
+    <a href="/eduadmin/pages/secciones.html"><div class="nav-item">Secciones</div></a>
+    <a href="/eduadmin/pages/vacantes.html"><div class="nav-item active">Vacantes</div></a>
+  </nav>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+<div class="topbar">
+  <div class="school-chip">
+    <img id="uiSchoolLogo">
+    <div class="meta">
+      <b id="uiSchoolName">Cargando...</b>
+      <span id="uiYearName">Año</span>
+    </div>
+  </div>
+</div>
+
+<section class="page">
+
+<div class="card">
+<h1>Vacantes por sección</h1>
+<p id="status">Cargando…</p>
+</div>
+
+<div class="grid-2">
+
+<div class="card">
+<h2>Asignar vacantes</h2>
+
+<form id="formVacante">
+
+<label>Nivel</label>
+<select id="nivel_id"></select>
+
+<label>Grado</label>
+<select id="grado_id"></select>
+
+<label>Sección</label>
+<select id="seccion_id"></select>
+
+<label>Vacantes</label>
+<input type="number" id="vacantes">
+
+<button class="btn btn-primary">Guardar</button>
+</form>
+</div>
+
+<div class="card">
+<h2>Vacantes registradas</h2>
+
+<table class="table">
+<thead>
+<tr>
+<th>Nivel</th>
+<th>Grado</th>
+<th>Sección</th>
+<th>Vacantes</th>
+</tr>
+</thead>
+<tbody id="tbodyVacantes"></tbody>
+</table>
+
+</div>
+
+</div>
+</section>
+</main>
+</div>
+
+<script src="/eduadmin/js/vacantes.js"></script>
+</body>
+</html>
