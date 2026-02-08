@@ -1,4 +1,4 @@
-.card{
+8.card{
   background: var(--surface);
   border:1px solid var(--border);
   border-radius: var(--radius);
@@ -88,4 +88,33 @@
 
 .nav-cat.open .chev{
   transform:rotate(180deg);
+}
+/* FIX: evita botón blanco en el sidebar */
+.sidebar .nav-cat-header{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 10px;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Si tu CSS global pone borde a button, esto lo mata */
+.sidebar .nav-cat-header:focus{
+  outline: none;
+}
+
+/* Flechita */
+.sidebar .nav-cat-header .chev{
+  opacity: .7;
+  transition: transform .15s ease;
+}
+
+.sidebar .nav-cat.open .nav-cat-header .chev{
+  transform: rotate(180deg);
 }
