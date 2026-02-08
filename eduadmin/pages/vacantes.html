@@ -43,7 +43,8 @@
 
 <div class="topbar">
   <div class="school-chip">
-    <img id="uiSchoolLogo">
+    <!-- ✅ Solo agregado src fallback para que no quede vacío -->
+    <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" onerror="this.src='/assets/img/eduadmin.jpeg'">
     <div class="meta">
       <b id="uiSchoolName">Cargando...</b>
       <span id="uiYearName">Año</span>
@@ -66,16 +67,29 @@
 <form id="formVacante">
 
 <label>Nivel</label>
-<select id="nivel_id"></select>
+<!-- ✅ agregado option por defecto -->
+<select id="nivel_id">
+  <option value="">Nivel</option>
+</select>
 
 <label>Grado</label>
-<select id="grado_id"></select>
+<!-- ✅ agregado option por defecto -->
+<select id="grado_id">
+  <option value="">Grado</option>
+</select>
 
 <label>Sección</label>
-<select id="seccion_id"></select>
+<!-- ✅ agregado option por defecto -->
+<select id="seccion_id">
+  <option value="">Sección</option>
+</select>
 
 <label>Vacantes</label>
+<!-- ✅ Mantengo tu ID 'vacantes' tal cual -->
 <input type="number" id="vacantes">
+
+<!-- ✅ Alias invisible: el JS puede leer cupo_total sin romper tu input original -->
+<input type="hidden" id="cupo_total">
 
 <button class="btn btn-primary">Guardar</button>
 </form>
@@ -102,6 +116,18 @@
 </section>
 </main>
 </div>
+
+<!-- ✅ Script puente mínimo: copia el valor de #vacantes -> #cupo_total para el JS -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const a = document.getElementById("vacantes");
+    const b = document.getElementById("cupo_total");
+    if (a && b) {
+      b.value = a.value || "";
+      a.addEventListener("input", () => (b.value = a.value || ""));
+    }
+  });
+</script>
 
 <script src="/eduadmin/pages/js/vacantes.js"></script>
 </body>
