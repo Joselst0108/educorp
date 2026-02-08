@@ -7,7 +7,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 function getSB() {
-  // En tu proyecto suele ser window.supabaseClient
   return window.supabaseClient || window.supabase;
 }
 
@@ -18,12 +17,32 @@ async function initVacantes() {
     return;
   }
 
-// ✅ PINTAR TOPBAR (colegio / año)
+  // ✅ 1) CARGAR CONTEXTO PRIMERO (antes de usar ctx)
+  const ctx =
+    (window.getContext ? await window.getContext() : null) ||
+    window.__CTX ||
+    window.appContext ||
+    null;
+
+  if (!ctx) {
+    console.error("No hay contexto (ctx).");
+    return;
+  }
+
+  // ✅ IDs desde contexto (tú dijiste: school_id / year_id)
+  const colegioId = ctx.school_id || ctx.colegio_id || ctx.colegioId;
+  const anioId = ctx.year_id || ctx.anio_academico_id || ctx.anioId;
+
+  // ✅ 2) PINTAR TOPBAR (colegio / año)
   const uiSchoolName = document.getElementById("uiSchoolName");
   const uiYearName = document.getElementById("uiYearName");
 
   const schoolName =
-    ctx.school_name || ctx.school?.nombre || ctx.school?.name || ctx.colegio_nombre || "—";
+    ctx.school_name ||
+    ctx.school?.nombre ||
+    ctx.school?.name ||
+    ctx.colegio_nombre ||
+    "—";
 
   const yearName =
     ctx.year_name || ctx.year?.nombre || ctx.year?.name || ctx.anio_nombre || "—";
@@ -31,40 +50,32 @@ async function initVacantes() {
   if (uiSchoolName) uiSchoolName.textContent = schoolName;
   if (uiYearName) uiYearName.textContent = `Año: ${yearName}`;
 
-  // ✅ Tu context.js (por la captura) usa school_id / year_id
-  const ctx = (window.getContext ? await window.getContext() : null)
-    || window.__CTX
-    || window.appContext
-    || null;
-
-  if (!ctx) {
-    console.error("No hay contexto (ctx).");
-    return;
-  }
-
-  // ✅ Mapeo a nombres reales de tu contexto
-  const colegioId = ctx.school_id || ctx.colegio_id || ctx.colegioId;
-  const anioId    = ctx.year_id || ctx.anio_academico_id || ctx.anioId;
-
-  // Pinta pills
+  // ✅ Pills
   const pillContext = document.getElementById("pillContext");
   const pillRole = document.getElementById("pillRole");
-  if (pillContext) pillContext.textContent = `Contexto: ${ctx.school_name || "—"} / ${ctx.year_name || "—"}`;
-  if (pillRole) pillRole.textContent = `Rol: ${ctx.role || "—"}`;
+
+  const role = ctx.role || ctx.user_role || ctx.rol || ctx.profile?.role || "—";
+
+  if (pillContext) pillContext.textContent = `Contexto: ${schoolName} / ${yearName}`;
+  if (pillRole) pillRole.textContent = `Rol: ${role}`;
 
   if (!colegioId || !anioId) {
     console.error("Contexto incompleto. colegioId/anioId:", { colegioId, anioId, ctx });
     return;
   }
 
-  // Botones
-  const btnRefresh = document.getElementById("btnRefresh");
-  if (btnRefresh) btnRefresh.addEventListener("click", () => recargarTabla(colegioId, anioId));
+  // ✅ Botones (tienes btnRefresh duplicado en HTML, por eso uso querySelectorAll)
+  document.querySelectorAll("#btnRefresh").forEach((btn) => {
+    btn.addEventListener("click", () => recargarTabla(colegioId, anioId));
+  });
 
-  document.getElementById("btnGuardar").addEventListener("click", () => guardarVacante(colegioId, anioId));
-  document.getElementById("btnLimpiar").addEventListener("click", limpiarFormulario);
+  const btnGuardar = document.getElementById("btnGuardar");
+  const btnLimpiar = document.getElementById("btnLimpiar");
 
-  // Carga inicial
+  if (btnGuardar) btnGuardar.addEventListener("click", () => guardarVacante(colegioId, anioId));
+  if (btnLimpiar) btnLimpiar.addEventListener("click", limpiarFormulario);
+
+  // ✅ Carga inicial
   await cargarNiveles(colegioId, anioId);
   await recargarTabla(colegioId, anioId);
 }
@@ -77,6 +88,8 @@ async function cargarNiveles(colegioId, anioId) {
   const selNivel = document.getElementById("selNivel");
   const selGrado = document.getElementById("selGrado");
   const selSeccion = document.getElementById("selSeccion");
+
+  if (!selNivel || !selGrado || !selSeccion) return;
 
   selNivel.innerHTML = `<option value="">Cargando...</option>`;
   selGrado.innerHTML = `<option value="">Seleccione nivel</option>`;
@@ -98,38 +111,39 @@ async function cargarNiveles(colegioId, anioId) {
   }
 
   selNivel.innerHTML = `<option value="">Seleccione</option>`;
-  data.forEach(n => {
+  (data || []).forEach((n) => {
     selNivel.insertAdjacentHTML("beforeend", `<option value="${n.id}">${n.nombre}</option>`);
   });
 
-  selNivel.addEventListener("change", async () => {
+  selNivel.onchange = async () => {
     const nivelId = selNivel.value;
-    if (!nivelId) {
-      selGrado.innerHTML = `<option value="">Seleccione nivel</option>`;
-      selGrado.disabled = true;
-      selSeccion.innerHTML = `<option value="">Seleccione grado</option>`;
-      selSeccion.disabled = true;
-      return;
-    }
-    await cargarGrados(nivelId, colegioId, anioId);
-  });
+
+    selGrado.innerHTML = `<option value="">Seleccione nivel</option>`;
+    selGrado.disabled = true;
+    selSeccion.innerHTML = `<option value="">Seleccione grado</option>`;
+    selSeccion.disabled = true;
+
+    if (!nivelId) return;
+    await cargarGrados(nivelId);
+  };
 }
 
-async function cargarGrados(nivelId, colegioId, anioId) {
+async function cargarGrados(nivelId) {
   const sb = getSB();
   const selGrado = document.getElementById("selGrado");
   const selSeccion = document.getElementById("selSeccion");
+
+  if (!selGrado || !selSeccion) return;
 
   selGrado.disabled = false;
   selGrado.innerHTML = `<option value="">Cargando...</option>`;
   selSeccion.innerHTML = `<option value="">Seleccione grado</option>`;
   selSeccion.disabled = true;
 
+  // ✅ OJO: según tus capturas, grados NO tiene colegio_id/anio_academico_id
   const { data, error } = await sb
     .from("grados")
     .select("id, nombre, orden")
-    .eq("colegio_id", colegioId)
-    .eq("anio_academico_id", anioId)
     .eq("nivel_id", nivelId)
     .order("orden", { ascending: true });
 
@@ -140,17 +154,28 @@ async function cargarGrados(nivelId, colegioId, anioId) {
   }
 
   selGrado.innerHTML = `<option value="">Seleccione</option>`;
-  data.forEach(g => {
+  (data || []).forEach((g) => {
     selGrado.insertAdjacentHTML("beforeend", `<option value="${g.id}">${g.nombre}</option>`);
   });
 
   selGrado.onchange = async () => {
     const gradoId = selGrado.value;
-    if (!gradoId) {
-      selSeccion.innerHTML = `<option value="">Seleccione grado</option>`;
-      selSeccion.disabled = true;
-      return;
-    }
+
+    selSeccion.innerHTML = `<option value="">Seleccione grado</option>`;
+    selSeccion.disabled = true;
+
+    if (!gradoId) return;
+
+    // Para secciones sí filtramos por grado_id y colegio/año vienen desde contexto
+    const ctx =
+      (window.getContext ? await window.getContext() : null) ||
+      window.__CTX ||
+      window.appContext ||
+      null;
+
+    const colegioId = ctx?.school_id || ctx?.colegio_id || ctx?.colegioId;
+    const anioId = ctx?.year_id || ctx?.anio_academico_id || ctx?.anioId;
+
     await cargarSecciones(gradoId, colegioId, anioId);
   };
 }
@@ -158,6 +183,7 @@ async function cargarGrados(nivelId, colegioId, anioId) {
 async function cargarSecciones(gradoId, colegioId, anioId) {
   const sb = getSB();
   const selSeccion = document.getElementById("selSeccion");
+  if (!selSeccion) return;
 
   selSeccion.disabled = false;
   selSeccion.innerHTML = `<option value="">Cargando...</option>`;
@@ -177,7 +203,7 @@ async function cargarSecciones(gradoId, colegioId, anioId) {
   }
 
   selSeccion.innerHTML = `<option value="">Seleccione</option>`;
-  data.forEach(s => {
+  (data || []).forEach((s) => {
     selSeccion.insertAdjacentHTML("beforeend", `<option value="${s.id}">${s.nombre}</option>`);
   });
 }
@@ -194,10 +220,10 @@ async function guardarVacante(colegioId, anioId) {
   const inpCupo = document.getElementById("inpCupo");
   const saveStatus = document.getElementById("saveStatus");
 
-  const nivelId = selNivel.value;
-  const gradoId = selGrado.value;
-  const seccionId = selSeccion.value;
-  const cupo = Number(inpCupo.value);
+  const nivelId = selNivel?.value;
+  const gradoId = selGrado?.value;
+  const seccionId = selSeccion?.value;
+  const cupo = Number(inpCupo?.value);
 
   if (!nivelId || !gradoId || !seccionId || Number.isNaN(cupo)) {
     alert("Selecciona Nivel, Grado, Sección y escribe Cupo.");
@@ -211,15 +237,13 @@ async function guardarVacante(colegioId, anioId) {
 
   if (saveStatus) saveStatus.textContent = "Guardando...";
 
-  // ✅ Upsert por (colegio_id, anio_academico_id, seccion_id)
-  // OJO: para que funcione perfecto, crea un UNIQUE en esos 3 campos (te lo paso abajo).
   const payload = {
     colegio_id: colegioId,
     anio_academico_id: anioId,
     nivel_id: nivelId,
     grado_id: gradoId,
     seccion_id: seccionId,
-    cupo_total: cupo
+    cupo_total: cupo,
   };
 
   const { error } = await sb
@@ -246,10 +270,8 @@ async function recargarTabla(colegioId, anioId) {
   const countSecciones = document.getElementById("countSecciones");
 
   if (!tbody) return;
-
   tbody.innerHTML = `<tr><td colspan="7">Cargando...</td></tr>`;
 
-  // Traemos vacantes + nombres de nivel/grado/seccion con joins
   const { data, error } = await sb
     .from("vacantes")
     .select(`
@@ -263,7 +285,7 @@ async function recargarTabla(colegioId, anioId) {
     `)
     .eq("colegio_id", colegioId)
     .eq("anio_academico_id", anioId)
-    .order("created_at", { ascending: false });
+    .order("id", { ascending: false }); // ✅ para evitar error si no hay created_at
 
   if (error) {
     console.error("Error cargando tabla vacantes:", error);
@@ -279,38 +301,48 @@ async function recargarTabla(colegioId, anioId) {
 
   if (countSecciones) countSecciones.textContent = String(data.length);
 
-  tbody.innerHTML = data.map(row => {
-    const nivel = row.nivel?.nombre || "—";
-    const grado = row.grado?.nombre || "—";
-    const seccion = row.seccion?.nombre || "—";
-    const cupo = row.cupo_total ?? 0;
-    const disp = row.vacantes_disponibles ?? null;
-    const reserv = row.reservadas ?? 0;
+  tbody.innerHTML = data
+    .map((row) => {
+      const nivel = row.nivel?.nombre || "—";
+      const grado = row.grado?.nombre || "—";
+      const seccion = row.seccion?.nombre || "—";
+      const cupo = row.cupo_total ?? 0;
+      const disp = row.vacantes_disponibles ?? null;
+      const reserv = row.reservadas ?? 0;
 
-    // Vacantes disponibles: si aún no calculas, mostramos cupo - reservadas
-    const vac = (disp !== null) ? disp : Math.max(0, cupo - reserv);
+      const vac = disp !== null ? disp : Math.max(0, cupo - reserv);
 
-    return `
-      <tr>
-        <td>${nivel}</td>
-        <td>${grado}</td>
-        <td>${seccion}</td>
-        <td style="text-align:center;">—</td>
-        <td style="text-align:center;">${cupo}</td>
-        <td style="text-align:center;">${vac}</td>
-        <td style="text-align:center;">—</td>
-      </tr>
-    `;
-  }).join("");
+      return `
+        <tr>
+          <td>${nivel}</td>
+          <td>${grado}</td>
+          <td>${seccion}</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">${cupo}</td>
+          <td style="text-align:center;">${vac}</td>
+          <td style="text-align:center;">—</td>
+        </tr>
+      `;
+    })
+    .join("");
 }
 
 function limpiarFormulario() {
-  document.getElementById("selNivel").value = "";
-  document.getElementById("selGrado").innerHTML = `<option value="">Seleccione nivel</option>`;
-  document.getElementById("selGrado").disabled = true;
-  document.getElementById("selSeccion").innerHTML = `<option value="">Seleccione grado</option>`;
-  document.getElementById("selSeccion").disabled = true;
-  document.getElementById("inpCupo").value = "";
+  const selNivel = document.getElementById("selNivel");
+  const selGrado = document.getElementById("selGrado");
+  const selSeccion = document.getElementById("selSeccion");
+  const inpCupo = document.getElementById("inpCupo");
   const saveStatus = document.getElementById("saveStatus");
+
+  if (selNivel) selNivel.value = "";
+  if (selGrado) {
+    selGrado.innerHTML = `<option value="">Seleccione nivel</option>`;
+    selGrado.disabled = true;
+  }
+  if (selSeccion) {
+    selSeccion.innerHTML = `<option value="">Seleccione grado</option>`;
+    selSeccion.disabled = true;
+  }
+  if (inpCupo) inpCupo.value = "";
   if (saveStatus) saveStatus.textContent = "";
 }
