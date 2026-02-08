@@ -11,7 +11,7 @@
   // Ajusta nombres si tus tablas se llaman diferente
   const T_SECCIONES = "secciones";        // o "aulas"
   const T_GRADOS = "grados";
-  const T_CUPOS = "cupos_seccion";
+  const T_CUPOS = "cupos";
   const T_ESTUDIANTES = "estudiantes";
 
   document.addEventListener("DOMContentLoaded", async () => {
