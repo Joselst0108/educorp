@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" data-app="eduadmin">
+<html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,72 +8,98 @@
   <link rel="stylesheet" href="/assets/css/variables.css">
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/components.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/assets/js/supabaseClient.js"></script>
 </head>
 
 <body>
-<div class="app-shell">
-
-  <!-- Sidebar: copia el mismo del anio.html y cambia active -->
-  <aside class="sidebar">
-    <div class="brand">
-      <img id="uiAppLogo" src="/assets/img/eduadmin.jpeg" alt="EduAdmin" />
-      <div class="titles"><b>EduAdmin</b><span>Administración real</span></div>
-    </div>
-
-    <nav class="nav">
-      <a href="/eduadmin/pages/dashboard.html"><div class="nav-item">Dashboard</div></a>
-      <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTRUCTURA ACADÉMICA</div>
-      <a href="/eduadmin/pages/anio.html"><div class="nav-item">Año académico</div></a>
-      <a href="/eduadmin/pages/niveles.html"><div class="nav-item active">Niveles</div></a>
-      <a href="/eduadmin/pages/grados.html"><div class="nav-item">Grados</div></a>
-      <a href="/eduadmin/pages/aulas.html"><div class="nav-item">Secciones / Aulas</div></a>
-      <a href="#" id="logoutBtn"><div class="nav-item">Cerrar sesión</div></a>
-    </nav>
-  </aside>
-
-  <main class="main">
-    <div class="topbar">
-      <div class="left">
-        <div class="school-chip">
-          <img id="uiSchoolLogo" src="/assets/img/eduadmin.svg" alt="Colegio" />
-          <div class="meta">
-            <b id="uiSchoolName">Cargando colegio…</b>
-            <span id="uiYearName">Cargando año…</span>
-          </div>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="brandLogo" src="/assets/img/eduadmin.jpeg" alt="EduAdmin" style="width:42px;height:42px;border-radius:10px;object-fit:cover;">
+        <div>
+          <div class="brand-title">EduAdmin</div>
+          <div class="brand-subtitle" id="ctxLabel">Cargando contexto…</div>
         </div>
       </div>
-      <button class="btn btn-secondary" id="btnRefresh">Actualizar</button>
-    </div>
 
-    <section class="page">
-      <div class="card">
-        <h1 class="h1">Niveles</h1>
-        <p class="muted" id="status">Cargando…</p>
+      <nav class="menu">
+        <a href="/eduadmin/pages/dashboard.html">Dashboard</a>
+        <a class="active" href="/eduadmin/pages/niveles.html">Niveles</a>
+        <a href="/eduadmin/pages/grados.html">Grados</a>
+        <a href="/eduadmin/pages/secciones.html">Secciones / Aulas</a>
+        <a href="/eduadmin/pages/anio.html">Año académico</a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="btnLogout" class="btn btn-ghost">Cerrar sesión</button>
       </div>
+    </aside>
 
-      <div class="card">
-        <h3>Crear nivel</h3>
-        <form id="formNivel" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-          <input id="nombre" placeholder="Inicial / Primaria / Secundaria" required />
-          <input id="orden" type="number" placeholder="Orden" value="1" style="width:120px;" />
-          <button class="btn btn-primary" type="submit">Guardar</button>
-        </form>
-      </div>
+    <main class="content">
+      <header class="page-header">
+        <h1>Niveles</h1>
+        <p class="muted">Crea niveles del colegio (Inicial, Primaria, Secundaria).</p>
+      </header>
 
-      <div class="card">
-        <h3>Lista</h3>
-        <table class="table">
-          <thead><tr><th>Nombre</th><th>Orden</th><th>Acciones</th></tr></thead>
-          <tbody id="tbodyNiveles"></tbody>
-        </table>
-      </div>
-    </section>
-  </main>
-</div>
+      <section class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h3>Crear nivel</h3>
+          </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/assets/js/supabaseClient.js"></script>
-<script src="/assets/js/context.js"></script>
-<script src="/eduadmin/js/niveles.js"></script>
+          <div class="card-body">
+            <form id="formNivel">
+              <label class="label">Nivel</label>
+              <select id="nivelNombre" class="input" required>
+                <option value="" selected disabled>Selecciona un nivel…</option>
+                <option value="Inicial">Inicial</option>
+                <option value="Primaria">Primaria</option>
+                <option value="Secundaria">Secundaria</option>
+              </select>
+
+              <div style="height:12px"></div>
+
+              <label class="check">
+                <input type="checkbox" id="activo" checked />
+                <span>Activo</span>
+              </label>
+
+              <div style="height:14px"></div>
+
+              <button class="btn btn-primary" type="submit">Guardar</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Niveles registrados</h3>
+          </div>
+
+          <div class="card-body">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Activo</th>
+                  <th style="width:140px">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyNiveles">
+                <tr><td colspan="3">Cargando…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Contexto global -->
+  <script src="/assets/js/context.js"></script>
+  <!-- Lógica de la página -->
+  <script src="/eduadmin/js/niveles.js"></script>
 </body>
 </html>
