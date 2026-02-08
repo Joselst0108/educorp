@@ -9,12 +9,16 @@
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/components.css">
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/assets/js/supabaseClient.js"></script>
-  <script src="/assets/js/context.js"></script>
-  <script src="/assets/js/ui.js"></script>
-
   <style>
+    /* Evita logo gigante */
+    .school-chip img{
+      width: 42px !important;
+      height: 42px !important;
+      border-radius: 10px;
+      object-fit: contain;
+      background: #fff;
+    }
+
     .grid-2 { display:grid; grid-template-columns: 1fr 1.2fr; gap:16px; }
     @media (max-width: 900px){ .grid-2 { grid-template-columns: 1fr; } }
     .muted { opacity:.75; }
@@ -24,90 +28,158 @@
 </head>
 
 <body>
-  <div class="topbar">
-    <div class="topbar-left">
-      <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Logo" class="topbar-logo" />
-      <div class="topbar-meta">
-        <div id="uiSchoolName" class="topbar-title">Cargando colegio...</div>
-        <div id="uiYearName" class="topbar-subtitle">Año: —</div>
+  <div class="app-shell">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="/assets/img/eduadmin.jpeg" alt="EduAdmin" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
+        </div>
       </div>
-    </div>
 
-    <div class="topbar-actions">
-      <button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
-      <a href="/eduadmin/pages/dashboard.html" class="btn btn-secondary">Volver</a>
-    </div>
-  </div>
+      <nav class="nav">
+        <a href="/eduadmin/pages/dashboard.html">
+          <div class="nav-item">Dashboard <span class="badge">Home</span></div>
+        </a>
 
-  <div class="page-header">
-    <h1>Secciones</h1>
-    <div id="status" class="status muted">Cargando…</div>
-  </div>
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">COLEGIO</div>
+        <a href="/eduadmin/pages/colegio.html"><div class="nav-item">Datos del colegio</div></a>
+        <a href="/eduadmin/pages/usuarios.html"><div class="nav-item">Usuarios y roles</div></a>
 
-  <div class="grid-2">
-    <div class="card">
-      <h2 class="card-title">Crear sección</h2>
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTRUCTURA ACADÉMICA</div>
+        <a href="/eduadmin/pages/anio.html"><div class="nav-item">Año académico</div></a>
+        <a href="/eduadmin/pages/niveles.html"><div class="nav-item">Niveles</div></a>
+        <a href="/eduadmin/pages/grados.html"><div class="nav-item">Grados</div></a>
+        <a href="/eduadmin/pages/secciones.html"><div class="nav-item active">Secciones / Aulas</div></a>
+        <a href="/eduadmin/pages/vacantes.html"><div class="nav-item">Vacantes</div></a>
 
-      <form id="formSeccion" class="form">
-        <div class="form-group">
-          <label for="nivel_id">Nivel</label>
-          <select id="nivel_id" required>
-            <option value="">Selecciona un nivel</option>
-          </select>
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTUDIANTES</div>
+        <a href="/eduadmin/pages/alumnos.html"><div class="nav-item">Registrar alumnos</div></a>
+        <a href="/eduadmin/pages/lista-alumnos.html"><div class="nav-item">Lista de alumnos</div></a>
+        <a href="/eduadmin/pages/apoderados.html"><div class="nav-item">Apoderados</div></a>
+        <a href="/eduadmin/pages/matriculas.html"><div class="nav-item">Matrículas</div></a>
+
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">FINANZAS REALES</div>
+        <a href="/eduadmin/pages/conceptos.html"><div class="nav-item">Conceptos de pago</div></a>
+        <a href="/eduadmin/pages/pagos.html"><div class="nav-item">Registrar pagos</div></a>
+        <a href="/eduadmin/pages/caja.html"><div class="nav-item">Caja</div></a>
+        <a href="/eduadmin/pages/morosidad.html"><div class="nav-item">Morosidad</div></a>
+        <a href="/eduadmin/pages/reportes-financieros.html"><div class="nav-item">Reportes financieros</div></a>
+
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">REPORTES</div>
+        <a href="/eduadmin/pages/reportes-alumnos.html"><div class="nav-item">Alumnos por grado</div></a>
+        <a href="/eduadmin/pages/reportes-matriculas.html"><div class="nav-item">Matrículas por aula</div></a>
+
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">SISTEMA</div>
+        <a href="/eduadmin/pages/config.html"><div class="nav-item">Configuración</div></a>
+        <a href="#" id="logoutBtn"><div class="nav-item">Cerrar sesión</div></a>
+      </nav>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+
+      <!-- TOPBAR (igual al dashboard) -->
+      <div class="topbar">
+        <div class="left">
+          <div class="school-chip">
+            <img id="uiSchoolLogo" src="/assets/img/eduadmin.svg" alt="Colegio" />
+            <div class="meta">
+              <b id="uiSchoolName">Cargando colegio…</b>
+              <span id="uiYearName">Cargando año…</span>
+            </div>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label for="grado_id">Grado</label>
-          <select id="grado_id" required>
-            <option value="">Selecciona un grado</option>
-          </select>
-          <div class="muted" style="margin-top:6px;">* El grado depende del nivel seleccionado.</div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-secondary" id="btnRefresh">Actualizar</button>
+        </div>
+      </div>
+
+      <!-- CONTENT -->
+      <section class="page">
+
+        <div class="card">
+          <h1 class="h1">Secciones</h1>
+          <p class="muted" id="status">Cargando…</p>
         </div>
 
-        <div class="form-group">
-          <label for="nombre">Nombre de sección</label>
-          <input id="nombre" type="text" placeholder="Ej: A, B, C, 1, 2, Azul..." required />
-        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h2 class="card-title">Crear sección</h2>
 
-        <div class="row">
-          <div class="form-group">
-            <label for="cupo">Cupo</label>
-            <input id="cupo" type="number" min="0" placeholder="Ej: 30" />
+            <form id="formSeccion" class="form">
+              <div class="form-group">
+                <label for="nivel_id">Nivel</label>
+                <select id="nivel_id" required>
+                  <option value="">Selecciona un nivel</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="grado_id">Grado</label>
+                <select id="grado_id" required>
+                  <option value="">Selecciona un grado</option>
+                </select>
+                <div class="muted" style="margin-top:6px;">* El grado depende del nivel seleccionado.</div>
+              </div>
+
+              <div class="form-group">
+                <label for="nombre">Nombre de sección</label>
+                <input id="nombre" type="text" placeholder="Ej: A, B, C, 1, 2, Azul..." required />
+              </div>
+
+              <div class="row">
+                <div class="form-group">
+                  <label for="cupo">Cupo</label>
+                  <input id="cupo" type="number" min="0" placeholder="Ej: 30" />
+                </div>
+
+                <div class="form-group" style="display:flex; gap:10px; align-items:center; margin-top:26px;">
+                  <input id="activo" type="checkbox" checked />
+                  <label for="activo" style="margin:0;">Activo</label>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary" style="width:100%;">Guardar</button>
+            </form>
           </div>
 
-          <div class="form-group" style="display:flex; gap:10px; align-items:center; margin-top:26px;">
-            <input id="activo" type="checkbox" checked />
-            <label for="activo" style="margin:0;">Activo</label>
+          <div class="card">
+            <h2 class="card-title">Secciones registradas</h2>
+
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Nivel</th>
+                    <th>Grado</th>
+                    <th>Sección</th>
+                    <th>Cupo</th>
+                    <th>Activo</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodySecciones">
+                  <tr><td colspan="6" class="muted">Cargando…</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary" style="width:100%;">Guardar</button>
-      </form>
-    </div>
-
-    <div class="card">
-      <h2 class="card-title">Secciones registradas</h2>
-
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Nivel</th>
-              <th>Grado</th>
-              <th>Sección</th>
-              <th>Cupo</th>
-              <th>Activo</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="tbodySecciones">
-            <tr><td colspan="6" class="muted">Cargando…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+      </section>
+    </main>
   </div>
 
+  <!-- Scripts (orden obligatorio) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/assets/js/supabaseClient.js"></script>
+  <script src="/assets/js/context.js"></script>
+  <script src="/assets/js/ui.js"></script>
   <script src="/eduadmin/js/secciones.js"></script>
 </body>
 </html>
