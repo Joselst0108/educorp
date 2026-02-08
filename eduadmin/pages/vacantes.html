@@ -46,7 +46,91 @@
         </div>
       </div>
 desde aqui pegas el cuerpo
+<section class="card" style="margin-bottom:16px;">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+    <div>
+      <h2 style="margin:0;">Vacantes (Cupos)</h2>
+      <p style="margin:6px 0 0; opacity:.8;">
+        El director registra el <b>cupo</b> por sección. Luego el sistema calcula vacantes disponibles.
+      </p>
+    </div>
 
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <span id="pillContext" class="badge">Contexto: ...</span>
+      <span id="pillRole" class="badge">Rol: ...</span>
+      <button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
+    </div>
+  </div>
+</section>
+
+<!-- FORMULARIO: Director/Superadmin -->
+<section class="card" id="cardCrearCupo" style="margin-bottom:16px; display:none;">
+  <h3 style="margin-top:0;">Registrar cupo por sección</h3>
+
+  <div style="display:grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap:12px;">
+    <div>
+      <label class="label">Nivel</label>
+      <select id="selNivel" class="input">
+        <option value="">-- Selecciona nivel --</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="label">Grado</label>
+      <select id="selGrado" class="input" disabled>
+        <option value="">-- Selecciona grado --</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="label">Sección</label>
+      <select id="selSeccion" class="input" disabled>
+        <option value="">-- Selecciona sección --</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="label">Cupo (vacantes)</label>
+      <input id="inpCupo" class="input" type="number" min="0" max="200" placeholder="Ej: 30" />
+    </div>
+  </div>
+
+  <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+    <button id="btnGuardarCupo" class="btn btn-primary">Guardar cupo</button>
+    <span id="msgForm" style="opacity:.8;"></span>
+  </div>
+
+  <p style="margin-top:10px; opacity:.75; font-size:13px;">
+    * Solo Director y Superadmin pueden registrar/editar cupos. Secretaría solo visualiza.
+  </p>
+</section>
+
+<!-- TABLA -->
+<section class="card">
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+    <div class="badge">Secciones: <b id="countSecciones">0</b></div>
+    <div class="badge">Total matriculados: <b id="countMatriculados">0</b></div>
+  </div>
+
+  <div style="overflow:auto;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nivel</th>
+          <th>Grado</th>
+          <th>Sección</th>
+          <th style="text-align:center;">Matriculados</th>
+          <th style="text-align:center;">Cupo</th>
+          <th style="text-align:center;">Vacantes</th>
+          <th style="text-align:center;">Acción</th>
+        </tr>
+      </thead>
+      <tbody id="vacantesTbody">
+        <tr><td colspan="7">Cargando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
   </main>
   <!-- Scripts (orden correcto) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
