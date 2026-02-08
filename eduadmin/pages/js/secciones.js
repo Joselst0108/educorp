@@ -14,7 +14,10 @@
     tbody: () => document.getElementById("tbodySecciones"),
   };
 
-  const setStatus = (t) => { const el = els.status(); if (el) el.textContent = t; };
+  const setStatus = (t) => {
+    const el = els.status();
+    if (el) el.textContent = t;
+  };
 
   function esc(s) {
     return String(s ?? "")
@@ -25,35 +28,32 @@
       .replaceAll("'", "&#039;");
   }
 
-  // ✅ Igual que en grados: completa school_name/logo y year activo si falta
   async function fillMissingContext(ctx) {
     if (ctx?.school_id && (!ctx.school_name || !ctx.school_logo_url)) {
-      const { data: col, error } = await supabase()
+      const { data: col } = await supabase()
         .from("colegios")
         .select("nombre, logo_url")
         .eq("id", ctx.school_id)
         .single();
-
-      if (!error && col) {
+      if (col) {
         ctx.school_name = ctx.school_name || col.nombre;
         ctx.school_logo_url = ctx.school_logo_url || col.logo_url;
       }
     }
 
     if (ctx?.school_id && !ctx.year_id) {
-      const { data: yr, error } = await supabase()
+      const { data: yr } = await supabase()
         .from("anios_academicos")
         .select("id, nombre, anio")
         .eq("colegio_id", ctx.school_id)
         .eq("activo", true)
         .maybeSingle();
 
-      if (!error && yr?.id) {
+      if (yr?.id) {
         ctx.year_id = yr.id;
         ctx.year_name = yr.nombre || String(yr.anio || "");
       }
     }
-
     return ctx;
   }
 
@@ -64,9 +64,33 @@
 
     if (elSchool) elSchool.textContent = ctx.school_name || "Colegio";
     if (elYear) elYear.textContent = ctx.year_id ? `Año: ${ctx.year_name || "—"}` : "Año: —";
-
-    // OJO: aquí NO ponemos rutas raras, ui.js y assets deben manejarlo bien
     if (elLogo) elLogo.src = ctx.school_logo_url || "/assets/img/eduadmin.jpeg";
+  }
+
+  // ✅ helper: ejecuta query con filtro por año y si falla por columna inexistente, reintenta sin año
+  async function runWithOptionalYear(queryBuilderFactory, yearFilterColumn, ctx) {
+    // intento 1: con año si existe
+    if (ctx?.year_id) {
+      const qb1 = queryBuilderFactory();
+      const { data, error } = await qb1.eq(yearFilterColumn, ctx.year_id);
+
+      if (!error) return { data, error: null };
+
+      // si la columna no existe, reintentar sin filtro por año
+      const msg = String(error.message || "").toLowerCase();
+      if (msg.includes("does not exist") || msg.includes("column") || msg.includes("42703")) {
+        // retry sin filtro
+        const qb2 = queryBuilderFactory();
+        const r2 = await qb2;
+        return r2;
+      }
+
+      return { data: null, error };
+    }
+
+    // sin año
+    const qb = queryBuilderFactory();
+    return await qb;
   }
 
   async function loadNiveles(ctx) {
@@ -74,22 +98,29 @@
     if (!sel) return;
 
     sel.innerHTML = `<option value="">Selecciona un nivel</option>`;
+    // también limpias grados
+    if (els.grado()) els.grado().innerHTML = `<option value="">Selecciona un grado</option>`;
 
-    const { data, error } = await supabase()
-      .from("niveles")
-      .select("id, nombre")
-      .eq("colegio_id", ctx.school_id)
-      .order("nombre", { ascending: true });
+    const factory = () =>
+      supabase()
+        .from("niveles")
+        .select("id, nombre")
+        .eq("colegio_id", ctx.school_id)
+        .order("nombre", { ascending: true });
+
+    const { data, error } = await runWithOptionalYear(factory, "anio_academico_id", ctx);
 
     if (error) {
-      console.error("load niveles:", error);
-      setStatus("Error cargando niveles");
+      console.error("loadNiveles error:", error);
+      setStatus("Error cargando niveles ❌");
       return;
     }
 
-    (data || []).forEach(n => {
+    (data || []).forEach((n) => {
       sel.innerHTML += `<option value="${n.id}">${esc(n.nombre)}</option>`;
     });
+
+    if (!data?.length) setStatus("No hay niveles para este colegio/año.");
   }
 
   async function loadGradosByNivel(ctx, nivel_id) {
@@ -97,26 +128,30 @@
     if (!sel) return;
 
     sel.innerHTML = `<option value="">Selecciona un grado</option>`;
-
     if (!nivel_id) return;
 
-    const { data, error } = await supabase()
-      .from("grados")
-      .select("id, nombre, orden")
-      .eq("colegio_id", ctx.school_id)
-      .eq("nivel_id", nivel_id)
-      .order("orden", { ascending: true })
-      .order("nombre", { ascending: true });
+    const factory = () =>
+      supabase()
+        .from("grados")
+        .select("id, nombre, orden")
+        .eq("colegio_id", ctx.school_id)
+        .eq("nivel_id", nivel_id)
+        .order("orden", { ascending: true })
+        .order("nombre", { ascending: true });
+
+    const { data, error } = await runWithOptionalYear(factory, "anio_academico_id", ctx);
 
     if (error) {
-      console.error("load grados:", error);
-      setStatus("Error cargando grados");
+      console.error("loadGradosByNivel error:", error);
+      setStatus("Error cargando grados ❌");
       return;
     }
 
-    (data || []).forEach(g => {
+    (data || []).forEach((g) => {
       sel.innerHTML += `<option value="${g.id}">${esc(g.nombre)}</option>`;
     });
+
+    if (!data?.length) setStatus("No hay grados para ese nivel (o no están ligados al año).");
   }
 
   async function loadSecciones(ctx) {
@@ -126,27 +161,24 @@
     setStatus("Cargando secciones…");
     tbody.innerHTML = `<tr><td colspan="6" class="muted">Cargando…</td></tr>`;
 
-    // Traemos nivel y grado usando joins
-    let q = supabase()
-      .from("secciones")
-      .select(`
-        id, nombre, cupo, activo, grado_id,
-        grados (
-          id, nombre, nivel_id,
-          niveles ( id, nombre )
-        )
-      `)
-      .eq("colegio_id", ctx.school_id)
-      .order("nombre", { ascending: true });
+    const factory = () =>
+      supabase()
+        .from("secciones")
+        .select(`
+          id, nombre, cupo, activo, grado_id,
+          grados (
+            id, nombre, nivel_id,
+            niveles ( id, nombre )
+          )
+        `)
+        .eq("colegio_id", ctx.school_id)
+        .order("nombre", { ascending: true });
 
-    // Si tu tabla ya tiene anio_academico_id, filtramos por año del contexto
-    if (ctx.year_id) q = q.eq("anio_academico_id", ctx.year_id);
-
-    const { data, error } = await q;
+    const { data, error } = await runWithOptionalYear(factory, "anio_academico_id", ctx);
 
     if (error) {
-      console.error("load secciones:", error);
-      setStatus("Error cargando secciones");
+      console.error("loadSecciones error:", error);
+      setStatus("Error cargando secciones ❌");
       tbody.innerHTML = `<tr><td colspan="6">Error</td></tr>`;
       return;
     }
@@ -158,24 +190,26 @@
     }
 
     setStatus(`Secciones: ${data.length}`);
-    tbody.innerHTML = data.map(s => {
-      const nivelNombre = s.grados?.niveles?.nombre || "";
-      const gradoNombre = s.grados?.nombre || "";
-      return `
-        <tr>
-          <td>${esc(nivelNombre)}</td>
-          <td>${esc(gradoNombre)}</td>
-          <td>${esc(s.nombre)}</td>
-          <td>${s.cupo ?? ""}</td>
-          <td>${s.activo ? "Sí" : "No"}</td>
-          <td>
-            <button class="btn btn-danger btn-sm" data-del="${s.id}">Eliminar</button>
-          </td>
-        </tr>
-      `;
-    }).join("");
+    tbody.innerHTML = data
+      .map((s) => {
+        const nivelNombre = s.grados?.niveles?.nombre || "";
+        const gradoNombre = s.grados?.nombre || "";
+        return `
+          <tr>
+            <td>${esc(nivelNombre)}</td>
+            <td>${esc(gradoNombre)}</td>
+            <td>${esc(s.nombre)}</td>
+            <td>${s.cupo ?? ""}</td>
+            <td>${s.activo ? "Sí" : "No"}</td>
+            <td>
+              <button class="btn btn-danger btn-sm" data-del="${s.id}">Eliminar</button>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
 
-    tbody.querySelectorAll("[data-del]").forEach(btn => {
+    tbody.querySelectorAll("[data-del]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         if (!confirm("¿Eliminar esta sección?")) return;
         await deleteSeccion(ctx, btn.dataset.del);
@@ -200,10 +234,10 @@
       grado_id,
       nombre,
       cupo,
-      activo
+      activo,
     };
 
-    // Si existe year_id, lo guardamos (recomendado)
+    // si tu tabla secciones ya tiene anio_academico_id, lo enviamos
     if (ctx.year_id) payload.anio_academico_id = ctx.year_id;
 
     const { error } = await supabase().from("secciones").insert(payload);
@@ -217,20 +251,16 @@
     els.form()?.reset();
     if (els.activo()) els.activo().checked = true;
 
-    // Mantener nivel seleccionado pero limpiar sección/grado
+    // mantiene nivel pero reinicia grados
     if (els.grado()) els.grado().innerHTML = `<option value="">Selecciona un grado</option>`;
 
     await loadSecciones(ctx);
   }
 
   async function deleteSeccion(ctx, id) {
-    let q = supabase()
-      .from("secciones")
-      .delete()
-      .eq("id", id)
-      .eq("colegio_id", ctx.school_id);
+    let q = supabase().from("secciones").delete().eq("id", id).eq("colegio_id", ctx.school_id);
 
-    // si hay año, mejor asegurar
+    // si existe año, filtramos
     if (ctx.year_id) q = q.eq("anio_academico_id", ctx.year_id);
 
     const { error } = await q;
@@ -261,10 +291,10 @@
         return;
       }
 
-      // Cargar combos
+      // ✅ carga niveles
       await loadNiveles(ctx);
 
-      // Cascada nivel -> grados
+      // ✅ cascada: al cambiar nivel, carga grados
       els.nivel()?.addEventListener("change", async () => {
         const nivel_id = els.nivel().value;
         await loadGradosByNivel(ctx, nivel_id);
@@ -277,7 +307,6 @@
 
       els.btnRefresh()?.addEventListener("click", () => loadSecciones(ctx));
 
-      // Tabla
       await loadSecciones(ctx);
       setStatus("Listo ✅");
     } catch (err) {
