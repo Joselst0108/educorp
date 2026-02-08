@@ -1,0 +1,109 @@
+<!-- /assets/partials/eduadmin-sidebar.html -->
+<aside class="sidebar">
+  <div class="brand">
+    <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin" />
+    <div class="titles">
+      <b>EduAdmin</b>
+      <span>Administración real</span>
+    </div>
+  </div>
+
+  <nav class="nav" id="eduadminNav">
+
+    <a href="/eduadmin/pages/dashboard.html" class="nav-link" data-active="/eduadmin/pages/dashboard.html">
+      <div class="nav-item"><span>Dashboard</span></div>
+    </a>
+
+    <!-- GRUPO: COLEGIO -->
+    <button class="nav-group" type="button" data-group="colegio">
+      <span>COLEGIO</span>
+      <span class="chev">▾</span>
+    </button>
+    <div class="nav-sub" data-sub="colegio">
+      <a href="/eduadmin/pages/colegio.html" class="nav-link" data-active="/eduadmin/pages/colegio.html">
+        <div class="nav-item">Datos del colegio</div>
+      </a>
+      <a href="/eduadmin/pages/usuarios.html" class="nav-link" data-active="/eduadmin/pages/usuarios.html">
+        <div class="nav-item">Usuarios y roles</div>
+      </a>
+
+      <!-- NUEVO: COLEGIOS (SuperAdmin) -->
+      <a href="/eduadmin/pages/colegios.html" class="nav-link" data-role="superadmin" data-active="/eduadmin/pages/colegios.html">
+        <div class="nav-item">Colegios (SuperAdmin)</div>
+      </a>
+    </div>
+
+    <!-- GRUPO: ESTRUCTURA ACADÉMICA -->
+    <button class="nav-group" type="button" data-group="estructura">
+      <span>ESTRUCTURA ACADÉMICA</span>
+      <span class="chev">▾</span>
+    </button>
+    <div class="nav-sub" data-sub="estructura">
+      <a href="/eduadmin/pages/anio.html" class="nav-link" data-active="/eduadmin/pages/anio.html">
+        <div class="nav-item">Año académico</div>
+      </a>
+      <a href="/eduadmin/pages/niveles.html" class="nav-link" data-active="/eduadmin/pages/niveles.html">
+        <div class="nav-item">Niveles</div>
+      </a>
+      <a href="/eduadmin/pages/grados.html" class="nav-link" data-active="/eduadmin/pages/grados.html">
+        <div class="nav-item">Grados</div>
+      </a>
+      <a href="/eduadmin/pages/secciones.html" class="nav-link" data-active="/eduadmin/pages/secciones.html">
+        <div class="nav-item">Secciones / Aulas</div>
+      </a>
+      <a href="/eduadmin/pages/vacantes.html" class="nav-link" data-active="/eduadmin/pages/vacantes.html">
+        <div class="nav-item">Vacantes</div>
+      </a>
+    </div>
+
+    <!-- GRUPO: ESTUDIANTES -->
+    <button class="nav-group" type="button" data-group="estudiantes">
+      <span>ESTUDIANTES</span>
+      <span class="chev">▾</span>
+    </button>
+    <div class="nav-sub" data-sub="estudiantes">
+      <a href="/eduadmin/pages/alumnos.html" class="nav-link" data-active="/eduadmin/pages/alumnos.html">
+        <div class="nav-item">Registrar alumnos</div>
+      </a>
+      <a href="/eduadmin/pages/lista-alumnos.html" class="nav-link" data-active="/eduadmin/pages/lista-alumnos.html">
+        <div class="nav-item">Lista de alumnos</div>
+      </a>
+      <a href="/eduadmin/pages/apoderados.html" class="nav-link" data-active="/eduadmin/pages/apoderados.html">
+        <div class="nav-item">Apoderados</div>
+      </a>
+      <a href="/eduadmin/pages/matriculas.html" class="nav-link" data-active="/eduadmin/pages/matriculas.html">
+        <div class="nav-item">Matrículas</div>
+      </a>
+    </div>
+
+    <!-- GRUPO: FINANZAS -->
+    <button class="nav-group" type="button" data-group="finanzas">
+      <span>FINANZAS REALES</span>
+      <span class="chev">▾</span>
+    </button>
+    <div class="nav-sub" data-sub="finanzas">
+      <a href="/eduadmin/pages/conceptos.html" class="nav-link" data-active="/eduadmin/pages/conceptos.html">
+        <div class="nav-item">Conceptos de pago</div>
+      </a>
+      <a href="/eduadmin/pages/pagos.html" class="nav-link" data-active="/eduadmin/pages/pagos.html">
+        <div class="nav-item">Registrar pagos</div>
+      </a>
+      <a href="/eduadmin/pages/caja.html" class="nav-link" data-active="/eduadmin/pages/caja.html">
+        <div class="nav-item">Caja</div>
+      </a>
+      <a href="/eduadmin/pages/morosidad.html" class="nav-link" data-active="/eduadmin/pages/morosidad.html">
+        <div class="nav-item">Morosidad</div>
+      </a>
+      <a href="/eduadmin/pages/reportes-financieros.html" class="nav-link" data-active="/eduadmin/pages/reportes-financieros.html">
+        <div class="nav-item">Reportes financieros</div>
+      </a>
+    </div>
+
+    <!-- SISTEMA -->
+    <div class="muted" style="margin:10px 6px 6px;font-size:12px;">SISTEMA</div>
+    <a href="#" id="logoutBtn" class="nav-link">
+      <div class="nav-item">Cerrar sesión</div>
+    </a>
+
+  </nav>
+</aside>
