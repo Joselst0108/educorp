@@ -66,3 +66,12 @@
   box-shadow: var(--shadow);
   padding:16px;
 }
+/* Topbar logo fix */
+.topbar-logo,
+#uiSchoolLogo {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;   /* o "contain" si no quieres recorte */
+  border-radius: 10px;
+  flex: 0 0 44px;
+}
