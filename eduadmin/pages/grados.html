@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduAdmin | Grados</title>
+
+  <!-- ✅ CSS principal -->
+  <link rel="stylesheet" href="/assets/css/style.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/assets/js/supabaseClient.js"></script>
+  <script src="/assets/js/context.js"></script>
+  <script src="/assets/js/ui.js"></script>
+
+  <!-- (Opcional) Solo layout si tu CSS no tiene grid -->
+  <style>
+    .grid-2 { display:grid; grid-template-columns: 1fr 1.2fr; gap:16px; }
+    @media (max-width: 900px){ .grid-2 { grid-template-columns: 1fr; } }
+    .muted { opacity:.75; }
+  </style>
+</head>
+
+<body>
+  <!-- Topbar (igual a tus páginas) -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Logo" class="topbar-logo" />
+      <div class="topbar-meta">
+        <div id="uiSchoolName" class="topbar-title">Cargando colegio...</div>
+        <div id="uiYearName" class="topbar-subtitle">Año: —</div>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
+      <a href="/pages/eduadmin/dashboard.html" class="btn btn-secondary">Volver</a>
+    </div>
+  </div>
+
+  <div class="page-header">
+    <h1>Grados</h1>
+    <div id="status" class="status muted">Cargando…</div>
+  </div>
+
+  <div class="grid-2">
+    <!-- Crear grado -->
+    <div class="card">
+      <h2 class="card-title">Crear grado</h2>
+
+      <form id="formGrado" class="form">
+        <div class="form-group">
+          <label for="nivel_id">Nivel</label>
+          <select id="nivel_id" required>
+            <option value="">Selecciona un nivel</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="grado">Nombre del grado</label>
+          <input id="grado" type="text" placeholder="Ej: 1°, 2°, 3 años..." required />
+        </div>
+
+        <div class="form-group">
+          <label for="orden">Orden (opcional)</label>
+          <input id="orden" type="number" placeholder="Ej: 1" />
+        </div>
+
+        <div class="form-group" style="display:flex; gap:10px; align-items:center;">
+          <input id="activo" type="checkbox" checked />
+          <label for="activo" style="margin:0;">Activo</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%;">Guardar</button>
+        <div class="muted" style="margin-top:10px;">* Los grados se crean por colegio y nivel.</div>
+      </form>
+    </div>
+
+    <!-- Lista grados -->
+    <div class="card">
+      <h2 class="card-title">Grados registrados</h2>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Nivel</th>
+              <th>Grado</th>
+              <th>Orden</th>
+              <th>Activo</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyGrados">
+            <tr><td colspan="5" class="muted">Cargando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="/eduadmin/js/grados.js"></script>
+</body>
+</html>
