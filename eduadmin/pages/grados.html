@@ -1,18 +1,19 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-app="eduadmin">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Grados</title>
 
-  <link rel="stylesheet" href="/assets/css/variables.css">
-  <link rel="stylesheet" href="/assets/css/main.css">
-  <link rel="stylesheet" href="/assets/css/components.css">
+  <!-- ✅ RUTAS RELATIVAS DESDE /eduadmin/pages/ -->
+  <link rel="stylesheet" href="../../assets/css/variables.css">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/components.css">
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/assets/js/supabaseClient.js"></script>
-  <script src="/assets/js/context.js"></script>
-  <script src="/assets/js/ui.js"></script>
+  <script src="../../assets/js/supabaseClient.js"></script>
+  <script src="../../assets/js/context.js"></script>
+  <script src="../../assets/js/ui.js"></script>
 
   <style>
     .grid-2 { display:grid; grid-template-columns: 1fr 1.2fr; gap:16px; }
@@ -24,7 +25,14 @@
 <body>
   <div class="topbar">
     <div class="topbar-left">
-      <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Logo" class="topbar-logo" />
+      <!-- ✅ fallback si no existe el logo -->
+      <img
+        id="uiSchoolLogo"
+        src="../../assets/img/eduadmin.jpeg"
+        alt="Logo"
+        class="topbar-logo"
+        onerror="this.src='../../assets/img/eduadmin.jpeg';"
+      />
       <div class="topbar-meta">
         <div id="uiSchoolName" class="topbar-title">Cargando colegio...</div>
         <div id="uiYearName" class="topbar-subtitle">Año: —</div>
@@ -33,7 +41,8 @@
 
     <div class="topbar-actions">
       <button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
-      <a href="/pages/eduadmin/dashboard.html" class="btn btn-secondary">Volver</a>
+      <!-- ✅ RUTA RELATIVA AL DASHBOARD REAL告诉 -->
+      <a href="./dashboard.html" class="btn btn-secondary">Volver</a>
     </div>
   </div>
 
@@ -54,7 +63,6 @@
           </select>
         </div>
 
-        <!-- ✅ CASCADA -->
         <div class="form-group">
           <label for="grado">Grado</label>
           <select id="grado" required>
@@ -99,6 +107,7 @@
     </div>
   </div>
 
-  <script src="/eduadmin/js/grados.js"></script>
+  <!-- ✅ RUTA RELATIVA A /eduadmin/js/ -->
+  <script src="../js/grados.js"></script>
 </body>
 </html>
