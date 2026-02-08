@@ -1,208 +1,222 @@
 /* =====================================================
-   EduAdmin | Vacantes  (pages/js/vacantes.js)
-   - Sin loop infinito "Vacantes cargando..."
-   - Requiere contexto: colegio_id + anio_academico_id (localStorage)
-   - Lista vacantes y crea nuevas
+   EduAdmin | Vacantes (CUPOS por Grado/Sección)
+   Archivo: pages/js/vacantes.js
 ===================================================== */
 
 (() => {
   "use strict";
 
-  // Ajusta si tu tabla se llama diferente
-  const TABLE_VACANTES = "vacantes";
-
-  // Evita doble inicialización
   let _initialized = false;
+
+  // Ajusta nombres si tus tablas se llaman diferente
+  const T_SECCIONES = "secciones";        // o "aulas"
+  const T_GRADOS = "grados";
+  const T_CUPOS = "cupos_seccion";
+  const T_ESTUDIANTES = "estudiantes";
 
   document.addEventListener("DOMContentLoaded", async () => {
     if (_initialized) return;
     _initialized = true;
 
     try {
-      await initVacantes();
-    } catch (err) {
-      console.error("Vacantes init error:", err);
-      setText("#formMsg", "Error inicializando Vacantes.");
+      await init();
+    } catch (e) {
+      console.error("Vacantes init error:", e);
+      alert("Error en Vacantes. Revisa consola.");
     }
   });
 
-  async function initVacantes() {
-    console.log("Vacantes: init");
-
-    // 1) Verifica Supabase
+  async function init() {
     if (!window.supabaseClient) {
-      console.error("window.supabaseClient no está definido.");
-      alert("Supabase no está inicializado. Revisa supabaseClient.js");
+      alert("Supabase no está inicializado.");
       return;
     }
 
-    // 2) Validar sesión
-    const session = await getSessionSafe();
-    if (!session) {
-      alert("Sesión no válida. Inicia sesión.");
-      // Ajusta ruta si tu login está en otra carpeta
-      window.location.href = "../login.html";
-      return;
-    }
-
-    // 3) Leer contexto
+    // contexto
     const colegioId = localStorage.getItem("colegio_id");
     const anioId = localStorage.getItem("anio_academico_id");
 
     if (!colegioId || !anioId) {
-      console.warn("Vacantes: sin contexto aún...");
-      setText("#pillContext", "Contexto: falta colegio/año");
-      alert("Primero selecciona un Colegio y un Año Académico.");
-      // Ajusta si tu página de año académico se llama distinto
+      alert("Primero selecciona Colegio y Año Académico.");
       window.location.href = "./anio-academico.html";
       return;
     }
 
-    setText("#pillContext", "Contexto: OK");
+    const pill = document.getElementById("pillContext");
+    if (pill) pill.textContent = "Contexto: OK";
 
-    // 4) Hooks
-    const btnRefresh = document.getElementById("btnRefresh");
-    if (btnRefresh) {
-      btnRefresh.addEventListener("click", async () => {
-        await loadVacantes({ colegioId, anioId });
-      });
-    }
+    // Botón actualizar (si existe)
+    document.getElementById("btnRefresh")?.addEventListener("click", async () => {
+      await cargarVacantes({ colegioId, anioId });
+    });
 
-    const form = document.getElementById("formVacante");
-    if (form) {
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        await crearVacante({ colegioId, anioId });
-      });
-    }
-
-    // 5) Cargar una sola vez al entrar
-    await loadVacantes({ colegioId, anioId });
+    // Cargar al entrar
+    await cargarVacantes({ colegioId, anioId });
   }
 
-  /* =====================================================
-     CARGAR VACANTES (1 sola vez por acción)
-  ===================================================== */
-  async function loadVacantes({ colegioId, anioId }) {
-    console.log("Cargando vacantes...", { colegioId, anioId });
+  async function cargarVacantes({ colegioId, anioId }) {
+    console.log("Cargando vacantes por sección...", { colegioId, anioId });
 
     const tbody = document.getElementById("vacantesTbody");
-    if (tbody) tbody.innerHTML = `<tr><td colspan="4">Cargando...</td></tr>`;
-    setText("#formMsg", "");
+    const count = document.getElementById("countVacantes");
 
-    const { data, error } = await window.supabaseClient
-      .from(TABLE_VACANTES)
-      .select("*")
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7">Cargando...</td></tr>`;
+
+    // 1) Traer secciones con grado
+    // IMPORTANTE: esto requiere que "secciones" tenga grado_id
+    const { data: secciones, error: errSec } = await window.supabaseClient
+      .from(T_SECCIONES)
+      .select("id, nombre, grado_id")
+      .eq("colegio_id", colegioId)
+      .eq("anio_academico_id", anioId);
+
+    if (errSec) {
+      console.error(errSec);
+      if (tbody) tbody.innerHTML = `<tr><td colspan="7">Error cargando secciones: ${escapeHtml(errSec.message)}</td></tr>`;
+      if (count) count.textContent = "0";
+      return;
+    }
+
+    if (!secciones || secciones.length === 0) {
+      if (tbody) tbody.innerHTML = `<tr><td colspan="7">No hay secciones para este año.</td></tr>`;
+      if (count) count.textContent = "0";
+      return;
+    }
+
+    // 2) Traer grados para mapear nombre
+    const gradoIds = [...new Set(secciones.map(s => s.grado_id).filter(Boolean))];
+
+    const { data: grados, error: errG } = await window.supabaseClient
+      .from(T_GRADOS)
+      .select("id, nombre")
+      .in("id", gradoIds);
+
+    if (errG) {
+      console.error(errG);
+    }
+
+    const gradoMap = new Map((grados || []).map(g => [g.id, g.nombre]));
+
+    // 3) Traer cupos guardados (capacidad) para estas secciones
+    const seccionIds = secciones.map(s => s.id);
+
+    const { data: cuposRows, error: errC } = await window.supabaseClient
+      .from(T_CUPOS)
+      .select("seccion_id, capacidad")
       .eq("colegio_id", colegioId)
       .eq("anio_academico_id", anioId)
-      .order("created_at", { ascending: false });
+      .in("seccion_id", seccionIds);
 
-    if (error) {
-      console.error("Error cargando vacantes:", error);
-      if (tbody) tbody.innerHTML = `<tr><td colspan="4">Error: ${escapeHtml(error.message)}</td></tr>`;
-      setText("#countVacantes", "0");
-      return;
-    }
+    if (errC) console.error(errC);
 
-    if (!data || data.length === 0) {
-      if (tbody) tbody.innerHTML = `<tr><td colspan="4">Sin vacantes registradas</td></tr>`;
-      setText("#countVacantes", "0");
-      return;
-    }
+    const cuposMap = new Map((cuposRows || []).map(r => [r.seccion_id, r.capacidad]));
 
-    setText("#countVacantes", String(data.length));
+    // 4) Contar matriculados por sección (si tu tabla estudiantes tiene seccion_id)
+    const { data: estudiantes, error: errE } = await window.supabaseClient
+      .from(T_ESTUDIANTES)
+      .select("id, seccion_id")
+      .eq("colegio_id", colegioId)
+      .eq("anio_academico_id", anioId);
+
+    if (errE) console.error(errE);
+
+    const matricMap = new Map();
+    (estudiantes || []).forEach(st => {
+      if (!st.seccion_id) return;
+      matricMap.set(st.seccion_id, (matricMap.get(st.seccion_id) || 0) + 1);
+    });
+
+    // 5) Render
+    if (count) count.textContent = String(secciones.length);
     if (!tbody) return;
 
     tbody.innerHTML = "";
-    for (const v of data) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHtml(v.cargo ?? "-")}</td>
-        <td>${escapeHtml(v.area ?? "-")}</td>
-        <td>${renderEstado(v.estado)}</td>
-        <td>${formatDate(v.created_at)}</td>
-      `;
-      tbody.appendChild(tr);
-    }
+
+    secciones
+      .sort((a, b) => {
+        const ga = (gradoMap.get(a.grado_id) || "");
+        const gb = (gradoMap.get(b.grado_id) || "");
+        if (ga !== gb) return ga.localeCompare(gb);
+        return (a.nombre || "").localeCompare(b.nombre || "");
+      })
+      .forEach(sec => {
+        const gradoNombre = gradoMap.get(sec.grado_id) || "-";
+        const seccionNombre = sec.nombre || "-";
+        const capacidad = Number(cuposMap.get(sec.id) ?? 30); // default 30
+        const matriculados = Number(matricMap.get(sec.id) ?? 0);
+        const vacantes = Math.max(0, capacidad - matriculados);
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${escapeHtml(gradoNombre)}</td>
+          <td>${escapeHtml(seccionNombre)}</td>
+          <td style="text-align:center;">${matriculados}</td>
+          <td style="text-align:center;">
+            <input type="number" min="0" value="${capacidad}" data-seccion="${sec.id}" class="capacidadInput" style="width:90px;">
+          </td>
+          <td style="text-align:center; font-weight:700;">${vacantes}</td>
+          <td style="text-align:center;">
+            <button class="btnGuardarCap" data-seccion="${sec.id}">Guardar</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+    // 6) Eventos Guardar capacidad
+    tbody.querySelectorAll(".btnGuardarCap").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const seccionId = btn.getAttribute("data-seccion");
+        const input = tbody.querySelector(`.capacidadInput[data-seccion="${seccionId}"]`);
+        const capacidad = Number(input?.value ?? 0);
+
+        btn.disabled = true;
+        btn.textContent = "Guardando...";
+
+        try {
+          await upsertCupo({ colegioId, anioId, seccionId, capacidad });
+          btn.textContent = "✅";
+          setTimeout(() => (btn.textContent = "Guardar"), 800);
+          // recargar para recalcular vacantes
+          await cargarVacantes({ colegioId, anioId });
+        } catch (e) {
+          console.error(e);
+          btn.textContent = "Error";
+          setTimeout(() => (btn.textContent = "Guardar"), 1200);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
   }
 
-  /* =====================================================
-     CREAR VACANTE
-  ===================================================== */
-  async function crearVacante({ colegioId, anioId }) {
-    const cargo = (document.getElementById("cargo")?.value || "").trim();
-    const area = (document.getElementById("area")?.value || "").trim();
-    const estado = (document.getElementById("estado")?.value || "activa").trim();
+  async function upsertCupo({ colegioId, anioId, seccionId, capacidad }) {
+    // Obtiene el grado_id desde secciones
+    const { data: sec, error: err } = await window.supabaseClient
+      .from(T_SECCIONES)
+      .select("id, grado_id")
+      .eq("id", seccionId)
+      .single();
 
-    if (!cargo) {
-      setText("#formMsg", "⚠️ Ingresa el cargo/puesto.");
-      return;
-    }
+    if (err) throw err;
 
-    setText("#formMsg", "Guardando...");
     const payload = {
       colegio_id: colegioId,
       anio_academico_id: anioId,
-      cargo,
-      area: area || null,
-      estado
+      seccion_id: seccionId,
+      grado_id: sec?.grado_id,
+      capacidad: Number.isFinite(capacidad) ? capacidad : 0
     };
 
-    const { error } = await window.supabaseClient
-      .from(TABLE_VACANTES)
-      .insert(payload);
+    // upsert requiere que exista UNIQUE(anio_academico_id, seccion_id)
+    const { error: upErr } = await window.supabaseClient
+      .from(T_CUPOS)
+      .upsert(payload, { onConflict: "anio_academico_id,seccion_id" });
 
-    if (error) {
-      console.error("Error insert vacante:", error);
-      setText("#formMsg", "❌ Error: " + error.message);
-      return;
-    }
-
-    setText("#formMsg", "✅ Vacante creada correctamente.");
-
-    // Limpiar form
-    const form = document.getElementById("formVacante");
-    if (form) form.reset();
-
-    // Recargar lista
-    await loadVacantes({ colegioId, anioId });
-  }
-
-  /* =====================================================
-     HELPERS
-  ===================================================== */
-  async function getSessionSafe() {
-    try {
-      const { data, error } = await window.supabaseClient.auth.getSession();
-      if (error) return null;
-      return data?.session || null;
-    } catch {
-      return null;
-    }
-  }
-
-  function setText(selector, text) {
-    const el = document.querySelector(selector);
-    if (el) el.textContent = text;
-  }
-
-  function formatDate(iso) {
-    if (!iso) return "-";
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "-";
-    return d.toLocaleDateString();
-  }
-
-  function renderEstado(estado) {
-    const s = (estado || "activa").toLowerCase();
-    if (s === "activa") return `<span class="badge ok">Activa</span>`;
-    if (s === "pausada") return `<span class="badge warn">Pausada</span>`;
-    if (s === "cerrada") return `<span class="badge bad">Cerrada</span>`;
-    return `<span class="badge">${escapeHtml(estado)}</span>`;
+    if (upErr) throw upErr;
   }
 
   function escapeHtml(str) {
-    return String(str)
+    return String(str ?? "")
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")
