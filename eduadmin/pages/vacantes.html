@@ -1,131 +1,135 @@
 <!DOCTYPE html>
 <html lang="es" data-app="eduadmin">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EduAdmin | Vacantes</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduAdmin | Vacantes</title>
 
-<link rel="stylesheet" href="/assets/css/variables.css">
-<link rel="stylesheet" href="/assets/css/main.css">
-<link rel="stylesheet" href="/assets/css/components.css">
+  <link rel="stylesheet" href="/assets/css/variables.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/assets/js/supabaseClient.js"></script>
-<script src="/assets/js/context.js"></script>
-<script src="/assets/js/ui.js"></script>
+  <!-- Scripts base (orden recomendado) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/assets/js/supabaseClient.js"></script>
+  <script src="/assets/js/context.js"></script>
+  <script src="/assets/js/ui.js"></script>
 </head>
 
 <body>
-<div class="app-shell">
+  <div class="app-shell">
 
-<!-- SIDEBAR -->
-<aside class="sidebar">
-  <div class="brand">
-    <img id="uiAppLogo" src="/assets/img/educorp.jpeg">
-    <div class="titles">
-      <b>EduAdmin</b>
-      <span>Administración real</span>
-    </div>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin">
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
+        </div>
+      </div>
+
+      <!-- 🔥 MENÚ DINÁMICO -->
+      <nav id="uiSidebarNav" class="nav"></nav>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+
+      <div class="topbar">
+        <div class="school-chip">
+          <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio"
+               onerror="this.src='/assets/img/eduadmin.jpeg'">
+          <div class="meta">
+            <b id="uiSchoolName">Cargando...</b>
+            <span id="uiYearName">Año: —</span>
+          </div>
+        </div>
+      </div>
+
+      <section class="page">
+
+        <div class="card">
+          <h1 class="h1">Vacantes por sección</h1>
+          <p class="muted" id="status">Cargando…</p>
+        </div>
+
+        <div class="grid-2">
+
+          <div class="card">
+            <h2 class="h2">Asignar vacantes</h2>
+
+            <form id="formVacante" class="form">
+
+              <label class="label">Nivel</label>
+              <select class="select" id="nivel_id" required>
+                <option value="">Nivel</option>
+              </select>
+
+              <label class="label">Grado</label>
+              <select class="select" id="grado_id" required>
+                <option value="">Grado</option>
+              </select>
+
+              <label class="label">Sección</label>
+              <select class="select" id="seccion_id" required>
+                <option value="">Sección</option>
+              </select>
+
+              <label class="label">Vacantes</label>
+              <input class="input" type="number" id="vacantes" min="0" required>
+
+              <!-- Campo espejo para tu lógica actual -->
+              <input type="hidden" id="cupo_total">
+
+              <button class="btn btn-primary" type="submit">Guardar</button>
+            </form>
+          </div>
+
+          <div class="card">
+            <h2 class="h2">Vacantes registradas</h2>
+
+            <div style="overflow:auto;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Nivel</th>
+                    <th>Grado</th>
+                    <th>Sección</th>
+                    <th>Vacantes</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyVacantes">
+                  <tr><td colspan="4" class="muted">Cargando…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </main>
   </div>
 
-  <!-- 🔥 MENÚ DINÁMICO -->
-  <nav id="uiSidebarNav" class="nav"></nav>
-</aside>
+  <!-- Inicialización única -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // ✅ Puente vacantes -> cupo_total (compatibilidad con tu lógica actual)
+      const a = document.getElementById("vacantes");
+      const b = document.getElementById("cupo_total");
+      if (a && b) {
+        b.value = a.value || "";
+        a.addEventListener("input", () => (b.value = a.value || ""));
+      }
 
-<!-- MAIN -->
-<main class="main">
+      // ✅ Render menú dinámico (si ui.js lo expone)
+      if (window.renderEduAdminSidebar) {
+        window.renderEduAdminSidebar();
+      }
+    });
+  </script>
 
-<div class="topbar">
-  <div class="school-chip">
-    <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" onerror="this.src='/assets/img/eduadmin.jpeg'">
-    <div class="meta">
-      <b id="uiSchoolName">Cargando...</b>
-      <span id="uiYearName">Año</span>
-    </div>
-  </div>
-</div>
-
-<section class="page">
-
-<div class="card">
-<h1>Vacantes por sección</h1>
-<p id="status">Cargando…</p>
-</div>
-
-<div class="grid-2">
-
-<div class="card">
-<h2>Asignar vacantes</h2>
-
-<form id="formVacante">
-
-<label>Nivel</label>
-<select id="nivel_id">
-  <option value="">Nivel</option>
-</select>
-
-<label>Grado</label>
-<select id="grado_id">
-  <option value="">Grado</option>
-</select>
-
-<label>Sección</label>
-<select id="seccion_id">
-  <option value="">Sección</option>
-</select>
-
-<label>Vacantes</label>
-<input type="number" id="vacantes">
-
-<input type="hidden" id="cupo_total">
-
-<button class="btn btn-primary">Guardar</button>
-</form>
-</div>
-
-<div class="card">
-<h2>Vacantes registradas</h2>
-
-<table class="table">
-<thead>
-<tr>
-<th>Nivel</th>
-<th>Grado</th>
-<th>Sección</th>
-<th>Vacantes</th>
-</tr>
-</thead>
-<tbody id="tbodyVacantes"></tbody>
-</table>
-
-</div>
-</div>
-</section>
-</main>
-</div>
-
-<!-- puente vacantes -->
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const a = document.getElementById("vacantes");
-  const b = document.getElementById("cupo_total");
-  if (a && b) {
-    b.value = a.value || "";
-    a.addEventListener("input", () => (b.value = a.value || ""));
-  }
-});
-</script>
-
-<!-- 🔥 ACTIVAR MENÚ -->
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  if (window.renderEduAdminSidebar) {
-    window.renderEduAdminSidebar();
-  }
-});
-</script>
-
-<script src="/eduadmin/pages/js/vacantes.js"></script>
-
+  <!-- JS de la página (ruta correcta) -->
+  <script src="/eduadmin/js/vacantes.js"></script>
 </body>
 </html>
