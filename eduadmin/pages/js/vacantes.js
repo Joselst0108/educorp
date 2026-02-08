@@ -12,7 +12,7 @@
   const T_SECCIONES = "secciones";        // o "aulas"
   const T_GRADOS = "grados";
   const T_CUPOS = "cupos";
-  const T_ESTUDIANTES = "estudiantes";
+  const T_ALUMNOS = "alumnos";
 
   document.addEventListener("DOMContentLoaded", async () => {
     if (_initialized) return;
