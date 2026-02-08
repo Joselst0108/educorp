@@ -1,40 +1,32 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-app="eduadmin">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Vacantes</title>
 
-  <!-- Tus estilos reales (deja los tuyos) -->
-  <link rel="stylesheet" href="../css/dashboard.css" />
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/assets/js/supabaseClient.js"></script>
-  <script src="/assets/js/context.js"></script>
+  <link rel="stylesheet" href="/assets/css/variables.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
 </head>
 
 <body>
 
   <!-- ✅ TU SIDEBAR REAL AQUÍ (no lo cambio) -->
 
-  <main class="main-content">
-    <!-- ✅ TU TOPBAR REAL AQUÍ (donde context.js pinta colegio y año) -->
-
-    <section class="card">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-        <div>
-          <h2 style="margin:0;">Vacantes (Cupos)</h2>
-          <p style="margin:6px 0 0; opacity:.8;">
-            Vacantes = Cupo (tabla <b>vacantes</b>) − Matriculados (tabla <b>alumnos</b>)
-          </p>
-        </div>
-
-        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-          <span id="pillContext" class="badge">Contexto: ...</span>
-          <span id="pillRole" class="badge">Rol: ...</span>
-          <button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
         </div>
       </div>
+
+      <!-- 🔥 Menú generado por /assets/js/ui.js -->
+      <nav id="uiSidebarNav" class="nav"></nav>
+    </aside>
+
 
       <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
         <div class="badge">Secciones: <b id="countSecciones">0</b></div>
