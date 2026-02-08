@@ -13,7 +13,6 @@
 <body>
   <div class="app-shell">
 
-    <!-- ✅ SIDEBAR DINÁMICO -->
     <aside class="sidebar">
       <div class="brand">
         <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin" />
@@ -22,11 +21,9 @@
           <span>Administración real</span>
         </div>
       </div>
-
       <nav id="uiSidebarNav" class="nav"></nav>
     </aside>
 
-    <!-- MAIN -->
     <main class="main">
 
       <div class="topbar">
@@ -45,15 +42,13 @@
         </div>
       </div>
 
-      <!-- =========================
-           CONTENIDO ALUMNOS
-      ========================== -->
+      <!-- ====== CONTENIDO ALUMNOS ====== -->
       <section class="card">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
           <div>
-            <h2 style="margin:0;">Registrar Alumnos</h2>
+            <h2 style="margin:0;">Registrar alumnos</h2>
             <p style="margin:6px 0 0; opacity:.85;">
-              Registra alumnos por sección para luego calcular vacantes automáticamente.
+              Registro completo tipo SIAGIE. Luego se matricula por año en otra pantalla.
             </p>
           </div>
 
@@ -65,64 +60,71 @@
 
         <div id="permMsg" class="badge" style="margin-top:12px; display:none;"></div>
 
-        <!-- Filtros / selección -->
-        <div class="card" style="margin-top:14px;">
-          <h3 style="margin:0 0 10px;">Sección</h3>
-
-          <div style="display:grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap:12px;">
-            <div>
-              <label style="display:block; margin-bottom:6px;">Nivel</label>
-              <select id="selNivel" class="input">
-                <option value="">Cargando...</option>
-              </select>
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:6px;">Grado</label>
-              <select id="selGrado" class="input" disabled>
-                <option value="">Seleccione nivel</option>
-              </select>
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:6px;">Sección</label>
-              <select id="selSeccion" class="input" disabled>
-                <option value="">Seleccione grado</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- Formulario alumno -->
         <div class="card" style="margin-top:14px;">
           <h3 style="margin:0 0 10px;">Datos del alumno</h3>
 
-          <input type="hidden" id="inpAlumnoId" value="">
-
-          <div style="display:grid; grid-template-columns: repeat(4, minmax(170px, 1fr)); gap:12px;">
+          <div style="display:grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap:12px;">
             <div>
               <label style="display:block; margin-bottom:6px;">DNI</label>
-              <input id="inpDni" class="input" type="text" maxlength="15" placeholder="Ej: 12345678" />
+              <input id="inpDni" class="input" maxlength="12" placeholder="Ej: 12345678" />
             </div>
 
-            <div style="grid-column: span 2;">
+            <div>
+              <label style="display:block; margin-bottom:6px;">Código alumno</label>
+              <input id="inpCodigo" class="input" placeholder="Ej: ALU-0001" />
+            </div>
+
+            <div>
               <label style="display:block; margin-bottom:6px;">Nombres</label>
-              <input id="inpNombres" class="input" type="text" placeholder="Ej: Juan Carlos" />
+              <input id="inpNombres" class="input" placeholder="Ej: Juan Carlos" />
             </div>
 
-            <div style="grid-column: span 2;">
+            <div>
               <label style="display:block; margin-bottom:6px;">Apellidos</label>
-              <input id="inpApellidos" class="input" type="text" placeholder="Ej: Pérez Gómez" />
+              <input id="inpApellidos" class="input" placeholder="Ej: Pérez López" />
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:6px;">Sexo</label>
+              <select id="selSexo" class="input">
+                <option value="">Seleccione</option>
+                <option value="M">Masculino</option>
+                <option value="F">Femenino</option>
+                <option value="X">Otro</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:6px;">Fecha nacimiento</label>
+              <input id="inpFechaNac" class="input" type="date" />
             </div>
 
             <div>
               <label style="display:block; margin-bottom:6px;">Teléfono</label>
-              <input id="inpTelefono" class="input" type="text" placeholder="Opcional" />
+              <input id="inpTelefono" class="input" placeholder="Ej: 999888777" />
             </div>
 
-            <div style="grid-column: span 2;">
-              <label style="display:block; margin-bottom:6px;">Email</label>
-              <input id="inpEmail" class="input" type="email" placeholder="Opcional" />
+            <div>
+              <label style="display:block; margin-bottom:6px;">Correo</label>
+              <input id="inpCorreo" class="input" type="email" placeholder="Ej: alumno@mail.com" />
+            </div>
+
+            <div style="grid-column: 1 / -1;">
+              <label style="display:block; margin-bottom:6px;">Dirección</label>
+              <input id="inpDireccion" class="input" placeholder="Ej: Av. Siempre Viva 123" />
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:6px;">Distrito</label>
+              <input id="inpDistrito" class="input" placeholder="Ej: Ventanilla" />
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:6px;">Estado</label>
+              <select id="selEstado" class="input">
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
+              </select>
             </div>
           </div>
 
@@ -133,46 +135,53 @@
           </div>
         </div>
 
-        <!-- Resumen -->
-        <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
-          <div class="badge">Total alumnos (en sección): <b id="countAlumnos">0</b></div>
-        </div>
+        <div class="card" style="margin-top:14px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <h3 style="margin:0;">Listado</h3>
+            <input id="inpBuscar" class="input" style="max-width:320px;" placeholder="Buscar DNI / Nombres / Apellidos" />
+          </div>
 
-        <!-- Tabla -->
-        <div style="margin-top:14px; overflow:auto;">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>DNI</th>
-                <th>Apellidos y Nombres</th>
-                <th>Teléfono</th>
-                <th>Email</th>
-                <th style="text-align:center;">Acción</th>
-              </tr>
-            </thead>
-            <tbody id="alumnosTbody">
-              <tr><td colspan="5">Seleccione una sección…</td></tr>
-            </tbody>
-          </table>
+          <div style="margin-top:12px; overflow:auto;">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>DNI</th>
+                  <th>Código</th>
+                  <th>Apellidos y nombres</th>
+                  <th>Sexo</th>
+                  <th>Nacimiento</th>
+                  <th>Teléfono</th>
+                  <th>Estado</th>
+                  <th style="text-align:center;">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="alumnosTbody">
+                <tr><td colspan="8">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p style="margin-top:10px; opacity:.75; font-size:13px;">
+            • Director y Secretaría pueden registrar. • Superadmin también.
+          </p>
         </div>
       </section>
 
-      <!-- Scripts (orden correcto) -->
-      <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-      <script src="/assets/js/supabaseClient.js"></script>
-      <script src="/assets/js/context.js"></script>
-      <script src="/assets/js/ui.js"></script>
-
-      <!-- ✅ Menú desplegable -->
-      <script>
-        document.addEventListener("DOMContentLoaded", () => {
-          if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
-        });
-      </script>
-
-      <!-- ✅ JS de esta página -->
-      <script src="/eduadmin/js/alumnos.js"></script>
     </main>
   </div>
+
+  <!-- Scripts (orden correcto) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/assets/js/supabaseClient.js"></script>
+  <script src="/assets/js/context.js"></script>
+  <script src="/assets/js/ui.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
+    });
+  </script>
+
+  <script src="/eduadmin/js/alumnos.js"></script>
 </body>
 </html>
