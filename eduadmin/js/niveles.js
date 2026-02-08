@@ -1,12 +1,3 @@
-async function getUserData() {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) {
-    console.error(error);
-    return null;
-  }
-  return data.user;
-}
-
 // /eduadmin/js/niveles.js
 (() => {
   const supabase = () => window.supabaseClient;
@@ -38,200 +29,105 @@ async function getUserData() {
     const tbody = els.tbody();
     if (!tbody) return;
 
-    tbody.innerHTML = `<tr><td colspan="3" class="muted">Cargando…</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="3">Cargando…</td></tr>`;
 
-    // ✅ Tabla esperada: niveles
-    // Campos esperados: id, nombre, activo, colegio_id, (opcional) anio_academico_id
     let q = supabase()
       .from("niveles")
       .select("id, nombre, activo")
       .eq("colegio_id", ctx.school_id)
-      .order("nombre", { ascending: true });
+      .order("nombre");
 
-    // ✅ Si tus niveles dependen del año académico activo, filtramos por anio_academico_id
     if (ctx.year_id) q = q.eq("anio_academico_id", ctx.year_id);
 
     const { data, error } = await q;
 
     if (error) {
-      console.error("loadNiveles error:", error);
-      tbody.innerHTML = `<tr><td colspan="3">Error cargando niveles</td></tr>`;
-      setStatus("Error al cargar niveles.");
+      console.error(error);
+      tbody.innerHTML = `<tr><td colspan="3">Error</td></tr>`;
       return;
     }
 
-    if (!data || data.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="3" class="muted">No hay niveles registrados</td></tr>`;
-      setStatus("Sin niveles.");
+    if (!data.length) {
+      tbody.innerHTML = `<tr><td colspan="3">Sin niveles</td></tr>`;
       return;
     }
 
-    tbody.innerHTML = data
-      .map(
-        (n) => `
+    tbody.innerHTML = data.map(n => `
       <tr>
         <td>${esc(n.nombre)}</td>
         <td>${n.activo ? "Sí" : "No"}</td>
-        <td style="display:flex; gap:8px;">
-          <button class="btn btn-secondary" data-action="toggle" data-id="${n.id}" data-active="${n.activo ? 1 : 0}">
-            ${n.activo ? "Desactivar" : "Activar"}
-          </button>
-          <button class="btn" data-action="delete" data-id="${n.id}">Eliminar</button>
+        <td>
+          <button data-del="${n.id}">Eliminar</button>
         </td>
       </tr>
-    `
-      )
-      .join("");
+    `).join("");
 
-    setStatus(`Niveles: ${data.length}`);
+    tbody.querySelectorAll("[data-del]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        await deleteNivel(ctx, btn.dataset.del);
+      });
+    });
   }
 
   async function createNivel(ctx) {
-    // ✅ normalizamos a minúscula para pasar el CHECK (niveles_nombre_check)
-    const nombre = els.nivel()?.value?.trim()?.toLowerCase();
+    // 🔴 AQUÍ ESTÁ LA CLAVE
+    const nombre = els.nivel()?.value?.trim().toLowerCase();
     const activo = !!els.activo()?.checked;
 
     if (!nombre) {
-      alert("Selecciona un nivel.");
-      return;
-    }
-
-    // Evitar duplicados por colegio (Inicial/Primaria/Secundaria)
-    const { data: exists, error: e1 } = await supabase()
-      .from("niveles")
-      .select("id")
-      .eq("colegio_id", ctx.school_id)
-      .eq("nombre", nombre)
-      .maybeSingle();
-
-    if (e1) console.warn("exists check:", e1);
-
-    if (exists?.id) {
-      alert("Ese nivel ya está creado.");
+      alert("Selecciona nivel");
       return;
     }
 
     const payload = {
       colegio_id: ctx.school_id,
       nombre,
-      activo,
+      activo
     };
 
-    // ✅ tu DB usa anio_academico_id (lo mandamos si existe en el contexto)
     if (ctx.year_id) payload.anio_academico_id = ctx.year_id;
-
-    const { error } = await supabase().from("niveles").insert(payload);
-
-    if (error) {
-      console.error("insert nivel error:", error);
-      alert(error.message || "No se pudo guardar el nivel.");
-      return;
-    }
-
-    els.form()?.reset();
-    // dejar activo marcado
-    if (els.activo()) els.activo().checked = true;
-
-    await loadNiveles(ctx);
-  }
-
-  async function toggleNivel(ctx, id, currentActive) {
-    const next = !currentActive;
 
     const { error } = await supabase()
       .from("niveles")
-      .update({ activo: next })
-      .eq("id", id)
-      .eq("colegio_id", ctx.school_id);
+      .insert(payload);
 
     if (error) {
-      console.error("toggle error:", error);
-      alert("No se pudo actualizar.");
+      console.error("insert nivel error:", error);
+      alert(error.message);
       return;
     }
+
+    els.form().reset();
+    els.activo().checked = true;
 
     await loadNiveles(ctx);
   }
 
   async function deleteNivel(ctx, id) {
-    if (!confirm("¿Eliminar este nivel?")) return;
-
     const { error } = await supabase()
       .from("niveles")
       .delete()
-      .eq("id", id)
-      .eq("colegio_id", ctx.school_id);
+      .eq("id", id);
 
     if (error) {
-      console.error("delete error:", error);
-      alert("No se pudo eliminar.");
+      alert("No se pudo eliminar");
       return;
     }
 
     await loadNiveles(ctx);
   }
 
-  async function bindTableEvents(ctx) {
-    const tbody = els.tbody();
-    if (!tbody) return;
-
-    tbody.addEventListener("click", async (e) => {
-      const btn = e.target?.closest("button");
-      if (!btn) return;
-
-      const action = btn.dataset.action;
-      const id = btn.dataset.id;
-      if (!action || !id) return;
-
-      if (action === "toggle") {
-        const currentActive = btn.dataset.active === "1";
-        await toggleNivel(ctx, id, currentActive);
-      }
-
-      if (action === "delete") {
-        await deleteNivel(ctx, id);
-      }
-    });
-  }
-
   async function init() {
-    try {
-      setStatus("Cargando…");
+    const ctx = await window.getContext(false);
 
-      // ✅ Contexto (trae colegio y año activo si existe)
-      const ctx = await window.getContext(false);
+    els.form()?.addEventListener("submit", async e => {
+      e.preventDefault();
+      await createNivel(ctx);
+    });
 
-      if (!ctx?.school_id) {
-        alert("No hay colegio en el contexto.");
-        location.href = "/login.html";
-        return;
-      }
+    els.btnRefresh()?.addEventListener("click", () => loadNiveles(ctx));
 
-      // UI topbar (si tu ui.js ya lo hace, esto no molesta)
-      if (document.getElementById("uiSchoolName")) {
-        document.getElementById("uiSchoolName").textContent = ctx.school_name || "Colegio";
-      }
-      if (document.getElementById("uiYearName")) {
-        document.getElementById("uiYearName").textContent = `Año: ${ctx.year_name || "—"}`;
-      }
-      if (document.getElementById("uiSchoolLogo") && ctx.school_logo_url) {
-        document.getElementById("uiSchoolLogo").src = ctx.school_logo_url;
-      }
-
-      els.btnRefresh()?.addEventListener("click", () => loadNiveles(ctx));
-      els.form()?.addEventListener("submit", async (ev) => {
-        ev.preventDefault();
-        await createNivel(ctx);
-      });
-
-      await bindTableEvents(ctx);
-      await loadNiveles(ctx);
-    } catch (err) {
-      console.error("niveles init error:", err);
-      setStatus("Error cargando contexto.");
-      alert("Error cargando el contexto. Inicia sesión nuevamente.");
-      location.href = "/login.html";
-    }
+    await loadNiveles(ctx);
   }
 
   document.addEventListener("DOMContentLoaded", init);
