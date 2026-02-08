@@ -1,0 +1,58 @@
+// /assets/js/sidebar.js
+async function loadSidebar() {
+  const mount = document.getElementById("sidebarMount");
+  if (!mount) return;
+
+  const res = await fetch("/assets/partials/eduadmin-sidebar.html");
+  mount.innerHTML = await res.text();
+
+  setupNavAccordion();
+  highlightActiveLink();
+  applyRoleVisibility(); // oculta items solo superadmin
+}
+
+function setupNavAccordion() {
+  const groups = document.querySelectorAll(".nav-group");
+  groups.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const group = btn.dataset.group;
+      const sub = document.querySelector(`.nav-sub[data-sub="${group}"]`);
+      const isOpen = sub.classList.contains("open");
+      sub.classList.toggle("open", !isOpen);
+      btn.classList.toggle("open", !isOpen);
+    });
+  });
+
+  // Abrir automáticamente el grupo donde está el link activo
+  const active = document.querySelector('.nav-link.active');
+  if (active) {
+    const sub = active.closest(".nav-sub");
+    if (sub) {
+      sub.classList.add("open");
+      const groupName = sub.dataset.sub;
+      const btn = document.querySelector(`.nav-group[data-group="${groupName}"]`);
+      if (btn) btn.classList.add("open");
+    }
+  }
+}
+
+function highlightActiveLink() {
+  const current = location.pathname;
+  document.querySelectorAll(".nav-link[data-active]").forEach(a => {
+    if (a.dataset.active === current) a.classList.add("active");
+  });
+}
+
+// Usa tu context.js para saber rol (superadmin/director/etc)
+function applyRoleVisibility() {
+  // si context.js expone algo como window.APP.userRole, úsalo
+  const role = window.APP?.userRole || null;
+
+  document.querySelectorAll("[data-role]").forEach(el => {
+    const allowed = el.dataset.role; // ej: "superadmin"
+    if (!role) return; // si aún no carga, no tocamos
+    if (role !== allowed) el.style.display = "none";
+  });
+}
+
+document.addEventListener("DOMContentLoaded", loadSidebar);
