@@ -75,3 +75,17 @@
   border-radius: 10px;
   flex: 0 0 44px;
 }
+
+.nav-cat-header{
+  padding:10px;
+  font-weight:700;
+  display:flex;
+  justify-content:space-between;
+  cursor:pointer;
+}
+
+.nav-cat-list{padding-left:6px;}
+
+.nav-cat.open .chev{
+  transform:rotate(180deg);
+}
