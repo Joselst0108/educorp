@@ -12,11 +12,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Logos por defecto por app
   const defaultLogos = {
-    educorp:  "/assets/img/educorp.svg",
-    eduadmin: "/assets/img/eduadmin.svg",
-    edubank:  "/assets/img/edubank.svg",
-    eduia:    "/assets/img/eduia.svg",
-    eduasist: "/assets/img/eduasist.svg",
+    educorp:  "/assets/img/educorp.jpeg",
+    eduadmin: "/assets/img/eduadmin.jpeg",
+    edubank:  "/assets/img/edubank.jpeg",
+    eduia:    "/assets/img/eduia.jpeg",
+    eduasist: "/assets/img/eduasist.jpeg",
   };
 
   // Pone el logo de la app por defecto
