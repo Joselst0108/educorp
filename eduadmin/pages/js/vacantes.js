@@ -1,160 +1,213 @@
-document.addEventListener("DOMContentLoaded", initVacantes);
+/* =====================================================
+   EduAdmin | Vacantes  (pages/js/vacantes.js)
+   - Sin loop infinito "Vacantes cargando..."
+   - Requiere contexto: colegio_id + anio_academico_id (localStorage)
+   - Lista vacantes y crea nuevas
+===================================================== */
 
-async function initVacantes() {
-  console.log("Vacantes cargando...");
+(() => {
+  "use strict";
 
-  if (!window.supabaseClient) {
-    console.error("Supabase no existe");
-    return;
-  }
+  // Ajusta si tu tabla se llama diferente
+  const TABLE_VACANTES = "vacantes";
 
-  const ctx = window.__appContext || {};
-  if (!ctx.school_id || !ctx.year_id) {
-    console.warn("Sin contexto aún...");
-    setTimeout(initVacantes, 500);
-    return;
-  }
+  // Evita doble inicialización
+  let _initialized = false;
 
-  await cargarNiveles(ctx);
-  await cargarVacantes(ctx);
+  document.addEventListener("DOMContentLoaded", async () => {
+    if (_initialized) return;
+    _initialized = true;
 
-  // eventos seguros
-  const nivelSel = document.getElementById("nivel_id");
-  const gradoSel = document.getElementById("grado_id");
-  const seccionSel = document.getElementById("seccion_id");
-
-  if (nivelSel) {
-    nivelSel.addEventListener("change", async () => {
-      await cargarGrados(ctx, nivelSel.value);
-    });
-  }
-
-  if (gradoSel) {
-    gradoSel.addEventListener("change", async () => {
-      await cargarSecciones(ctx, gradoSel.value);
-    });
-  }
-
-  const form = document.getElementById("formVacante");
-  if (form) {
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      await guardarVacante(ctx);
-    });
-  }
-}
-
-///////////////////////////////////////////////////////////
-
-async function cargarNiveles(ctx) {
-  const sel = document.getElementById("nivel_id");
-  if (!sel) return;
-
-  const { data } = await supabaseClient
-    .from("niveles")
-    .select("id,nombre")
-    .eq("colegio_id", ctx.school_id)
-    .eq("anio_academico_id", ctx.year_id)
-    .order("orden");
-
-  sel.innerHTML = `<option value="">Nivel</option>`;
-  data?.forEach(n => {
-    sel.innerHTML += `<option value="${n.id}">${n.nombre}</option>`;
+    try {
+      await initVacantes();
+    } catch (err) {
+      console.error("Vacantes init error:", err);
+      setText("#formMsg", "Error inicializando Vacantes.");
+    }
   });
-}
 
-async function cargarGrados(ctx, nivel_id) {
-  const sel = document.getElementById("grado_id");
-  if (!sel) return;
+  async function initVacantes() {
+    console.log("Vacantes: init");
 
-  const { data } = await supabaseClient
-    .from("grados")
-    .select("id,nombre")
-    .eq("nivel_id", nivel_id)
-    .eq("colegio_id", ctx.school_id)
-    .eq("anio_academico_id", ctx.year_id)
-    .order("orden");
+    // 1) Verifica Supabase
+    if (!window.supabaseClient) {
+      console.error("window.supabaseClient no está definido.");
+      alert("Supabase no está inicializado. Revisa supabaseClient.js");
+      return;
+    }
 
-  sel.innerHTML = `<option value="">Grado</option>`;
-  data?.forEach(g => {
-    sel.innerHTML += `<option value="${g.id}">${g.nombre}</option>`;
-  });
-}
+    // 2) Validar sesión
+    const session = await getSessionSafe();
+    if (!session) {
+      alert("Sesión no válida. Inicia sesión.");
+      // Ajusta ruta si tu login está en otra carpeta
+      window.location.href = "../login.html";
+      return;
+    }
 
-async function cargarSecciones(ctx, grado_id) {
-  const sel = document.getElementById("seccion_id");
-  if (!sel) return;
+    // 3) Leer contexto
+    const colegioId = localStorage.getItem("colegio_id");
+    const anioId = localStorage.getItem("anio_academico_id");
 
-  const { data } = await supabaseClient
-    .from("secciones")
-    .select("id,nombre")
-    .eq("grado_id", grado_id)
-    .eq("colegio_id", ctx.school_id)
-    .eq("anio_academico_id", ctx.year_id)
-    .order("nombre");
+    if (!colegioId || !anioId) {
+      console.warn("Vacantes: sin contexto aún...");
+      setText("#pillContext", "Contexto: falta colegio/año");
+      alert("Primero selecciona un Colegio y un Año Académico.");
+      // Ajusta si tu página de año académico se llama distinto
+      window.location.href = "./anio-academico.html";
+      return;
+    }
 
-  sel.innerHTML = `<option value="">Sección</option>`;
-  data?.forEach(s => {
-    sel.innerHTML += `<option value="${s.id}">${s.nombre}</option>`;
-  });
-}
+    setText("#pillContext", "Contexto: OK");
 
-///////////////////////////////////////////////////////////
+    // 4) Hooks
+    const btnRefresh = document.getElementById("btnRefresh");
+    if (btnRefresh) {
+      btnRefresh.addEventListener("click", async () => {
+        await loadVacantes({ colegioId, anioId });
+      });
+    }
 
-async function guardarVacante(ctx) {
-  const seccion = document.getElementById("seccion_id")?.value;
-  const cupo = document.getElementById("cupo_total")?.value;
+    const form = document.getElementById("formVacante");
+    if (form) {
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        await crearVacante({ colegioId, anioId });
+      });
+    }
 
-  if (!seccion) return alert("Selecciona sección");
-  if (!cupo) return alert("Ingresa cupo");
-
-  const { error } = await supabaseClient
-    .from("vacantes")
-    .upsert({
-      colegio_id: ctx.school_id,
-      anio_academico_id: ctx.year_id,
-      seccion_id: seccion,
-      cupo_total: parseInt(cupo)
-    });
-
-  if (error) {
-    alert(error.message);
-    return;
+    // 5) Cargar una sola vez al entrar
+    await loadVacantes({ colegioId, anioId });
   }
 
-  alert("Vacante guardada");
-  await cargarVacantes(ctx);
-}
+  /* =====================================================
+     CARGAR VACANTES (1 sola vez por acción)
+  ===================================================== */
+  async function loadVacantes({ colegioId, anioId }) {
+    console.log("Cargando vacantes...", { colegioId, anioId });
 
-///////////////////////////////////////////////////////////
+    const tbody = document.getElementById("vacantesTbody");
+    if (tbody) tbody.innerHTML = `<tr><td colspan="4">Cargando...</td></tr>`;
+    setText("#formMsg", "");
 
-async function cargarVacantes(ctx) {
-  const tbody = document.getElementById("tbodyVacantes");
-  if (!tbody) return;
+    const { data, error } = await window.supabaseClient
+      .from(TABLE_VACANTES)
+      .select("*")
+      .eq("colegio_id", colegioId)
+      .eq("anio_academico_id", anioId)
+      .order("created_at", { ascending: false });
 
-  const { data } = await supabaseClient
-    .from("v_vacantes")
-    .select(`
-      *,
-      secciones(nombre),
-      grados(nombre),
-      niveles(nombre)
-    `)
-    .eq("colegio_id", ctx.school_id)
-    .eq("anio_academico_id", ctx.year_id);
+    if (error) {
+      console.error("Error cargando vacantes:", error);
+      if (tbody) tbody.innerHTML = `<tr><td colspan="4">Error: ${escapeHtml(error.message)}</td></tr>`;
+      setText("#countVacantes", "0");
+      return;
+    }
 
-  tbody.innerHTML = "";
+    if (!data || data.length === 0) {
+      if (tbody) tbody.innerHTML = `<tr><td colspan="4">Sin vacantes registradas</td></tr>`;
+      setText("#countVacantes", "0");
+      return;
+    }
 
-  data?.forEach(v => {
-    tbody.innerHTML += `
-      <tr>
-        <td>${v.niveles?.nombre || ""}</td>
-        <td>${v.grados?.nombre || ""}</td>
-        <td>${v.secciones?.nombre || ""}</td>
-        <td>${v.cupo_total}</td>
-        <td>${v.cupo_usado}</td>
-        <td>${v.cupo_disponible}</td>
-      </tr>
-    `;
-  });
-}
+    setText("#countVacantes", String(data.length));
+    if (!tbody) return;
+
+    tbody.innerHTML = "";
+    for (const v of data) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(v.cargo ?? "-")}</td>
+        <td>${escapeHtml(v.area ?? "-")}</td>
+        <td>${renderEstado(v.estado)}</td>
+        <td>${formatDate(v.created_at)}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  /* =====================================================
+     CREAR VACANTE
+  ===================================================== */
+  async function crearVacante({ colegioId, anioId }) {
+    const cargo = (document.getElementById("cargo")?.value || "").trim();
+    const area = (document.getElementById("area")?.value || "").trim();
+    const estado = (document.getElementById("estado")?.value || "activa").trim();
+
+    if (!cargo) {
+      setText("#formMsg", "⚠️ Ingresa el cargo/puesto.");
+      return;
+    }
+
+    setText("#formMsg", "Guardando...");
+    const payload = {
+      colegio_id: colegioId,
+      anio_academico_id: anioId,
+      cargo,
+      area: area || null,
+      estado
+    };
+
+    const { error } = await window.supabaseClient
+      .from(TABLE_VACANTES)
+      .insert(payload);
+
+    if (error) {
+      console.error("Error insert vacante:", error);
+      setText("#formMsg", "❌ Error: " + error.message);
+      return;
+    }
+
+    setText("#formMsg", "✅ Vacante creada correctamente.");
+
+    // Limpiar form
+    const form = document.getElementById("formVacante");
+    if (form) form.reset();
+
+    // Recargar lista
+    await loadVacantes({ colegioId, anioId });
+  }
+
+  /* =====================================================
+     HELPERS
+  ===================================================== */
+  async function getSessionSafe() {
+    try {
+      const { data, error } = await window.supabaseClient.auth.getSession();
+      if (error) return null;
+      return data?.session || null;
+    } catch {
+      return null;
+    }
+  }
+
+  function setText(selector, text) {
+    const el = document.querySelector(selector);
+    if (el) el.textContent = text;
+  }
+
+  function formatDate(iso) {
+    if (!iso) return "-";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString();
+  }
+
+  function renderEstado(estado) {
+    const s = (estado || "activa").toLowerCase();
+    if (s === "activa") return `<span class="badge ok">Activa</span>`;
+    if (s === "pausada") return `<span class="badge warn">Pausada</span>`;
+    if (s === "cerrada") return `<span class="badge bad">Cerrada</span>`;
+    return `<span class="badge">${escapeHtml(estado)}</span>`;
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+})();
