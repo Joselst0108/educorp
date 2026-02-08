@@ -74,3 +74,87 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.warn("UI: no se pudo cargar contexto/logo", e);
   }
 });
+
+// ===============================
+// SIDEBAR EDUADMIN DINÁMICO
+// ===============================
+(function(){
+
+window.renderEduAdminSidebar = function(){
+
+  const mount = document.getElementById("uiSidebarNav");
+  if(!mount) return;
+
+  const path = location.pathname;
+
+  const menu = [
+    {
+      title: "Gestión académica",
+      items: [
+        {label:"Dashboard", href:"/eduadmin/pages/dashboard.html"},
+        {label:"Año académico", href:"/eduadmin/pages/anio.html"},
+        {label:"Niveles", href:"/eduadmin/pages/niveles.html"},
+        {label:"Grados", href:"/eduadmin/pages/grados.html"},
+        {label:"Secciones", href:"/eduadmin/pages/secciones.html"},
+      ]
+    },
+    {
+      title: "Matrícula",
+      items: [
+        {label:"Vacantes", href:"/eduadmin/pages/vacantes.html"},
+      ]
+    }
+  ];
+
+  mount.innerHTML = "";
+
+  menu.forEach(cat=>{
+    const box = document.createElement("div");
+    box.className="nav-cat";
+
+    const header = document.createElement("div");
+    header.className="nav-cat-header";
+    header.innerHTML=`<span>${cat.title}</span><span class="chev">▾</span>`;
+
+    const list = document.createElement("div");
+    list.className="nav-cat-list";
+    list.style.display="none";
+
+    let active=false;
+
+    cat.items.forEach(it=>{
+      const a=document.createElement("a");
+      a.href=it.href;
+
+      const item=document.createElement("div");
+      item.className="nav-item";
+      item.textContent=it.label;
+
+      if(path.includes(it.href)){
+        item.classList.add("active");
+        active=true;
+      }
+
+      a.appendChild(item);
+      list.appendChild(a);
+    });
+
+    if(active){
+      list.style.display="block";
+      box.classList.add("open");
+    }
+
+    header.onclick=()=>{
+      const open=list.style.display==="block";
+      list.style.display=open?"none":"block";
+      box.classList.toggle("open");
+    };
+
+    box.appendChild(header);
+    box.appendChild(list);
+    mount.appendChild(box);
+  });
+
+};
+
+})();
