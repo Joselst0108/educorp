@@ -28,19 +28,44 @@
       .replaceAll("'", "&#039;");
   }
 
+  function isMissingColumnError(err) {
+    const msg = String(err?.message || "").toLowerCase();
+    // Postgres undefined_column => 42703 (a veces llega en message)
+    return msg.includes("does not exist") || msg.includes("undefined") || msg.includes("42703") || msg.includes("column");
+  }
+
+  // Ejecuta query: intenta filtrar por año si hay ctx.year_id; si falla por columna inexistente, reintenta sin filtro.
+  async function runWithOptionalYear(makeQuery, yearColumn, ctx) {
+    if (ctx?.year_id) {
+      const q1 = makeQuery().eq(yearColumn, ctx.year_id);
+      const r1 = await q1;
+      if (!r1.error) return r1;
+
+      if (isMissingColumnError(r1.error)) {
+        // retry sin filtro por año
+        return await makeQuery();
+      }
+      return r1;
+    }
+    return await makeQuery();
+  }
+
   async function fillMissingContext(ctx) {
+    // Completar colegio (nombre/logo) si falta
     if (ctx?.school_id && (!ctx.school_name || !ctx.school_logo_url)) {
       const { data: col } = await supabase()
         .from("colegios")
         .select("nombre, logo_url")
         .eq("id", ctx.school_id)
         .single();
+
       if (col) {
         ctx.school_name = ctx.school_name || col.nombre;
         ctx.school_logo_url = ctx.school_logo_url || col.logo_url;
       }
     }
 
+    // Completar año activo si falta
     if (ctx?.school_id && !ctx.year_id) {
       const { data: yr } = await supabase()
         .from("anios_academicos")
@@ -54,6 +79,7 @@
         ctx.year_name = yr.nombre || String(yr.anio || "");
       }
     }
+
     return ctx;
   }
 
@@ -64,33 +90,16 @@
 
     if (elSchool) elSchool.textContent = ctx.school_name || "Colegio";
     if (elYear) elYear.textContent = ctx.year_id ? `Año: ${ctx.year_name || "—"}` : "Año: —";
-    if (elLogo) elLogo.src = ctx.school_logo_url || "/assets/img/eduadmin.jpeg";
+
+    // El logo “debe jalar de ui.js”, pero ponemos fallback si ui aún no lo pinta
+    if (elLogo && !elLogo.getAttribute("data-ui-painted")) {
+      elLogo.src = ctx.school_logo_url || "/assets/img/eduadmin.jpeg";
+    }
   }
 
-  // ✅ helper: ejecuta query con filtro por año y si falla por columna inexistente, reintenta sin año
-  async function runWithOptionalYear(queryBuilderFactory, yearFilterColumn, ctx) {
-    // intento 1: con año si existe
-    if (ctx?.year_id) {
-      const qb1 = queryBuilderFactory();
-      const { data, error } = await qb1.eq(yearFilterColumn, ctx.year_id);
-
-      if (!error) return { data, error: null };
-
-      // si la columna no existe, reintentar sin filtro por año
-      const msg = String(error.message || "").toLowerCase();
-      if (msg.includes("does not exist") || msg.includes("column") || msg.includes("42703")) {
-        // retry sin filtro
-        const qb2 = queryBuilderFactory();
-        const r2 = await qb2;
-        return r2;
-      }
-
-      return { data: null, error };
-    }
-
-    // sin año
-    const qb = queryBuilderFactory();
-    return await qb;
+  function resetGradosSelect() {
+    const sel = els.grado();
+    if (sel) sel.innerHTML = `<option value="">Selecciona un grado</option>`;
   }
 
   async function loadNiveles(ctx) {
@@ -98,20 +107,19 @@
     if (!sel) return;
 
     sel.innerHTML = `<option value="">Selecciona un nivel</option>`;
-    // también limpias grados
-    if (els.grado()) els.grado().innerHTML = `<option value="">Selecciona un grado</option>`;
+    resetGradosSelect();
 
-    const factory = () =>
+    const makeQuery = () =>
       supabase()
         .from("niveles")
         .select("id, nombre")
         .eq("colegio_id", ctx.school_id)
         .order("nombre", { ascending: true });
 
-    const { data, error } = await runWithOptionalYear(factory, "anio_academico_id", ctx);
+    const { data, error } = await runWithOptionalYear(makeQuery, "anio_academico_id", ctx);
 
     if (error) {
-      console.error("loadNiveles error:", error);
+      console.error("loadNiveles:", error);
       setStatus("Error cargando niveles ❌");
       return;
     }
@@ -127,10 +135,10 @@
     const sel = els.grado();
     if (!sel) return;
 
-    sel.innerHTML = `<option value="">Selecciona un grado</option>`;
+    resetGradosSelect();
     if (!nivel_id) return;
 
-    const factory = () =>
+    const makeQuery = () =>
       supabase()
         .from("grados")
         .select("id, nombre, orden")
@@ -139,10 +147,10 @@
         .order("orden", { ascending: true })
         .order("nombre", { ascending: true });
 
-    const { data, error } = await runWithOptionalYear(factory, "anio_academico_id", ctx);
+    const { data, error } = await runWithOptionalYear(makeQuery, "anio_academico_id", ctx);
 
     if (error) {
-      console.error("loadGradosByNivel error:", error);
+      console.error("loadGradosByNivel:", error);
       setStatus("Error cargando grados ❌");
       return;
     }
@@ -151,7 +159,7 @@
       sel.innerHTML += `<option value="${g.id}">${esc(g.nombre)}</option>`;
     });
 
-    if (!data?.length) setStatus("No hay grados para ese nivel (o no están ligados al año).");
+    if (!data?.length) setStatus("No hay grados para ese nivel.");
   }
 
   async function loadSecciones(ctx) {
@@ -161,7 +169,7 @@
     setStatus("Cargando secciones…");
     tbody.innerHTML = `<tr><td colspan="6" class="muted">Cargando…</td></tr>`;
 
-    const factory = () =>
+    const makeQuery = () =>
       supabase()
         .from("secciones")
         .select(`
@@ -174,10 +182,10 @@
         .eq("colegio_id", ctx.school_id)
         .order("nombre", { ascending: true });
 
-    const { data, error } = await runWithOptionalYear(factory, "anio_academico_id", ctx);
+    const { data, error } = await runWithOptionalYear(makeQuery, "anio_academico_id", ctx);
 
     if (error) {
-      console.error("loadSecciones error:", error);
+      console.error("loadSecciones:", error);
       setStatus("Error cargando secciones ❌");
       tbody.innerHTML = `<tr><td colspan="6">Error</td></tr>`;
       return;
@@ -221,15 +229,29 @@
     const nivel_id = els.nivel()?.value;
     const grado_id = els.grado()?.value;
     const nombre = (els.nombre()?.value || "").trim();
+
     const cupoRaw = els.cupo()?.value;
     const cupo = cupoRaw === "" ? null : Number(cupoRaw);
+
     const activo = !!els.activo()?.checked;
 
     if (!nivel_id) return alert("Selecciona un nivel.");
     if (!grado_id) return alert("Selecciona un grado.");
     if (!nombre) return alert("Escribe el nombre de la sección.");
 
-    const payload = {
+    // Evitar duplicado por colegio + grado + nombre (opcional)
+    const { data: exists, error: exErr } = await supabase()
+      .from("secciones")
+      .select("id")
+      .eq("colegio_id", ctx.school_id)
+      .eq("grado_id", grado_id)
+      .eq("nombre", nombre)
+      .maybeSingle();
+
+    if (!exErr && exists?.id) return alert("Esa sección ya existe en ese grado.");
+
+    // Intento 1: insert con anio_academico_id si hay ctx.year_id
+    const payloadBase = {
       colegio_id: ctx.school_id,
       grado_id,
       nombre,
@@ -237,37 +259,83 @@
       activo,
     };
 
-    // si tu tabla secciones ya tiene anio_academico_id, lo enviamos
-    if (ctx.year_id) payload.anio_academico_id = ctx.year_id;
+    if (ctx.year_id) {
+      const payloadYear = { ...payloadBase, anio_academico_id: ctx.year_id };
+      const r1 = await supabase().from("secciones").insert(payloadYear);
 
-    const { error } = await supabase().from("secciones").insert(payload);
+      if (!r1.error) {
+        els.form()?.reset();
+        if (els.activo()) els.activo().checked = true;
+        resetGradosSelect();
+        await loadSecciones(ctx);
+        return;
+      }
 
-    if (error) {
-      console.error("insert seccion:", error);
-      alert(error.message || "No se pudo guardar.");
+      // Si falla por columna inexistente, reintentar sin anio_academico_id
+      if (isMissingColumnError(r1.error)) {
+        const r2 = await supabase().from("secciones").insert(payloadBase);
+        if (r2.error) {
+          console.error("insert seccion:", r2.error);
+          alert(r2.error.message || "No se pudo guardar.");
+          return;
+        }
+
+        els.form()?.reset();
+        if (els.activo()) els.activo().checked = true;
+        resetGradosSelect();
+        await loadSecciones(ctx);
+        return;
+      }
+
+      console.error("insert seccion:", r1.error);
+      alert(r1.error.message || "No se pudo guardar.");
+      return;
+    }
+
+    // Sin año
+    const r0 = await supabase().from("secciones").insert(payloadBase);
+    if (r0.error) {
+      console.error("insert seccion:", r0.error);
+      alert(r0.error.message || "No se pudo guardar.");
       return;
     }
 
     els.form()?.reset();
     if (els.activo()) els.activo().checked = true;
-
-    // mantiene nivel pero reinicia grados
-    if (els.grado()) els.grado().innerHTML = `<option value="">Selecciona un grado</option>`;
-
+    resetGradosSelect();
     await loadSecciones(ctx);
   }
 
   async function deleteSeccion(ctx, id) {
     let q = supabase().from("secciones").delete().eq("id", id).eq("colegio_id", ctx.school_id);
 
-    // si existe año, filtramos
-    if (ctx.year_id) q = q.eq("anio_academico_id", ctx.year_id);
+    // si existe año en la tabla, filtramos; si no existe, el query fallaría,
+    // así que lo hacemos en 2 pasos
+    if (ctx.year_id) {
+      const r1 = await q.eq("anio_academico_id", ctx.year_id);
+      if (!r1.error) {
+        await loadSecciones(ctx);
+        return;
+      }
+      if (isMissingColumnError(r1.error)) {
+        const r2 = await supabase().from("secciones").delete().eq("id", id).eq("colegio_id", ctx.school_id);
+        if (r2.error) {
+          console.error("delete seccion:", r2.error);
+          alert(r2.error.message || "No se pudo eliminar.");
+          return;
+        }
+        await loadSecciones(ctx);
+        return;
+      }
+      console.error("delete seccion:", r1.error);
+      alert(r1.error.message || "No se pudo eliminar.");
+      return;
+    }
 
-    const { error } = await q;
-
-    if (error) {
-      console.error("delete seccion:", error);
-      alert(error.message || "No se pudo eliminar.");
+    const r0 = await q;
+    if (r0.error) {
+      console.error("delete seccion:", r0.error);
+      alert(r0.error.message || "No se pudo eliminar.");
       return;
     }
 
@@ -283,6 +351,8 @@
 
       let ctx = await window.getContext(false);
       ctx = await fillMissingContext(ctx);
+
+      // ui.js debería pintar, pero igual pintamos fallback
       paintTopbar(ctx);
 
       if (!ctx?.school_id) {
@@ -291,13 +361,10 @@
         return;
       }
 
-      // ✅ carga niveles
       await loadNiveles(ctx);
 
-      // ✅ cascada: al cambiar nivel, carga grados
       els.nivel()?.addEventListener("change", async () => {
-        const nivel_id = els.nivel().value;
-        await loadGradosByNivel(ctx, nivel_id);
+        await loadGradosByNivel(ctx, els.nivel().value);
       });
 
       els.form()?.addEventListener("submit", async (e) => {
