@@ -108,7 +108,7 @@
     if (elYear) elYear.textContent = ctx.year_id ? `Año: ${ctx.year_name || "—"}` : "Año: —";
 
     // ✅ fallback robusto
-    if (elLogo) elLogo.src = ctx.school_logo_url || `${base}/assets/img/eduadmin.jpeg`;
+    if (elLogo) elLogo.src = ctx.school_logo_url || /assets/img/eduadmin.jpeg`;
   }
 
   async function loadNiveles(ctx) {
