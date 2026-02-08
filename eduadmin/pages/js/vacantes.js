@@ -18,6 +18,19 @@ async function initVacantes() {
     return;
   }
 
+// ✅ PINTAR TOPBAR (colegio / año)
+  const uiSchoolName = document.getElementById("uiSchoolName");
+  const uiYearName = document.getElementById("uiYearName");
+
+  const schoolName =
+    ctx.school_name || ctx.school?.nombre || ctx.school?.name || ctx.colegio_nombre || "—";
+
+  const yearName =
+    ctx.year_name || ctx.year?.nombre || ctx.year?.name || ctx.anio_nombre || "—";
+
+  if (uiSchoolName) uiSchoolName.textContent = schoolName;
+  if (uiYearName) uiYearName.textContent = `Año: ${yearName}`;
+
   // ✅ Tu context.js (por la captura) usa school_id / year_id
   const ctx = (window.getContext ? await window.getContext() : null)
     || window.__CTX
