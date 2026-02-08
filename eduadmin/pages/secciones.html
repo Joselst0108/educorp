@@ -1,14 +1,14 @@
-dmin<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es" data-app="eduadmin">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Secciones</title>
 
-  <!-- ✅ RUTAS RELATIVAS DESDE /eduadmin/pages/ -->
-  <link rel="stylesheet" href="../../assets/css/variables.css">
-  <link rel="stylesheet" href="../../assets/css/main.css">
-  <link rel="stylesheet" href="../../assets/css/components.css">
+  <!-- ✅ Usa rutas ABSOLUTAS para Netlify (evita errores) -->
+  <link rel="stylesheet" href="/assets/css/variables.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
 
   <style>
     /* Evita logo gigante */
@@ -31,54 +31,18 @@ dmin<!DOCTYPE html>
 <body>
   <div class="app-shell">
 
-    <!-- SIDEBAR -->
+    <!-- ✅ SIDEBAR DINÁMICO (DESPLEGABLE) -->
     <aside class="sidebar">
       <div class="brand">
-        <!-- ✅ Logo del menú lateral: Educorp -->
-        <img id="uiAppLogo" src="../../assets/img/educorp.jpeg" alt="Educorp" />
+        <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="Educorp" />
         <div class="titles">
           <b>EduAdmin</b>
           <span>Administración real</span>
         </div>
       </div>
 
-      <nav class="nav">
-        <a href="/eduadmin/pages/dashboard.html">
-          <div class="nav-item">Dashboard <span class="badge">Home</span></div>
-        </a>
-
-        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">COLEGIO</div>
-        <a href="/eduadmin/pages/colegio.html"><div class="nav-item">Datos del colegio</div></a>
-        <a href="/eduadmin/pages/usuarios.html"><div class="nav-item">Usuarios y roles</div></a>
-
-        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTRUCTURA ACADÉMICA</div>
-        <a href="/eduadmin/pages/anio.html"><div class="nav-item">Año académico</div></a>
-        <a href="/eduadmin/pages/niveles.html"><div class="nav-item">Niveles</div></a>
-        <a href="/eduadmin/pages/grados.html"><div class="nav-item">Grados</div></a>
-        <a href="/eduadmin/pages/secciones.html"><div class="nav-item active">Secciones / Aulas</div></a>
-        <a href="/eduadmin/pages/vacantes.html"><div class="nav-item">Vacantes</div></a>
-
-        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTUDIANTES</div>
-        <a href="/eduadmin/pages/alumnos.html"><div class="nav-item">Registrar alumnos</div></a>
-        <a href="/eduadmin/pages/lista-alumnos.html"><div class="nav-item">Lista de alumnos</div></a>
-        <a href="/eduadmin/pages/apoderados.html"><div class="nav-item">Apoderados</div></a>
-        <a href="/eduadmin/pages/matriculas.html"><div class="nav-item">Matrículas</div></a>
-
-        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">FINANZAS REALES</div>
-        <a href="/eduadmin/pages/conceptos.html"><div class="nav-item">Conceptos de pago</div></a>
-        <a href="/eduadmin/pages/pagos.html"><div class="nav-item">Registrar pagos</div></a>
-        <a href="/eduadmin/pages/caja.html"><div class="nav-item">Caja</div></a>
-        <a href="/eduadmin/pages/morosidad.html"><div class="nav-item">Morosidad</div></a>
-        <a href="/eduadmin/pages/reportes-financieros.html"><div class="nav-item">Reportes financieros</div></a>
-
-        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">REPORTES</div>
-        <a href="/eduadmin/pages/reportes-alumnos.html"><div class="nav-item">Alumnos por grado</div></a>
-        <a href="/eduadmin/pages/reportes-matriculas.html"><div class="nav-item">Matrículas por aula</div></a>
-
-        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">SISTEMA</div>
-        <a href="/eduadmin/pages/config.html"><div class="nav-item">Configuración</div></a>
-        <a href="#" id="logoutBtn"><div class="nav-item">Cerrar sesión</div></a>
-      </nav>
+      <!-- 🔥 Menú generado por ui.js -->
+      <nav id="uiSidebarNav" class="nav"></nav>
     </aside>
 
     <!-- MAIN -->
@@ -88,22 +52,21 @@ dmin<!DOCTYPE html>
       <div class="topbar">
         <div class="left">
           <div class="school-chip">
-            <!-- ✅ No uses eduadmin.svg porque te daba 404 -->
             <img
               id="uiSchoolLogo"
-              src="../../assets/img/eduadmin.jpeg"
+              src="/assets/img/eduadmin.jpeg"
               alt="Colegio"
-              onerror="this.src='../../assets/img/eduadmin.jpeg';"
+              onerror="this.src='/assets/img/eduadmin.jpeg';"
             />
             <div class="meta">
               <b id="uiSchoolName">Cargando colegio…</b>
-              <span id="uiYearName">Cargando año…</span>
+              <span id="uiYearName">Año: —</span>
             </div>
           </div>
         </div>
 
         <div style="display:flex; gap:10px;">
-          <button class="btn btn-secondary" id="btnRefresh">Actualizar</button>
+          <button class="btn btn-secondary" id="btnRefresh" type="button">Actualizar</button>
         </div>
       </div>
 
@@ -183,13 +146,44 @@ dmin<!DOCTYPE html>
     </main>
   </div>
 
-  <!-- Scripts (orden obligatorio) -->
+  <!-- Scripts (orden correcto, una sola vez) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../../assets/js/supabaseClient.js"></script>
-  <script src="../../assets/js/context.js"></script>
-  <script src="../../assets/js/ui.js"></script>
+  <script src="/assets/js/supabaseClient.js"></script>
+  <script src="/assets/js/context.js"></script>
+  <script src="/assets/js/ui.js"></script>
 
-  <!-- ✅ RUTA RELATIVA A /eduadmin/js/ -->
-  <script src="/eduadmin/pages/js/secciones.js"></script>
+  <!-- ✅ Contexto amarrado a Año y Colegio para esta página -->
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      // 1) Render menú desplegable
+      if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
+
+      // 2) Obtener contexto (colegio + año) para que secciones.js lo use
+      if (window.getContext) {
+        try {
+          const ctx = await window.getContext();
+
+          // Lo dejamos global para cualquier JS de página (secciones.js)
+          window.APP = window.APP || {};
+          window.APP.colegio_id = ctx?.school_id || ctx?.colegio_id || null;
+          window.APP.anio_academico_id = ctx?.anio_academico_id || ctx?.year_id || null;
+          window.APP.year_name = ctx?.year_name || ctx?.anio_nombre || null;
+
+          // Opcional: refrescar status si quieres
+          const st = document.getElementById("status");
+          if (st && window.APP.anio_academico_id) st.textContent = "Listo ✅";
+        } catch (e) {
+          console.warn("No se pudo obtener contexto", e);
+        }
+      }
+
+      // 3) Botón actualizar (reload)
+      const btn = document.getElementById("btnRefresh");
+      if (btn) btn.addEventListener("click", () => window.location.reload());
+    });
+  </script>
+
+  <!-- ✅ RUTA CORRECTA del JS de página -->
+  <script src="/eduadmin/js/secciones.js"></script>
 </body>
 </html>
