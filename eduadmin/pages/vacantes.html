@@ -28,14 +28,8 @@
     </div>
   </div>
 
-  <nav class="nav">
-    <a href="/eduadmin/pages/dashboard.html"><div class="nav-item">Dashboard</div></a>
-    <a href="/eduadmin/pages/anio.html"><div class="nav-item">Año académico</div></a>
-    <a href="/eduadmin/pages/niveles.html"><div class="nav-item">Niveles</div></a>
-    <a href="/eduadmin/pages/grados.html"><div class="nav-item">Grados</div></a>
-    <a href="/eduadmin/pages/secciones.html"><div class="nav-item">Secciones</div></a>
-    <a href="/eduadmin/pages/vacantes.html"><div class="nav-item active">Vacantes</div></a>
-  </nav>
+  <!-- 🔥 MENÚ DINÁMICO -->
+  <nav id="uiSidebarNav" class="nav"></nav>
 </aside>
 
 <!-- MAIN -->
@@ -43,7 +37,6 @@
 
 <div class="topbar">
   <div class="school-chip">
-    <!-- ✅ Solo agregado src fallback para que no quede vacío -->
     <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" onerror="this.src='/assets/img/eduadmin.jpeg'">
     <div class="meta">
       <b id="uiSchoolName">Cargando...</b>
@@ -67,28 +60,23 @@
 <form id="formVacante">
 
 <label>Nivel</label>
-<!-- ✅ agregado option por defecto -->
 <select id="nivel_id">
   <option value="">Nivel</option>
 </select>
 
 <label>Grado</label>
-<!-- ✅ agregado option por defecto -->
 <select id="grado_id">
   <option value="">Grado</option>
 </select>
 
 <label>Sección</label>
-<!-- ✅ agregado option por defecto -->
 <select id="seccion_id">
   <option value="">Sección</option>
 </select>
 
 <label>Vacantes</label>
-<!-- ✅ Mantengo tu ID 'vacantes' tal cual -->
 <input type="number" id="vacantes">
 
-<!-- ✅ Alias invisible: el JS puede leer cupo_total sin romper tu input original -->
 <input type="hidden" id="cupo_total">
 
 <button class="btn btn-primary">Guardar</button>
@@ -111,24 +99,33 @@
 </table>
 
 </div>
-
 </div>
 </section>
 </main>
 </div>
 
-<!-- ✅ Script puente mínimo: copia el valor de #vacantes -> #cupo_total para el JS -->
+<!-- puente vacantes -->
 <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const a = document.getElementById("vacantes");
-    const b = document.getElementById("cupo_total");
-    if (a && b) {
-      b.value = a.value || "";
-      a.addEventListener("input", () => (b.value = a.value || ""));
-    }
-  });
+document.addEventListener("DOMContentLoaded", () => {
+  const a = document.getElementById("vacantes");
+  const b = document.getElementById("cupo_total");
+  if (a && b) {
+    b.value = a.value || "";
+    a.addEventListener("input", () => (b.value = a.value || ""));
+  }
+});
+</script>
+
+<!-- 🔥 ACTIVAR MENÚ -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  if (window.renderEduAdminSidebar) {
+    window.renderEduAdminSidebar();
+  }
+});
 </script>
 
 <script src="/eduadmin/pages/js/vacantes.js"></script>
+
 </body>
 </html>
