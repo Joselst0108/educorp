@@ -23,91 +23,148 @@
 </head>
 
 <body>
-  <div class="topbar">
-    <div class="topbar-left">
-      <!-- ✅ fallback si no existe el logo -->
-      <img
-        id="uiSchoolLogo"
-        src="../../assets/img/eduadmin.jpeg"
-        alt="Logo"
-        class="topbar-logo"
-        onerror="this.src='../../assets/img/eduadmin.jpeg';"
-      />
-      <div class="topbar-meta">
-        <div id="uiSchoolName" class="topbar-title">Cargando colegio...</div>
-        <div id="uiYearName" class="topbar-subtitle">Año: —</div>
+  <div class="app-shell">
+
+    <!-- ✅ SIDEBAR (igual al dashboard) -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="../../assets/img/eduadmin.jpeg" alt="EduAdmin" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
+        </div>
       </div>
-    </div>
 
-    <div class="topbar-actions">
-      <button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
-      <!-- ✅ RUTA RELATIVA AL DASHBOARD REAL告诉 -->
-      <a href="./dashboard.html" class="btn btn-secondary">Volver</a>
-    </div>
-  </div>
+      <nav class="nav">
+        <a href="./dashboard.html">
+          <div class="nav-item">Dashboard <span class="badge">Home</span></div>
+        </a>
 
-  <div class="page-header">
-    <h1>Grados</h1>
-    <div id="status" class="status muted">Cargando…</div>
-  </div>
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">COLEGIO</div>
+        <a href="./colegio.html"><div class="nav-item">Datos del colegio</div></a>
+        <a href="./usuarios.html"><div class="nav-item">Usuarios y roles</div></a>
 
-  <div class="grid-2">
-    <div class="card">
-      <h2 class="card-title">Crear grado</h2>
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTRUCTURA ACADÉMICA</div>
+        <a href="./anio.html"><div class="nav-item">Año académico</div></a>
+        <a href="./niveles.html"><div class="nav-item">Niveles</div></a>
+        <a href="./grados.html"><div class="nav-item active">Grados</div></a>
+        <a href="./secciones.html"><div class="nav-item">Secciones / Aulas</div></a>
+        <a href="./vacantes.html"><div class="nav-item">Vacantes</div></a>
 
-      <form id="formGrado" class="form">
-        <div class="form-group">
-          <label for="nivel_id">Nivel</label>
-          <select id="nivel_id" required>
-            <option value="">Selecciona un nivel</option>
-          </select>
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">ESTUDIANTES</div>
+        <a href="./alumnos.html"><div class="nav-item">Registrar alumnos</div></a>
+        <a href="./lista-alumnos.html"><div class="nav-item">Lista de alumnos</div></a>
+        <a href="./apoderados.html"><div class="nav-item">Apoderados</div></a>
+        <a href="./matriculas.html"><div class="nav-item">Matrículas</div></a>
+
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">FINANZAS REALES</div>
+        <a href="./conceptos.html"><div class="nav-item">Conceptos de pago</div></a>
+        <a href="./pagos.html"><div class="nav-item">Registrar pagos</div></a>
+        <a href="./caja.html"><div class="nav-item">Caja</div></a>
+        <a href="./morosidad.html"><div class="nav-item">Morosidad</div></a>
+        <a href="./reportes-financieros.html"><div class="nav-item">Reportes financieros</div></a>
+
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">REPORTES</div>
+        <a href="./reportes-alumnos.html"><div class="nav-item">Alumnos por grado</div></a>
+        <a href="./reportes-matriculas.html"><div class="nav-item">Matrículas por aula</div></a>
+
+        <div class="muted" style="margin:10px 6px 6px;font-size:12px;">SISTEMA</div>
+        <a href="./config.html"><div class="nav-item">Configuración</div></a>
+        <a href="#" id="logoutBtn"><div class="nav-item">Cerrar sesión</div></a>
+      </nav>
+    </aside>
+
+    <!-- ✅ MAIN -->
+    <main class="main">
+
+      <!-- ✅ TU MISMA TOPBAR (no cambio IDs ni rutas) -->
+      <div class="topbar">
+        <div class="topbar-left">
+          <img
+            id="uiSchoolLogo"
+            src="../../assets/img/eduadmin.jpeg"
+            alt="Logo"
+            class="topbar-logo"
+            onerror="this.src='../../assets/img/eduadmin.jpeg';"
+          />
+          <div class="topbar-meta">
+            <div id="uiSchoolName" class="topbar-title">Cargando colegio...</div>
+            <div id="uiYearName" class="topbar-subtitle">Año: —</div>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label for="grado">Grado</label>
-          <select id="grado" required>
-            <option value="">Selecciona un grado</option>
-          </select>
+        <div class="topbar-actions">
+          <button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
+          <a href="./dashboard.html" class="btn btn-secondary">Volver</a>
         </div>
-
-        <div class="form-group">
-          <label for="orden">Orden</label>
-          <input id="orden" type="number" placeholder="Se llena automático" />
-        </div>
-
-        <div class="form-group" style="display:flex; gap:10px; align-items:center;">
-          <input id="activo" type="checkbox" checked />
-          <label for="activo" style="margin:0;">Activo</label>
-        </div>
-
-        <button type="submit" class="btn btn-primary" style="width:100%;">Guardar</button>
-        <div class="muted" style="margin-top:10px;">* El grado depende del nivel seleccionado.</div>
-      </form>
-    </div>
-
-    <div class="card">
-      <h2 class="card-title">Grados registrados</h2>
-
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Nivel</th>
-              <th>Grado</th>
-              <th>Orden</th>
-              <th>Activo</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyGrados">
-            <tr><td colspan="5" class="muted">Cargando…</td></tr>
-          </tbody>
-        </table>
       </div>
-    </div>
-  </div>
 
-  <!-- ✅ RUTA RELATIVA A /eduadmin/js/ -->
-  <script src="../js/grados.js"></script>
+      <!-- ✅ TU CONTENIDO EXACTO -->
+      <div class="page-header">
+        <h1>Grados</h1>
+        <div id="status" class="status muted">Cargando…</div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h2 class="card-title">Crear grado</h2>
+
+          <form id="formGrado" class="form">
+            <div class="form-group">
+              <label for="nivel_id">Nivel</label>
+              <select id="nivel_id" required>
+                <option value="">Selecciona un nivel</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="grado">Grado</label>
+              <select id="grado" required>
+                <option value="">Selecciona un grado</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="orden">Orden</label>
+              <input id="orden" type="number" placeholder="Se llena automático" />
+            </div>
+
+            <div class="form-group" style="display:flex; gap:10px; align-items:center;">
+              <input id="activo" type="checkbox" checked />
+              <label for="activo" style="margin:0;">Activo</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%;">Guardar</button>
+            <div class="muted" style="margin-top:10px;">* El grado depende del nivel seleccionado.</div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">Grados registrados</h2>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Nivel</th>
+                  <th>Grado</th>
+                  <th>Orden</th>
+                  <th>Activo</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyGrados">
+                <tr><td colspan="5" class="muted">Cargando…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ✅ TU MISMO SCRIPT -->
+      <script src="../js/grados.js"></script>
+    </main>
+
+  </div>
 </body>
 </html>
