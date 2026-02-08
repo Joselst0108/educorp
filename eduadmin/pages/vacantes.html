@@ -1,59 +1,26 @@
 <!DOCTYPE html>
-<html lang="es" data-app="eduadmin">
+<html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Vacantes</title>
 
-  <!-- ✅ MISMO CSS QUE NIVELES -->
-  <link rel="stylesheet" href="/assets/css/variables.css">
-  <link rel="stylesheet" href="/assets/css/main.css">
-  <link rel="stylesheet" href="/assets/css/components.css">
+  <!-- Tus estilos reales (deja los tuyos) -->
+  <link rel="stylesheet" href="../css/dashboard.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/supabaseClient.js"></script>
+  <script src="../js/context.js"></script>
 </head>
 
 <body>
-  <div class="app-shell">
 
-    <!-- ✅ SIDEBAR DINÁMICO (MISMO QUE NIVELES) -->
-    <aside class="sidebar">
-      <div class="brand">
-        <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin" />
-        <div class="titles">
-          <b>EduAdmin</b>
-          <span>Administración real</span>
-        </div>
-      </div>
+  <!-- ✅ TU SIDEBAR REAL AQUÍ (no lo cambio) -->
 
-      <!-- 🔥 Menú generado por /assets/js/ui.js -->
-      <nav id="uiSidebarNav" class="nav"></nav>
-    </aside>
+  <main class="main-content">
+    <!-- ✅ TU TOPBAR REAL AQUÍ (donde context.js pinta colegio y año) -->
 
-    <!-- MAIN -->
-    <main class="main">
-
-      <!-- ✅ TOPBAR (MISMO QUE NIVELES) -->
-      <div class="topbar">
-        <div class="left">
-          <div class="school-chip">
-            <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio" />
-            <div class="meta">
-              <b id="uiSchoolName">Cargando colegio…</b>
-              <span id="uiYearName">Año: —</span>
-            </div>
-          </div>
-        </div>
-
-        <div style="display:flex; gap:10px;">
-          <button class="btn btn-secondary" id="btnRefresh" type="button">Actualizar</button>
-        </div>
-      </div>
-
-    
-  
-            </table>
-          </div>
-
-         <section class="card">
+    <section class="card">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
         <div>
           <h2 style="margin:0;">Vacantes (Cupos)</h2>
@@ -97,20 +64,6 @@
     </section>
   </main>
 
-  <!-- ✅ Scripts (MISMO ORDEN QUE NIVELES) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/assets/js/supabaseClient.js"></script>
-  <script src="/assets/js/context.js"></script>
-  <script src="/assets/js/ui.js"></script>
-
-  <!-- ✅ Activa menú desplegable -->
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
-    });
-  </script>
-
-  <!-- ✅ TU JS DE VACANTES -->
-  <script src="./pages/js/vacantes.js"></script>
+  <script src="./js/vacantes.js"></script>
 </body>
 </html>
