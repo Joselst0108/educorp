@@ -11,45 +11,58 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
- /* ===============================
-   CONTEXTO GLOBAL
- =============================== */
-let ctx = null;
+  /* ===============================
+     CONTEXTO GLOBAL - CORREGIDO
+  =============================== */
+  let ctx = null;
+  let userRole = "guest"; // Inicializar aquí para evitar ReferenceError
 
-try {
-  ctx = await window.getContext();
-  console.log("[context] cache ok", ctx);
-} catch (e) {
-  console.error("Error context:", e);
-  // Establecer un contexto mínimo para evitar errores
-  ctx = {
-    school_id: null,
-    school_name: "Colegio no definido",
-    year_name: "Año no definido",
-    user_role: "guest" // Establecer un rol predeterminado
-  };
-}
+  try {
+    ctx = await window.getContext();
+    userRole = ctx?.user_role || "guest"; // Asegurar valor
+    console.log("[context] cargado", ctx);
+  } catch (e) {
+    console.error("Error context:", e);
+    // Crear contexto mínimo en caso de error
+    ctx = {
+      school_id: null,
+      school_name: "Contexto no disponible",
+      year_name: "N/A",
+      user_role: "guest"
+    };
+    userRole = "guest";
+  }
 
-const colegioId = ctx?.school_id;
-const userRole = ctx?.user_role || "guest"; // ✅ Ahora siempre tendrá un valor
+  const colegioId = ctx?.school_id;
 
   if (!colegioId) {
-    alert("No hay colegio seleccionado");
-    window.location.href = "./dashboard.html";
+    console.warn("No hay colegio seleccionado");
+    try {
+      window.location.href = "./dashboard.html";
+    } catch (e) {
+      console.error("Error al redirigir:", e);
+    }
     return;
   }
 
   /* ===============================
      UI HEADER (GENERAL)
   =============================== */
-  document.getElementById("uiSchoolName").textContent =
-    ctx?.school_name || "Colegio";
-
-  document.getElementById("uiYearName").textContent =
-    "Año: " + (ctx?.year_name || "—");
-
+  const uiSchoolName = document.getElementById("uiSchoolName");
+  const uiYearName = document.getElementById("uiYearName");
   const status = document.getElementById("status");
-  const setStatus = (t) => status && (status.textContent = t);
+
+  if (uiSchoolName) {
+    uiSchoolName.textContent = ctx?.school_name || "Colegio";
+  }
+
+  if (uiYearName) {
+    uiYearName.textContent = "Año: " + (ctx?.year_name || "—");
+  }
+
+  const setStatus = (t) => {
+    if (status) status.textContent = t;
+  };
 
   setStatus("Listo");
 
@@ -119,9 +132,14 @@ const editActivo = document.getElementById("editActivo");
 const btnCancelEdit = document.getElementById("btnCancelEdit");
 
 // ======= Permisos (solo superadmin crea/edita) =======
+// userRole ya está definido en el scope global
 const isSuperadmin = String(userRole || "").toLowerCase() === "superadmin";
-if (!isSuperadmin) {
+
+if (!isSuperadmin && btnCreate) {
   btnCreate.disabled = true;
+}
+
+if (!isSuperadmin && onlySuperadminMsg) {
   onlySuperadminMsg.style.display = "block";
 }
 
@@ -129,9 +147,28 @@ if (!isSuperadmin) {
 let cacheSchools = [];
 
 async function loadSchools() {
+  const status = document.getElementById("status");
+  const setStatus = (t) => {
+    if (status) status.textContent = t;
+  };
+
   setStatus("Cargando colegios…");
-  tbody.innerHTML = `<tr><td colspan="5" class="muted">Cargando…</td></tr>`;
+  
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="5" class="muted">Cargando…</td></tr>`;
+  }
+  
   setMsg("");
+
+  const supabase = window.supabaseClient;
+  if (!supabase) {
+    console.error("Supabase no está disponible");
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="5">Error: Supabase no disponible</td></tr>`;
+    }
+    setStatus("Error");
+    return;
+  }
 
   const { data, error } = await supabase
     .from("colegios")
@@ -142,7 +179,9 @@ async function loadSchools() {
   if (error) {
     console.error(error);
     setStatus("Error");
-    tbody.innerHTML = `<tr><td colspan="5">Error cargando (ver consola)</td></tr>`;
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="5">Error cargando (ver consola)</td></tr>`;
+    }
     return;
   }
 
@@ -152,6 +191,8 @@ async function loadSchools() {
 }
 
 function renderSchools(list) {
+  if (!tbody) return;
+
   const filtered = list || [];
   if (!filtered.length) {
     tbody.innerHTML = `<tr><td colspan="5" class="muted">Sin colegios</td></tr>`;
@@ -174,105 +215,129 @@ function renderSchools(list) {
 }
 
 // Buscar
-qBuscar?.addEventListener("input", () => {
-  const q = String(qBuscar.value || "").toLowerCase().trim();
-  if (!q) return renderSchools(cacheSchools);
+if (qBuscar) {
+  qBuscar.addEventListener("input", () => {
+    const q = String(qBuscar.value || "").toLowerCase().trim();
+    if (!q) return renderSchools(cacheSchools);
 
-  const filtered = cacheSchools.filter(s => {
-    const hay = `${s.nombre || ""} ${s.codigo_modular || ""}`.toLowerCase();
-    return hay.includes(q);
+    const filtered = cacheSchools.filter(s => {
+      const hay = `${s.nombre || ""} ${s.codigo_modular || ""}`.toLowerCase();
+      return hay.includes(q);
+    });
+
+    renderSchools(filtered);
   });
+}
 
-  renderSchools(filtered);
-});
-
-btnReload?.addEventListener("click", loadSchools);
+if (btnReload) {
+  btnReload.addEventListener("click", loadSchools);
+}
 
 // Abrir editor
-tbody?.addEventListener("click", (e) => {
-  const btn = e.target.closest(".btnEditSchool");
-  if (!btn) return;
+if (tbody) {
+  tbody.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btnEditSchool");
+    if (!btn) return;
 
-  const id = btn.dataset.id;
-  const s = cacheSchools.find(x => String(x.id) === String(id));
-  if (!s) return;
+    const id = btn.dataset.id;
+    const s = cacheSchools.find(x => String(x.id) === String(id));
+    if (!s) return;
 
-  editBox.style.display = "block";
-  editId.value = s.id;
-  editNombre.value = s.nombre || "";
-  editCodigo.value = s.codigo_modular || "";
-  editDireccion.value = s.direccion || "";
-  editLogo.value = s.logo_url || "";
-  editActivo.checked = !!s.activo;
-});
+    if (editBox) editBox.style.display = "block";
+    if (editId) editId.value = s.id;
+    if (editNombre) editNombre.value = s.nombre || "";
+    if (editCodigo) editCodigo.value = s.codigo_modular || "";
+    if (editDireccion) editDireccion.value = s.direccion || "";
+    if (editLogo) editLogo.value = s.logo_url || "";
+    if (editActivo) editActivo.checked = !!s.activo;
+  });
+}
 
 // Cancelar editor
-btnCancelEdit?.addEventListener("click", () => {
-  editBox.style.display = "none";
-});
+if (btnCancelEdit) {
+  btnCancelEdit.addEventListener("click", () => {
+    if (editBox) editBox.style.display = "none";
+  });
+}
 
 // Crear colegio
-formCreate?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (!isSuperadmin) return setMsg("Solo superadmin puede crear colegios.");
+if (formCreate) {
+  formCreate.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!isSuperadmin) return setMsg("Solo superadmin puede crear colegios.");
 
-  const nombre = String(newNombre.value || "").trim();
-  if (!nombre) return setMsg("Falta nombre.");
+    const nombre = String(newNombre?.value || "").trim();
+    if (!nombre) return setMsg("Falta nombre.");
 
-  btnCreate.disabled = true;
-  btnCreate.textContent = "Creando…";
-
-  try {
-    const payload = {
-      nombre,
-      codigo_modular: String(newCodigo.value || "").trim() || null,
-      direccion: String(newDireccion.value || "").trim() || null,
-      logo_url: String(newLogo.value || "").trim() || null,
-      activo: !!newActivo.checked
-    };
-
-    const { error } = await supabase.from("colegios").insert(payload);
-    if (error) {
-      console.error(error);
-      return setMsg("Error creando colegio (ver consola).");
+    if (btnCreate) {
+      btnCreate.disabled = true;
+      btnCreate.textContent = "Creando…";
     }
 
-    setMsg("✅ Colegio creado.", true);
-    formCreate.reset();
-    await loadSchools();
-  } finally {
-    btnCreate.disabled = false;
-    btnCreate.textContent = "Crear colegio";
-  }
-});
+    try {
+      const payload = {
+        nombre,
+        codigo_modular: String(newCodigo?.value || "").trim() || null,
+        direccion: String(newDireccion?.value || "").trim() || null,
+        logo_url: String(newLogo?.value || "").trim() || null,
+        activo: !!newActivo?.checked
+      };
+
+      const supabase = window.supabaseClient;
+      const { error } = await supabase.from("colegios").insert(payload);
+      
+      if (error) {
+        console.error(error);
+        return setMsg("Error creando colegio (ver consola).");
+      }
+
+      setMsg("✅ Colegio creado.", true);
+      formCreate.reset();
+      await loadSchools();
+    } catch (error) {
+      console.error("Error inesperado:", error);
+      setMsg("Error inesperado al crear colegio.");
+    } finally {
+      if (btnCreate) {
+        btnCreate.disabled = false;
+        btnCreate.textContent = "Crear colegio";
+      }
+    }
+  });
+}
 
 // Guardar edición
-formEdit?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (!isSuperadmin) return setMsg("Solo superadmin puede editar colegios.");
+if (formEdit) {
+  formEdit.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!isSuperadmin) return setMsg("Solo superadmin puede editar colegios.");
 
-  const id = editId.value;
-  const payload = {
-    nombre: String(editNombre.value || "").trim(),
-    codigo_modular: String(editCodigo.value || "").trim() || null,
-    direccion: String(editDireccion.value || "").trim() || null,
-    logo_url: String(editLogo.value || "").trim() || null,
-    activo: !!editActivo.checked
-  };
+    const id = editId?.value;
+    if (!id) return setMsg("ID no válido.");
 
-  const { error } = await supabase.from("colegios").update(payload).eq("id", id);
-  if (error) {
-    console.error(error);
-    return setMsg("Error guardando cambios (ver consola).");
-  }
+    const payload = {
+      nombre: String(editNombre?.value || "").trim(),
+      codigo_modular: String(editCodigo?.value || "").trim() || null,
+      direccion: String(editDireccion?.value || "").trim() || null,
+      logo_url: String(editLogo?.value || "").trim() || null,
+      activo: !!editActivo?.checked
+    };
 
-  setMsg("✅ Cambios guardados.", true);
-  editBox.style.display = "none";
-  await loadSchools();
-});
+    const supabase = window.supabaseClient;
+    const { error } = await supabase.from("colegios").update(payload).eq("id", id);
+    
+    if (error) {
+      console.error(error);
+      return setMsg("Error guardando cambios (ver consola).");
+    }
+
+    setMsg("✅ Cambios guardados.", true);
+    if (editBox) editBox.style.display = "none";
+    await loadSchools();
+  });
+}
 
 // Init
 document.addEventListener("DOMContentLoaded", async () => {
   await loadSchools();
 });
-
