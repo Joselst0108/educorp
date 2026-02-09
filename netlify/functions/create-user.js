@@ -4,7 +4,12 @@ const { createClient } = require("@supabase/supabase-js");
 function json(statusCode, obj) {
   return {
     statusCode,
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    },
     body: JSON.stringify(obj),
   };
 }
@@ -15,6 +20,11 @@ function pickAuthHeader(headers = {}) {
 
 exports.handler = async (event) => {
   try {
+    // ✅ Preflight CORS
+    if (event.httpMethod === "OPTIONS") {
+      return json(200, { ok: true });
+    }
+
     // ========= GET = diagnóstico rápido =========
     if (event.httpMethod === "GET") {
       const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -34,7 +44,6 @@ exports.handler = async (event) => {
       if (SUPABASE_URL && ANON_KEY) {
         try {
           const anon = createClient(SUPABASE_URL, ANON_KEY);
-          // prueba simple (no importa si no existe tabla, solo que no sea "Invalid API key")
           await anon.auth.getSession();
           tests.anon_client_ok = true;
         } catch (e) {
@@ -56,7 +65,7 @@ exports.handler = async (event) => {
     }
 
     // ========= POST =========
-    if (event.httpMethod !== "POST") return json(200, { ok: true, message: "Use POST" });
+    if (event.httpMethod !== "POST") return json(405, { ok: false, message: "Use POST" });
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -91,24 +100,26 @@ exports.handler = async (event) => {
 
     const requesterId = u.user.id;
 
-    // ========= verificar rol superadmin =========
+    // ========= verificar perfil solicitante =========
     const { data: prof, error: pErr } = await admin
       .from("profiles")
-      .select("role, is_active")
+      .select("role, rol, is_active, colegio_id")
       .eq("id", requesterId)
       .maybeSingle();
 
     if (pErr) return json(500, { error: "profiles read: " + pErr.message });
     if (!prof || prof.is_active === false) return json(403, { error: "No autorizado" });
-    
-const reqRole = String(prof.role || "").toLowerCase();
 
-const allowedCreators = ["superadmin", "director", "secretaria"];
-if (!allowedCreators.includes(reqRole)) return json(403, { error: "No autorizado para crear usuarios" });
+    const reqRole = String(prof.role || prof.rol || "").toLowerCase();
+    const allowedCreators = ["superadmin", "director", "secretaria"];
+    if (!allowedCreators.includes(reqRole)) {
+      return json(403, { error: "No autorizado para crear usuarios" });
+    }
+
     // ========= BODY =========
     const body = JSON.parse(event.body || "{}");
     const dni = String(body.dni || "").replace(/\D/g, "").slice(0, 8);
-    const role = String(body.role || "").trim();
+    const role = String(body.role || "").trim().toLowerCase();
     const colegio_id = String(body.colegio_id || "").trim();
 
     let password = String(body.initial_password || "").trim();
@@ -121,12 +132,32 @@ if (!allowedCreators.includes(reqRole)) return json(403, { error: "No autorizado
     if (!colegio_id) return json(400, { error: "Falta colegio_id" });
     if (password.length < 6) return json(400, { error: "La contraseña debe tener mínimo 6 caracteres" });
 
+    // ✅ Reglas mínimas por rol (sin romper nada)
+    // - superadmin: puede crear todo
+    // - director/secretaria: SOLO pueden crear usuarios de su mismo colegio
+    if (reqRole !== "superadmin") {
+      if (!prof.colegio_id) return json(403, { error: "Tu perfil no tiene colegio_id asignado." });
+      if (String(prof.colegio_id) !== String(colegio_id)) {
+        return json(403, { error: "No puedes crear usuarios en otro colegio." });
+      }
+    }
+
+    // - secretaria no puede crear superadmin
+    if (reqRole === "secretaria" && role === "superadmin") {
+      return json(403, { error: "Secretaría no puede crear superadmin." });
+    }
+
     const email = `${dni}@educorp.local`;
 
     // ========= (opcional) check si existe en auth.users =========
-    // NOTA: requiere trigger/schema support; si falla, igual seguimos
     try {
-      const { data: existing } = await admin.schema("auth").from("users").select("id").eq("email", email).maybeSingle();
+      const { data: existing } = await admin
+        .schema("auth")
+        .from("users")
+        .select("id")
+        .eq("email", email)
+        .maybeSingle();
+
       if (existing?.id) return json(409, { error: "Ya existe ese usuario", email });
     } catch (_) {}
 
@@ -148,7 +179,7 @@ if (!allowedCreators.includes(reqRole)) return json(403, { error: "No autorizado
         error: "createUser: " + (createErr?.message || "Unknown error"),
         detail: createErr || null,
         hint:
-          "Si tienes trigger handle_new_user y profiles tiene NOT NULL (colegio_id/role), el trigger puede estar fallando. Revisa triggers en auth.users.",
+          "Si tienes trigger handle_new_user y profiles tiene NOT NULL, el trigger puede fallar. Revisa triggers en auth.users.",
       });
     }
 
