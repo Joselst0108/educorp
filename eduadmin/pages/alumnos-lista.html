@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin | Grados</title>
+  <title>EduAdmin | lista de estudiantess</title>
 
   <!-- ✅ RUTAS RELATIVAS DESDE /eduadmin/pages/ -->
   <link rel="stylesheet" href="../../assets/css/variables.css">
@@ -78,6 +78,24 @@
     </div>
   </div>
 
-  <script src="/eduadmin/pages/js/alumnos-lista.js"></script>
+  <!-- ✅ Scripts al final (mejor práctica) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabaseClient.js"></script>
+  <script src="../../assets/js/context.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+
+  <!-- ✅ Activa menú desplegable -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.renderEduAdminSidebar) {
+        window.renderEduAdminSidebar();
+      } else {
+        console.error("renderEduAdminSidebar no existe. Revisa ../../assets/js/ui.js");
+      }
+    });
+  </script>
+
+  <!-- ✅ Tu JS real de página -->
+  <script src="../js/grados.js"></script>
 </body>
 </html>
