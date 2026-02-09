@@ -131,7 +131,7 @@ async function cargarUsuarios(ctx){
       <td>${u.is_active?"Activo":"Inactivo"}</td>
       <td>—</td>
       <td class="table-actions">
-        <button class="btn btn-secondary" onclick="resetPass('${u.id}')">Reset pass</button>
+        <button class="btn btn-secondary" onclick="resetPass('${u.id},"${String/u.dni. || "').trim()`)"}">Reset pass</button>
       </td>
     </tr>`;
   }).join("");
