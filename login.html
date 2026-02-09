@@ -7,11 +7,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: 'Segoe UI', system-ui, Arial, sans-serif;
@@ -52,12 +48,12 @@
       height: 200%;
       background: linear-gradient(45deg, transparent, rgba(52, 152, 219, 0.05), transparent);
       transform: rotate(45deg);
+
+      /* ✅ CLAVE: no bloquear clics */
+      pointer-events: none;
     }
 
-    .card-header {
-      text-align: center;
-      margin-bottom: 30px;
-    }
+    .card-header { text-align: center; margin-bottom: 30px; }
 
     .card-header img {
       width: 80px;
@@ -92,9 +88,7 @@
       font-weight: 600;
     }
 
-    .input-group {
-      position: relative;
-    }
+    .input-group { position: relative; }
 
     .input-group i {
       position: absolute;
@@ -103,6 +97,7 @@
       transform: translateY(-50%);
       color: #95a5a6;
       font-size: 18px;
+      pointer-events: none;
     }
 
     input {
@@ -122,9 +117,7 @@
       box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
     }
 
-    input.error {
-      border-color: #e74c3c;
-    }
+    input.error { border-color: #e74c3c; }
 
     .row {
       display: flex;
@@ -160,33 +153,7 @@
       box-shadow: none;
     }
 
-    button.loading {
-      position: relative;
-      padding: 14px 40px;
-    }
-
-    button.loading::after {
-      content: '';
-      position: absolute;
-      right: 20px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 20px;
-      height: 20px;
-      border: 3px solid white;
-      border-top-color: transparent;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: translateY(-50%) rotate(360deg); }
-    }
-
-    .link {
-      margin-top: 20px;
-      text-align: center;
-    }
+    .link { margin-top: 20px; text-align: center; }
 
     .link a {
       color: #3498db;
@@ -196,10 +163,7 @@
       display: inline-block;
     }
 
-    .link a:hover {
-      color: #2980b9;
-      text-decoration: underline;
-    }
+    .link a:hover { color: #2980b9; text-decoration: underline; }
 
     .small {
       font-size: 13px;
@@ -210,28 +174,13 @@
       font-weight: 500;
     }
 
-    .success {
-      color: #2ecc71;
-    }
+    .success { color: #2ecc71; }
 
-    /* Responsive */
     @media (max-width: 480px) {
-      .card {
-        padding: 30px 25px;
-      }
-
-      h1 {
-        font-size: 24px;
-      }
-
-      input {
-        padding: 12px 15px 12px 45px;
-      }
-
-      button {
-        padding: 12px;
-        font-size: 15px;
-      }
+      .card { padding: 30px 25px; }
+      h1 { font-size: 24px; }
+      input { padding: 12px 15px 12px 45px; }
+      button { padding: 12px; font-size: 15px; }
     }
   </style>
 </head>
@@ -242,11 +191,12 @@
       <div class="card-header">
         <img src="assets/img/educorp.jpeg" alt="EduCorp Logo">
       </div>
-      
+
       <h1><i class="fas fa-sign-in-alt"></i> Login EduCorp</h1>
       <p>Ingresa con tu DNI y tu contraseña.</p>
 
-      <form onsubmit="return false;">
+      <!-- ✅ Form normal (sin onsubmit="return false") -->
+      <form id="loginForm" autocomplete="on">
         <div class="input-group">
           <i class="fas fa-id-card"></i>
           <label for="inpUsuario">Usuario (DNI)</label>
@@ -276,7 +226,8 @@
         </div>
 
         <div class="row">
-          <button type="button" id="btnEntrar">
+          <!-- ✅ submit mantiene click normal; tu login.js igual escucha click -->
+          <button type="submit" id="btnEntrar">
             <i class="fas fa-sign-in-alt"></i> Entrar
           </button>
         </div>
@@ -298,10 +249,8 @@
   <script src="assets/js/login.js"></script>
 
   <script>
-    // Form validation
+    // Validación visual DNI (no interfiere)
     const usernameInput = document.getElementById('inpUsuario');
-    const passwordInput = document.getElementById('inpPassword');
-
     usernameInput.addEventListener('input', function() {
       if (this.value.length > 0 && !/^[0-9]{8}$/.test(this.value)) {
         this.classList.add('error');
@@ -310,12 +259,10 @@
       }
     });
 
-    // Loading state for button
-    document.getElementById('btnEntrar').addEventListener('click', function() {
-      this.classList.add('loading');
-      setTimeout(() => {
-        this.classList.remove('loading');
-      }, 3000); // Remove after 3 seconds (adjust as needed)
+    // ✅ Evitar que el submit recargue la página (por si el botón es submit)
+    document.getElementById("loginForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      document.getElementById("btnEntrar").click();
     });
   </script>
 </body>
