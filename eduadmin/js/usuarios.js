@@ -217,28 +217,29 @@ async function resetPass(userId, dni) {
     return;
   }
 
-  const res = await fetch("/.netlify/functions/reset-password", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + token
-    },
-    body: JSON.stringify({
-      user_id: userId,
-      new_password: String(dni).replace(/\D/g,"").slice(0,8)
-    })
-  });
+// ✅ 1) Obtener token de sesión
+const { data: s, error: sErr } = await window.supabaseClient.auth.getSession();
+const token = s?.session?.access_token;
 
-  const txt = await res.text();
-  console.log("RESET RAW:", txt);
-
-  let j = null;
-  try { j = JSON.parse(txt); } catch {}
-
-  if (!res.ok) {
-    alert("Error reset: " + (j?.error || txt));
-    return;
-  }
-
-  alert("✅ Password reseteado al DNI");
+if (sErr || !token) {
+  alert("Sin token (inicia sesión nuevamente).");
+  return;
 }
+
+// ✅ 2) colegio_id correcto
+const colegioId = (ctx.school_id || ctx.colegio_id);
+
+// ✅ 3) Llamar a la función con Authorization
+const res = await fetch("/.netlify/functions/create-user", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer " + token
+  },
+  body: JSON.stringify({
+    dni,
+    role,
+    colegio_id: colegioId,
+    must_change_password: true
+  })
+});
