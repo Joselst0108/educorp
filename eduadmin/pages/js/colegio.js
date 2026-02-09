@@ -264,4 +264,7 @@ formEdit?.addEventListener("submit", async (e) => {
 });
 
 // Init
-await loadSchools();
+document.addEventListener("DOMContentLoaded", async () => {
+  await loadSchools();
+});
+
