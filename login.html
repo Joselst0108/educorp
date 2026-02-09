@@ -4,60 +4,287 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduCorp | Login</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
-    body{font-family:system-ui,Segoe UI,Arial;margin:0;background:#f6f7fb}
-    .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-    .card{width:100%;max-width:420px;background:#fff;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.08);padding:22px}
-    h1{margin:0 0 8px 0;font-size:22px}
-    p{margin:0 0 16px 0;color:#555;font-size:14px}
-    label{display:block;font-size:13px;color:#333;margin:12px 0 6px}
-    input{width:100%;padding:12px;border:1px solid #d9dce6;border-radius:10px;font-size:14px;outline:none}
-    input:focus{border-color:#60a5fa}
-    .row{display:flex;gap:10px;align-items:center;margin-top:14px}
-    button{width:100%;padding:12px;border:none;border-radius:10px;background:#0ea5e9;color:#fff;font-weight:600;cursor:pointer}
-    button:disabled{opacity:.6;cursor:not-allowed}
-    .link{margin-top:14px;font-size:13px}
-    .link a{color:#0ea5e9;text-decoration:none}
-    .small{font-size:12px;color:#777;margin-top:10px}
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, Arial, sans-serif;
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+      padding: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(52, 152, 219, 0.05), transparent);
+      transform: rotate(45deg);
+    }
+
+    .card-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .card-header img {
+      width: 80px;
+      height: 80px;
+      border-radius: 15px;
+      margin-bottom: 15px;
+      border: 3px solid #ecf0f1;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      margin: 0 0 8px 0;
+      font-size: 28px;
+      color: #2c3e50;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    p {
+      margin: 0 0 25px 0;
+      color: #7f8c8d;
+      font-size: 15px;
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      color: #34495e;
+      margin: 15px 0 8px;
+      font-weight: 600;
+    }
+
+    .input-group {
+      position: relative;
+    }
+
+    .input-group i {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #95a5a6;
+      font-size: 18px;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px 15px 14px 45px;
+      border: 2px solid #ecf0f1;
+      border-radius: 12px;
+      font-size: 15px;
+      outline: none;
+      transition: all 0.3s ease;
+      background: #f8f9fa;
+    }
+
+    input:focus {
+      border-color: #3498db;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    input.error {
+      border-color: #e74c3c;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 20px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #3498db, #1a5276);
+      color: white;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+      background: linear-gradient(135deg, #2980b9, #154360);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    button.loading {
+      position: relative;
+      padding: 14px 40px;
+    }
+
+    button.loading::after {
+      content: '';
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 20px;
+      height: 20px;
+      border: 3px solid white;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: translateY(-50%) rotate(360deg); }
+    }
+
+    .link {
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .link a {
+      color: #3498db;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      display: inline-block;
+    }
+
+    .link a:hover {
+      color: #2980b9;
+      text-decoration: underline;
+    }
+
+    .small {
+      font-size: 13px;
+      color: #e74c3c;
+      margin-top: 15px;
+      text-align: center;
+      min-height: 20px;
+      font-weight: 500;
+    }
+
+    .success {
+      color: #2ecc71;
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .card {
+        padding: 30px 25px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      input {
+        padding: 12px 15px 12px 45px;
+      }
+
+      button {
+        padding: 12px;
+        font-size: 15px;
+      }
+    }
   </style>
 </head>
 
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>Login EduCorp</h1>
+      <div class="card-header">
+        <img src="assets/img/educorp.jpeg" alt="EduCorp Logo">
+      </div>
+      
+      <h1><i class="fas fa-sign-in-alt"></i> Login EduCorp</h1>
       <p>Ingresa con tu DNI y tu contraseña.</p>
 
       <form onsubmit="return false;">
-        <label for="inpUsuario">Usuario (DNI)</label>
-        <input
-          id="inpUsuario"
-          name="username"
-          type="text"
-          placeholder="Ej: 45102940"
-          autocomplete="username"
-          inputmode="numeric"
-          pattern="[0-9]{8}"
-          required
-        />
+        <div class="input-group">
+          <i class="fas fa-id-card"></i>
+          <label for="inpUsuario">Usuario (DNI)</label>
+          <input
+            id="inpUsuario"
+            name="username"
+            type="text"
+            placeholder="Ej: 45102940"
+            autocomplete="username"
+            inputmode="numeric"
+            pattern="[0-9]{8}"
+            required
+          />
+        </div>
 
-        <label for="inpPassword">Contraseña</label>
-        <input
-          id="inpPassword"
-          name="password"
-          type="password"
-          placeholder="Tu contraseña"
-          autocomplete="current-password"
-          required
-        />
+        <div class="input-group">
+          <i class="fas fa-lock"></i>
+          <label for="inpPassword">Contraseña</label>
+          <input
+            id="inpPassword"
+            name="password"
+            type="password"
+            placeholder="Tu contraseña"
+            autocomplete="current-password"
+            required
+          />
+        </div>
 
         <div class="row">
-          <button type="button" id="btnEntrar">Entrar</button>
+          <button type="button" id="btnEntrar">
+            <i class="fas fa-sign-in-alt"></i> Entrar
+          </button>
         </div>
 
         <div class="link">
-          <a href="index.html">Volver al inicio</a>
+          <a href="index.html">
+            <i class="fas fa-arrow-left"></i> Volver al inicio
+          </a>
         </div>
 
         <div class="small" id="status"></div>
@@ -69,5 +296,27 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="assets/js/supabaseClient.js"></script>
   <script src="assets/js/login.js"></script>
+
+  <script>
+    // Form validation
+    const usernameInput = document.getElementById('inpUsuario');
+    const passwordInput = document.getElementById('inpPassword');
+
+    usernameInput.addEventListener('input', function() {
+      if (this.value.length > 0 && !/^[0-9]{8}$/.test(this.value)) {
+        this.classList.add('error');
+      } else {
+        this.classList.remove('error');
+      }
+    });
+
+    // Loading state for button
+    document.getElementById('btnEntrar').addEventListener('click', function() {
+      this.classList.add('loading');
+      setTimeout(() => {
+        this.classList.remove('loading');
+      }, 3000); // Remove after 3 seconds (adjust as needed)
+    });
+  </script>
 </body>
 </html>
