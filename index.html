@@ -4,54 +4,331 @@
   <meta charset="UTF-8">
   <title>EduCorp | Plataforma Educativa Integral</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    :root{
+      --bg:#0b1220;
+      --card:rgba(255,255,255,.06);
+      --line:rgba(255,255,255,.10);
+      --text:#e8eefc;
+      --muted:rgba(232,238,252,.72);
+      --brand:#38bdf8;
+      --ok:#22c55e;
+      --warn:#f59e0b;
+      --violet:#a78bfa;
+      --radius:18px;
+      --shadow:0 18px 55px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color:var(--text);
+      background:
+        radial-gradient(1000px 650px at 15% 0%, rgba(56,189,248,.14), transparent 60%),
+        radial-gradient(900px 550px at 90% 20%, rgba(34,197,94,.12), transparent 60%),
+        radial-gradient(900px 650px at 60% 90%, rgba(167,139,250,.10), transparent 65%),
+        var(--bg);
+    }
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:1120px;margin:0 auto;padding:18px}
+    .nav{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+      padding:14px 16px;border:1px solid var(--line);border-radius:var(--radius);
+      background:rgba(255,255,255,.04);box-shadow:var(--shadow);backdrop-filter: blur(10px);
+    }
+    .brand{
+      display:flex;align-items:center;gap:10px;
+    }
+    .logo{
+      width:36px;height:36px;border-radius:12px;
+      background:linear-gradient(135deg, rgba(56,189,248,.9), rgba(34,197,94,.75));
+      box-shadow:0 10px 20px rgba(0,0,0,.25);
+    }
+    .brand b{font-size:16px;letter-spacing:.3px}
+    .brand span{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+    .nav-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .btn{
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.06);
+      color:var(--text);
+      padding:10px 12px;border-radius:12px;
+      cursor:pointer;font-weight:800;
+      display:inline-flex;align-items:center;gap:8px;
+    }
+    .btn.primary{background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.35)}
+    .btn.ok{background:rgba(34,197,94,.16);border-color:rgba(34,197,94,.35)}
+    .btn.warn{background:rgba(245,158,11,.16);border-color:rgba(245,158,11,.35)}
+    .btn.violet{background:rgba(167,139,250,.16);border-color:rgba(167,139,250,.35)}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .hero{
+      margin-top:14px;
+      border:1px solid var(--line);border-radius:var(--radius);
+      background:rgba(255,255,255,.04);
+      box-shadow:var(--shadow);
+      padding:22px;
+      display:grid;grid-template-columns: 1.2fr .8fr;gap:16px;
+      overflow:hidden;
+    }
+    @media(max-width:950px){.hero{grid-template-columns:1fr}}
+    h1{margin:0;font-size:34px;letter-spacing:.2px}
+    p{margin:10px 0 0;color:var(--muted);line-height:1.55}
+    .chips{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .chip{
+      padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.06);font-size:12px;color:var(--muted);
+    }
+    .panel{
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:16px;background:rgba(15,27,51,.45);
+      padding:14px;
+    }
+    .panel h3{margin:0 0 8px;font-size:14px}
+    .grid{
+      margin-top:14px;
+      display:grid;grid-template-columns: repeat(4, 1fr);gap:12px;
+    }
+    @media(max-width:1050px){.grid{grid-template-columns: repeat(2, 1fr)}}
+    @media(max-width:560px){.grid{grid-template-columns: 1fr}}
+    .card{
+      border:1px solid var(--line);border-radius:16px;
+      background:var(--card);
+      padding:14px;
+      box-shadow:0 14px 40px rgba(0,0,0,.25);
+    }
+    .card h3{margin:0;font-size:15px}
+    .card p{margin:8px 0 0;font-size:13px}
+    .card .row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px}
+    .tag{
+      padding:6px 10px;border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.06);
+      font-size:12px;color:var(--muted);
+    }
+    .foot{
+      margin-top:14px;border:1px solid var(--line);border-radius:var(--radius);
+      background:rgba(255,255,255,.04);padding:16px;box-shadow:var(--shadow);
+      display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;
+    }
+    .small{font-size:12px;color:var(--muted)}
+    .demo{
+      margin-top:12px;
+      border:1px dashed rgba(255,255,255,.18);
+      border-radius:16px;
+      padding:12px;
+      background:rgba(255,255,255,.03);
+    }
+    code{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size:12px;color:#d6e3ff;
+      background:rgba(0,0,0,.25);padding:2px 6px;border-radius:8px;
+    }
+    .toast{
+      margin-top:10px;
+      padding:10px 12px;border-radius:14px;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.06);
+      color:var(--muted);font-size:12px;
+      display:none;
+      white-space:pre-wrap;
+    }
+  </style>
 </head>
+
 <body>
+  <div class="wrap">
 
-  <h1>EduCorp</h1>
-  <p>Plataforma educativa integral para colegios (Inicial, Primaria y Secundaria).</p>
+    <!-- NAV -->
+    <div class="nav">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <b>EduCorp</b>
+          <span>Plataforma educativa integral</span>
+        </div>
+      </div>
 
-  <h2>Acceso</h2>
-  <ul>
-    <li><a href="login.html">🔐 Iniciar sesión</a></li>
-    <li><a href="planes.html">💼 Ver planes</a></li>
-  </ul>
+      <div class="nav-actions">
+        <a class="btn primary" href="login.html">🔐 Iniciar sesión</a>
+        <a class="btn" href="planes.html">💼 Ver planes</a>
+      </div>
+    </div>
 
-  <h2>Plataformas</h2>
-  <ul>
-    <li><a href="eduadmin/">🔵 EduAdmin</a> – Administración real</li>
-    <li><a href="edubank/">🟢 EduBank</a> – Educación financiera ficticia</li>
-    <li><a href="eduasist/">🟡 EduAsist</a> – Asistencia y notas</li>
-    <li><a href="eduia/">🟣 EduIA</a> – IA para sesiones y programaciones</li>
-  </ul>
+    <!-- HERO -->
+    <section class="hero">
+      <div>
+        <h1>Todo tu colegio en una sola plataforma</h1>
+        <p>
+          EduCorp integra administración, asistencia/nota, educación financiera y herramientas IA.
+          Diseñado para Inicial, Primaria y Secundaria.
+        </p>
 
-  <!-- ✅ CAMBIO NECESARIO: botón para llamar a la función -->
-  <button onclick="crearUsuario()">
-    🧪 Crear usuario de prueba
-  </button>
+        <div class="chips">
+          <span class="chip">✅ Multi-colegio</span>
+          <span class="chip">✅ Roles y permisos</span>
+          <span class="chip">✅ Año académico por contexto</span>
+          <span class="chip">✅ Supabase + Netlify</span>
+        </div>
+
+        <div class="demo">
+          <div class="small">Demo (si deseas mostrarlo):</div>
+          <div class="small" style="margin-top:8px">
+            Usuario: <code>demo@educorp.com</code> &nbsp; Contraseña: <code>123456</code>
+          </div>
+          <div class="small" style="margin-top:8px">
+            (Puedes enlazar el demo a una vista limitada dentro de cada app)
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+          <a class="btn ok" href="eduadmin/pages/dashboard.html">🔵 Entrar a EduAdmin</a>
+          <a class="btn" href="edubank/">🟢 EduBank</a>
+          <a class="btn warn" href="eduasist/">🟡 EduAsist</a>
+          <a class="btn violet" href="eduia/">🟣 EduIA</a>
+        </div>
+
+        <div id="toast" class="toast"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Accesos rápidos</h3>
+        <p class="small" style="margin-top:6px">
+          Cada plataforma tiene su propio login y respeta el contexto (colegio/año).
+        </p>
+
+        <div style="display:grid; gap:10px; margin-top:12px;">
+          <a class="btn" href="eduadmin/">🔵 EduAdmin – Administración real</a>
+          <a class="btn" href="edubank/">🟢 EduBank – Educación financiera ficticia</a>
+          <a class="btn" href="eduasist/">🟡 EduAsist – Asistencia y notas</a>
+          <a class="btn" href="eduia/">🟣 EduIA – IA para sesiones y programaciones</a>
+        </div>
+
+        <!-- Botón de prueba -->
+        <div style="margin-top:14px;">
+          <button class="btn primary" onclick="crearUsuarioPrueba()">
+            🧪 Crear usuario de prueba (requiere sesión superadmin)
+          </button>
+          <div class="small" style="margin-top:8px">
+            Crea un usuario interno con email <code>DNI@educorp.local</code> y contraseña = DNI.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PLATAFORMAS -->
+    <section class="grid" aria-label="Plataformas">
+      <article class="card">
+        <h3>🔵 EduAdmin</h3>
+        <p>Administración real: colegios, años, niveles, grados, secciones, vacantes, alumnos, usuarios.</p>
+        <div class="row">
+          <span class="tag">Gestión</span>
+          <a class="btn" href="eduadmin/">Abrir</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <h3>🟢 EduBank</h3>
+        <p>Educación financiera ficticia: ahorro, metas, actividades y simulación (inspirado en banca).</p>
+        <div class="row">
+          <span class="tag">Finanzas</span>
+          <a class="btn" href="edubank/">Abrir</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <h3>🟡 EduAsist</h3>
+        <p>Asistencia y notas por curso, control por bimestre, reportes y exportaciones.</p>
+        <div class="row">
+          <span class="tag">Asistencia</span>
+          <a class="btn" href="eduasist/">Abrir</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <h3>🟣 EduIA</h3>
+        <p>IA para crear sesiones de aprendizaje, programaciones y materiales según DCN/MINEDU.</p>
+        <div class="row">
+          <span class="tag">IA</span>
+          <a class="btn" href="eduia/">Abrir</a>
+        </div>
+      </article>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="foot">
+      <div>
+        <b>EduCorp</b>
+        <div class="small">© <span id="year"></span> · Plataforma educativa integral</div>
+      </div>
+      <div class="small">
+        Soporte: <code>soporte@educorp.local</code>
+      </div>
+    </footer>
+
+  </div>
 
   <script>
-    async function crearUsuario() {
+    document.getElementById("year").textContent = new Date().getFullYear();
 
-      const r = await fetch("/.netlify/functions/create-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dni: "45102966",
-          colegio_id: "8f818584-ef44-4e3a-9a33-02fc269971c8",
-          roles: ["docente"]
-        })
-      });
+    function showToast(msg){
+      const t = document.getElementById("toast");
+      t.style.display = "block";
+      t.textContent = msg;
+    }
 
-      const t = await r.text();
-      console.log("RESPUESTA RAW:", t);
-
+    // ✅ Botón de prueba (usa create-user.js correctamente)
+    async function crearUsuarioPrueba() {
       try {
-        console.log("JSON:", JSON.parse(t));
-      } catch {
-        console.log("No es JSON válido");
+        showToast("Creando usuario de prueba...");
+
+        // Requiere sesión (token) porque tu create-user.js lo exige
+        if (!window.supabaseClient) {
+          showToast("❌ No existe supabaseClient. Esta landing no carga supabaseClient.js.\nSolución: crea usuarios desde EduAdmin (recomendado).");
+          return;
+        }
+
+        const { data } = await window.supabaseClient.auth.getSession();
+        const token = data?.session?.access_token;
+
+        if (!token) {
+          showToast("⚠️ Debes iniciar sesión primero (superadmin). Luego vuelve y prueba.");
+          return;
+        }
+
+        // ⚠️ Ajusta tu colegio_id real:
+        const colegio_id = "8f818584-ef44-4e3a-9a33-02fc269971c8";
+
+        const r = await fetch("/.netlify/functions/create-user", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+          },
+          body: JSON.stringify({
+            dni: "45102966",
+            colegio_id,
+            role: "docente",
+            must_change_password: true
+          })
+        });
+
+        const out = await r.json().catch(() => ({}));
+
+        if (!r.ok || out.error) {
+          showToast("❌ Error:\n" + (out.error || "No se pudo crear") + (out.detail ? "\n" + JSON.stringify(out.detail) : ""));
+          return;
+        }
+
+        showToast(
+          "✅ Usuario creado:\n" +
+          "Email: " + out.email + "\n" +
+          "Password (DNI): " + out.password_used + "\n" +
+          "must_change_password: " + out.must_change_password
+        );
+      } catch (e) {
+        showToast("❌ Error inesperado: " + (e?.message || e));
       }
     }
   </script>
-
 </body>
 </html>
