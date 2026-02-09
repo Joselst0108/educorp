@@ -28,7 +28,7 @@ exports.handler = async (event) => {
     if (event.httpMethod !== "POST") return json(405, { error: "Use POST" });
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY; // <- tu nombre actual
     const ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
     if (!SUPABASE_URL || !SERVICE_ROLE || !ANON_KEY) {
@@ -56,31 +56,44 @@ exports.handler = async (event) => {
 
     const requesterId = u.user.id;
 
-    // ====== Perfil del solicitante ======
+    // ====== Perfil del solicitante (soporta role_id + role/rol) ======
     const { data: reqProf, error: reqErr } = await admin
       .from("profiles")
-      .select("role, rol, colegio_id, is_active")
+      .select("id, role, rol, role_id, colegio_id, is_active")
       .eq("id", requesterId)
       .maybeSingle();
 
     if (reqErr) return json(500, { error: "profiles read requester: " + reqErr.message });
     if (!reqProf || reqProf.is_active === false) return json(403, { error: "No autorizado" });
 
-    const requesterRole = normRole(reqProf.role || reqProf.rol);
-    const requesterColegio = reqProf.colegio_id || null;
+    // Resolver rol: primero role_id -> tabla role; si no, role/rol texto
+    let requesterRole = normRole(reqProf.role || reqProf.rol);
 
-    const allowed = ["superadmin", "director", "secretaria"];
-    if (!allowed.includes(requesterRole)) {
-      return json(403, { error: "Solo superadmin/director/secretaria" });
+    if (!requesterRole && reqProf.role_id) {
+      const { data: rRow, error: rErr } = await admin
+        .from("role")
+        .select("name")
+        .eq("id", reqProf.role_id)
+        .maybeSingle();
+      if (rErr) return json(500, { error: "role lookup: " + rErr.message });
+      requesterRole = normRole(rRow?.name);
     }
 
-    // ====== BODY ======
+    const requesterColegio = reqProf.colegio_id || null;
+
+    // ✅ (si quieres permitir admin también, agrégalo aquí)
+    const allowed = ["superadmin", "director", "secretaria"];
+    if (!allowed.includes(requesterRole)) {
+      return json(403, { error: `Rol no permitido (${requesterRole || "sin_rol"})` });
+    }
+
+    // ====== BODY (acepta dni o new_password) ======
     const body = JSON.parse(event.body || "{}");
     const user_id = String(body.user_id || "").trim();
-    const dni = String(body.dni || "").replace(/\D/g, "").slice(0, 8);
+    const dniRaw = String(body.dni || body.new_password || "").replace(/\D/g, "").slice(0, 8);
 
     if (!user_id) return json(400, { error: "Falta user_id" });
-    if (!/^\d{8}$/.test(dni)) return json(400, { error: "DNI inválido (8 dígitos)" });
+    if (!/^\d{8}$/.test(dniRaw)) return json(400, { error: "DNI inválido (8 dígitos)" });
 
     // ====== Si NO es superadmin, validar mismo colegio del usuario objetivo ======
     if (requesterRole !== "superadmin") {
@@ -100,13 +113,13 @@ exports.handler = async (event) => {
 
     // ====== Reset password a DNI ======
     const { data, error } = await admin.auth.admin.updateUserById(user_id, {
-      password: dni,
+      password: dniRaw,
       email_confirm: true,
     });
 
     if (error) return json(500, { error: "updateUserById: " + error.message });
 
-    // (Opcional) marcar must_change_password true en profiles
+    // marcar must_change_password true
     await admin
       .from("profiles")
       .update({ must_change_password: true, password_changed_at: null })
@@ -115,6 +128,7 @@ exports.handler = async (event) => {
     return json(200, {
       ok: true,
       reset_to: "dni",
+      requester_role: requesterRole,
       user: { id: data.user.id, email: data.user.email },
     });
   } catch (e) {
