@@ -283,7 +283,16 @@ function renderUsers(list) {
           <div class="table-actions">
             <button class="btn btn-secondary"
               ${canReset ? "" : "disabled"}
-              onclick="resetPass('${esc(u.id)}','${esc(dni)}')">
+            <td style="text-align:right;">
+  <div class="table-actions">
+    <button class="btn btn-secondary btn-reset"
+      data-user-id="${esc(u.id)}"
+      data-dni="${esc(dni)}"
+      ${canReset ? "" : "disabled"}>
+      Reset a DNI
+    </button>
+  </div>
+</td>
               Reset a DNI
             </button>
           </div>
