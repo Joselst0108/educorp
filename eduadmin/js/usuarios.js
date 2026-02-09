@@ -318,7 +318,7 @@ async function resetPass(userId, dni) {
     },
     body: JSON.stringify({
       user_id: userId,
-      new_password: dni
+      dni: dni
     })
   });
 
