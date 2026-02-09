@@ -11,19 +11,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  /* ===============================
-     CONTEXTO GLOBAL
-  =============================== */
-  let ctx = null;
+ /* ===============================
+   CONTEXTO GLOBAL
+ =============================== */
+let ctx = null;
 
-  try {
-    ctx = await window.getContext();
-  } catch (e) {
-    console.error("Error context:", e);
-  }
+try {
+  ctx = await window.getContext();
+  console.log("[context] cache ok", ctx);
+} catch (e) {
+  console.error("Error context:", e);
+  // Establecer un contexto mínimo para evitar errores
+  ctx = {
+    school_id: null,
+    school_name: "Colegio no definido",
+    year_name: "Año no definido",
+    user_role: "guest" // Establecer un rol predeterminado
+  };
+}
 
-  const colegioId = ctx?.school_id;
-  const userRole = ctx?.user_role || "";
+const colegioId = ctx?.school_id;
+const userRole = ctx?.user_role || "guest"; // ✅ Ahora siempre tendrá un valor
 
   if (!colegioId) {
     alert("No hay colegio seleccionado");
