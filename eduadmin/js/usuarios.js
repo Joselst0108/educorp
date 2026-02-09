@@ -126,7 +126,17 @@ async function initUsuariosPage() {
 
   await cargarUsuarios();
 }
+// ✅ Click en botones Reset (delegación)
+document.getElementById("tbodyUsers")?.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".btn-reset");
+  if (!btn) return;
 
+  const userId = btn.dataset.userId;
+  const dni = btn.dataset.dni;
+
+  console.log("CLICK RESET:", { userId, dni }); // 👈 para verificar
+  await resetPass(userId, dni);
+});
 /* ===============================
    Crear usuario
 =============================== */
