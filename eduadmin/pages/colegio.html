@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es" data-app="eduadmin">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduAdmin | TÍTULO</title>
+
+  <!-- ===== CSS GENERAL (NO TOCAR) ===== -->
+  <link rel="stylesheet" href="../../assets/css/variables.css">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/components.css">
+
+  <!-- ===== CSS SOLO DE ESTA PÁGINA (opcional) ===== -->
+  <style>
+    .grid-2 { display:grid; grid-template-columns: 1fr 1.2fr; gap:16px; }
+    @media (max-width: 900px){ .grid-2 { grid-template-columns: 1fr; } }
+    .muted { opacity:.75; }
+  </style>
+</head>
+
+<body>
+  <div class="app-shell">
+
+    <!-- ===== SIDEBAR (GENERAL) ===== -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="../../assets/img/educorp.jpeg" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
+        </div>
+      </div>
+      <nav id="uiSidebarNav" class="nav"></nav>
+    </aside>
+
+    <!-- ===== MAIN ===== -->
+    <main class="main">
+
+      <!-- ===== TOPBAR GENERAL ===== -->
+      <div class="topbar">
+        <div class="topbar-left">
+          <img id="uiSchoolLogo" src="../../assets/img/eduadmin.jpeg" class="topbar-logo"/>
+          <div class="topbar-meta">
+            <div id="uiSchoolName" class="topbar-title">Cargando colegio...</div>
+            <div id="uiYearName" class="topbar-subtitle">Año: —</div>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
+          <a href="./dashboard.html" class="btn btn-secondary">Volver</a>
+        </div>
+      </div>
+
+      <!-- ===================================================== -->
+      <!-- 🔴🔴🔴 DESDE AQUÍ EDITAS CADA PÁGINA 🔴🔴🔴 -->
+      <!-- ===================================================== -->
+
+      <div class="page-header">
+        <h1>TÍTULO DE LA PÁGINA</h1>
+        <div id="status" class="status muted">Cargando…</div>
+      </div>
+
+      <!-- CONTENIDO DE TU PÁGINA -->
+      <div class="card">
+        <h2 class="card-title">Sección</h2>
+        <p class="muted">Aquí va tu contenido…</p>
+      </div>
+
+      <!-- ===================================================== -->
+      <!-- 🔴🔴🔴 HASTA AQUÍ EDITAS 🔴🔴🔴 -->
+      <!-- ===================================================== -->
+
+    </main>
+  </div>
+
+  <!-- ===== SCRIPTS GENERALES (NO TOCAR) ===== -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabaseClient.js"></script>
+  <script src="../../assets/js/context.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+
+  <!-- ACTIVA SIDEBAR -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.renderEduAdminSidebar) {
+        window.renderEduAdminSidebar();
+      }
+    });
+  </script>
+
+  <!-- ===== JS SOLO DE ESTA PÁGINA ===== -->
+  <script src="../js/NOMBRE.js"></script>
+
+</body>
+</html>
