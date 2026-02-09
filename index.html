@@ -62,6 +62,7 @@
             width: 50px;
             height: 50px;
             object-fit: contain;
+            border-radius: 10px;
         }
 
         .logo h1 {
@@ -78,6 +79,7 @@
             display: flex;
             list-style: none;
             gap: 30px;
+            margin-right: 30px;
         }
 
         nav a {
@@ -107,6 +109,24 @@
 
         nav a:hover::after {
             width: 100%;
+        }
+
+        .login-btn {
+            background: var(--primary-color);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            transition: var(--transition);
+            box-shadow: 0 3px 10px rgba(52, 152, 219, 0.3);
+        }
+
+        .login-btn:hover {
+            background: #1a5276;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
         }
 
         /* Hero Section */
@@ -267,6 +287,17 @@
             text-align: center;
             background: linear-gradient(135deg, var(--primary-color), #1a5276);
             color: white;
+            position: relative;
+        }
+
+        .app-logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 15px;
+            border-radius: 15px;
+            object-fit: cover;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
 
         .app-header h3 {
@@ -513,6 +544,7 @@
             nav ul {
                 flex-wrap: wrap;
                 justify-content: center;
+                margin-right: 0;
             }
 
             .hero h2 {
@@ -550,6 +582,11 @@
             nav a {
                 font-size: 14px;
             }
+            
+            .login-btn {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
         }
     </style>
 </head>
@@ -558,7 +595,7 @@
     <header>
         <div class="container header-content">
             <div class="logo">
-                <img src="edubank.png" alt="EduCorp Logo">
+                <img src="assets/img/educorp.jpeg" alt="EduCorp Logo">
                 <h1>EduCorp</h1>
             </div>
             <nav>
@@ -569,9 +606,8 @@
                     <li><a href="#contact">Contacto</a></li>
                 </ul>
             </nav>
+            <a href="login.html" class="login-btn">Iniciar Sesión</a>
         </div>
-         <div class="cta-buttons">
-                <a href="#apps" class="cta-primary">Comenzar Ahora</a>
     </header>
 
     <!-- Hero Section -->
@@ -620,6 +656,7 @@
                 <!-- EduAdmin -->
                 <div class="app-card">
                     <div class="app-header" style="background: linear-gradient(135deg, #3498db, #1a5276);">
+                        <img src="assets/img/educorp.jpeg" alt="EduAdmin Logo" class="app-logo">
                         <h3>EduAdmin</h3>
                         <p>Gestión Administrativa</p>
                     </div>
@@ -639,6 +676,7 @@
                 <!-- EduBank -->
                 <div class="app-card">
                     <div class="app-header" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">
+                        <img src="assets/img/edubank.jpeg" alt="EduBank Logo" class="app-logo">
                         <h3>EduBank</h3>
                         <p>Educación Financiera</p>
                     </div>
@@ -658,6 +696,7 @@
                 <!-- EduIA -->
                 <div class="app-card">
                     <div class="app-header" style="background: linear-gradient(135deg, #9b59b6, #6c3483);">
+                        <img src="assets/img/eduia.jpeg" alt="EduIA Logo" class="app-logo">
                         <h3>EduIA</h3>
                         <p>Inteligencia Artificial Educativa</p>
                     </div>
@@ -677,6 +716,7 @@
                 <!-- EduAsist -->
                 <div class="app-card">
                     <div class="app-header" style="background: linear-gradient(135deg, #2ecc71, #27ae60);">
+                        <img src="assets/img/eduasist.jpeg" alt="EduAsist Logo" class="app-logo">
                         <h3>EduAsist</h3>
                         <p>Gestión de Asistencia</p>
                     </div>
@@ -734,7 +774,7 @@
             <h2>¿Listo para Transformar tu Institución Educativa?</h2>
             <p>Únete a miles de instituciones que ya están aprovechando el poder de EduCorp para mejorar su gestión y potenciar el aprendizaje.</p>
             <div class="cta-buttons">
-                <a href="#apps" class="cta-primary">Comenzar Ahora</a>
+                <a href="login.html" class="cta-primary">Comenzar Ahora</a>
                 <a href="mailto:contacto@educorp.com" class="cta-secondary">Contactar Soporte</a>
             </div>
         </div>
@@ -748,7 +788,15 @@
                     <h3>EduCorp</h3>
                     <p>Plataforma educativa integral que transforma la gestión y el aprendizaje en instituciones educativas de todo el mundo.</p>
                 </div>
-              
+                <div class="footer-section">
+                    <h3>Enlaces Rápidos</h3>
+                    <ul class="footer-links">
+                        <li><a href="#about">Sobre Nosotros</a></li>
+                        <li><a href="#apps">Aplicaciones</a></li>
+                        <li><a href="#features">Características</a></li>
+                        <li><a href="#contact">Contacto</a></li>
+                    </ul>
+                </div>
                 <div class="footer-section">
                     <h3>Aplicaciones</h3>
                     <ul class="footer-links">
@@ -758,7 +806,14 @@
                         <li><a href="eduasist/index.html">EduAsist</a></li>
                     </ul>
                 </div>
-         
+                <div class="footer-section">
+                    <h3>Contacto</h3>
+                    <ul class="footer-links">
+                        <li>📧 contacto@educorp.com</li>
+                        <li>📞 +1 (555) 123-4567</li>
+                        <li>📍 Av. Educación 123, Ciudad</li>
+                    </ul>
+                </div>
             </div>
             <div class="footer-bottom">
                 <p>&copy; 2026 EduCorp. Todos los derechos reservados.</p>
