@@ -332,3 +332,4 @@ async function resetPass(userId, dni) {
 
   alert("✅ Password reseteado al DNI");
 }
+window.resetPass = resetPass;
