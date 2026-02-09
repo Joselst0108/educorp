@@ -7,239 +7,267 @@ function getSB() {
 }
 
 async function getCTX() {
+  // compatible con tu context.js
   return (window.getContext ? await window.getContext() : null)
     || window.__CTX
     || window.appContext
     || null;
 }
 
-function setText(id, v){
+function setText(id, v) {
   const el = document.getElementById(id);
-  if(el) el.textContent = v || "";
+  if (el) el.textContent = v || "";
 }
 
-function showPerm(msg){
+function setStatus(msg) {
+  setText("status", msg);
+}
+
+function showPerm(msg) {
   const box = document.getElementById("permMsg");
-  if(!box) return;
+  if (!box) return;
   box.style.display = "inline-flex";
   box.textContent = msg;
 }
 
-function canCreate(role){
-  role = String(role||"").toLowerCase();
+function canCreate(role) {
+  role = String(role || "").toLowerCase();
   return role === "superadmin" || role === "director" || role === "secretaria";
 }
 
-async function getAccessToken(){
-  const sb = getSB();
-  const { data, error } = await sb.auth.getSession();
-  const token = data?.session?.access_token;
-  return { token, error };
+// ✅ escapar para evitar romper HTML
+function esc(v) {
+  return String(v ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-async function initUsuarios(){
+async function getTokenOrNull() {
+  const sb = getSB();
+  if (!sb?.auth) return null;
+  const { data, error } = await sb.auth.getSession();
+  if (error) return null;
+  return data?.session?.access_token || null;
+}
+
+async function initUsuarios() {
+  const sb = getSB();
   const ctx = await getCTX();
-  if(!ctx) return console.error("No ctx");
+
+  if (!sb) return console.error("Supabase no inicializado");
+  if (!ctx) return console.error("No ctx (context.js)");
 
   const colegioId = ctx.school_id || ctx.colegio_id;
-  const role = ctx.role || ctx.rol;
+  const role = (ctx.role || ctx.rol || "").toLowerCase();
 
   setText("uiSchoolName", ctx.school_name || "Colegio");
   setText("uiYearName", "Año: " + (ctx.year_name || "—"));
-  setText("pillContext", "Contexto: " + (ctx.school_name || ""));
+  setText("pillContext", "Contexto: " + (ctx.school_name || "—"));
   setText("pillRole", "Rol: " + (role || "—"));
 
-  if(!canCreate(role)){
-    showPerm("🔒 Solo lectura");
-  }
+  if (!canCreate(role)) showPerm("🔒 Solo lectura");
 
-  document.getElementById("formUser")
-    ?.addEventListener("submit", async (e)=>{
-      e.preventDefault();
-      if(!canCreate(role)) return alert("🔒 No tienes permisos para crear usuarios.");
-      await crearUsuario(ctx);
-    });
+  document.getElementById("formUser")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    await crearUsuario(ctx);
+  });
 
-  document.getElementById("btnRefresh")
-    ?.addEventListener("click", ()=>cargarUsuarios(ctx));
+  document.getElementById("btnRefresh")?.addEventListener("click", async () => {
+    await cargarUsuarios(ctx);
+  });
 
-  document.getElementById("inpBuscar")
-    ?.addEventListener("input", ()=>cargarUsuarios(ctx));
+  document.getElementById("inpBuscar")?.addEventListener("input", () => {
+    filtrarTabla();
+  });
+
+  document.getElementById("selFiltroRol")?.addEventListener("change", () => {
+    filtrarTabla();
+  });
 
   await cargarUsuarios(ctx);
 }
 
-async function crearUsuario(ctx){
-  const sb = getSB();
-  const colegioId = ctx.school_id || ctx.colegio_id;
+let __usersCache = [];
 
-  const email = document.getElementById("inpEmail")?.value.trim();      // (opcional, no lo usa la function)
-  const full_name = document.getElementById("inpFullName")?.value.trim(); // (opcional)
-  const role = document.getElementById("selRole")?.value;
-  const dniRaw = document.getElementById("inpDni")?.value.trim();
-  const activo = document.getElementById("selActive")?.value === "true";
+function filtrarTabla() {
+  const q = (document.getElementById("inpBuscar")?.value || "").trim().toLowerCase();
+  const rol = (document.getElementById("selFiltroRol")?.value || "").trim().toLowerCase();
 
-  const dni = String(dniRaw || "").replace(/\D/g, "").slice(0, 8);
+  let arr = [...__usersCache];
 
-  if(!dni || dni.length !== 8) return alert("DNI inválido (8 dígitos).");
-  if(!role) return alert("Selecciona un rol.");
-  if(!colegioId) return alert("No se detectó colegio_id en el contexto.");
+  if (rol) arr = arr.filter(u => String(u.role || u.rol || "").toLowerCase() === rol);
 
-  // ✅ token obligatorio para tu netlify function
-  const { token, error: sErr } = await getAccessToken();
-  if(sErr || !token) {
-    alert("No hay sesión activa. Inicia sesión de nuevo.");
+  if (q) {
+    arr = arr.filter(u => {
+      const email = String(u.email || "").toLowerCase();
+      const name = String(u.full_name || "").toLowerCase();
+      const dni = String(u.dni || "").toLowerCase();
+      return email.includes(q) || name.includes(q) || dni.includes(q);
+    });
+  }
+
+  renderUsers(arr);
+}
+
+async function crearUsuario(ctx) {
+  const reqRole = String(ctx.role || ctx.rol || "").toLowerCase();
+  if (!canCreate(reqRole)) {
+    alert("No tienes permisos para crear usuarios.");
     return;
   }
 
-  const res = await fetch("/.netlify/functions/create-user",{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
+  const dni = (document.getElementById("inpDni")?.value || "").trim();
+  const role = (document.getElementById("selRole")?.value || "").trim();
+  const colegioId = ctx.school_id || ctx.colegio_id;
+
+  if (!/^\d{8}$/.test(dni)) {
+    alert("DNI inválido (8 dígitos).");
+    return;
+  }
+  if (!role) {
+    alert("Selecciona un rol.");
+    return;
+  }
+
+  setStatus("Creando usuario…");
+
+  // ✅ token para Netlify function (create-user requiere Authorization)
+  const token = await getTokenOrNull();
+  if (!token) {
+    alert("Sesión expirada. Inicia sesión otra vez.");
+    setStatus("Listo.");
+    return;
+  }
+
+  const res = await fetch("/.netlify/functions/create-user", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
       "Authorization": "Bearer " + token
     },
     body: JSON.stringify({
       dni,
       role,
       colegio_id: colegioId,
-      initial_password: dni,
       must_change_password: true
     })
   });
 
   const txt = await res.text();
-  let data = null;
-  try { data = JSON.parse(txt); } catch {}
+  console.log("CREATE RAW:", txt);
 
-  if(!res.ok){
-    console.error("CREATE RAW:", txt);
-    alert((data && data.error) ? data.error : ("Error creando: " + txt));
+  if (!res.ok) {
+    alert(txt);
+    setStatus("Error al crear.");
     return;
   }
 
-  // ✅ Opcional: intentar actualizar full_name / is_active si tus policies lo permiten
-  // (Si no permiten, no rompe nada: solo lo ignora)
-  if (full_name || typeof activo === "boolean") {
-    try {
-      await sb.from("profiles")
-        .update({
-          full_name: full_name || null,
-          is_active: activo
-        })
-        .eq("id", data.created_user_id);
-    } catch (e) {
-      console.warn("No se pudo actualizar full_name/is_active (RLS).", e);
-    }
-  }
-
-  alert("✅ Usuario creado: " + (data.email || "OK"));
+  alert("✅ Usuario creado. Password = DNI");
   document.getElementById("formUser")?.reset();
   await cargarUsuarios(ctx);
 }
 
-async function cargarUsuarios(ctx){
+async function cargarUsuarios(ctx) {
   const sb = getSB();
   const tbody = document.getElementById("tbodyUsers");
-  if(!tbody) return;
+  if (!tbody) return;
 
   const colegioId = ctx.school_id || ctx.colegio_id;
-  const q = (document.getElementById("inpBuscar")?.value || "").trim().toLowerCase();
 
-  tbody.innerHTML = `<tr><td colspan="6">Cargando...</td></tr>`;
+  setStatus("Cargando usuarios…");
+  tbody.innerHTML = `<tr><td colspan="6" class="muted">Cargando…</td></tr>`;
 
-  let { data, error } = await sb
+  const { data, error } = await sb
     .from("profiles")
-    .select("id,email,full_name,role,rol,is_active,created_at,dni")
+    .select("id,email,full_name,role,rol,dni,is_active,created_at")
     .eq("colegio_id", colegioId)
-    .order("created_at",{ascending:false});
+    .order("created_at", { ascending: false });
 
-  if(error){
+  if (error) {
     console.error(error);
-    tbody.innerHTML = `<tr><td colspan="6">Error cargando</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6">Error cargando usuarios</td></tr>`;
+    setStatus("Error.");
     return;
   }
 
-  data = data || [];
-
-  // ✅ filtro búsqueda (email, nombre, dni)
-  if(q){
-    data = data.filter(u=>{
-      const email = String(u.email||"").toLowerCase();
-      const name = String(u.full_name||"").toLowerCase();
-      const dni = String(u.dni||"").toLowerCase();
-      return email.includes(q) || name.includes(q) || dni.includes(q);
-    });
-  }
-
-  if(!data.length){
-    tbody.innerHTML = `<tr><td colspan="6">Sin usuarios</td></tr>`;
+  __usersCache = data || [];
+  if (!__usersCache.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="muted">Sin usuarios</td></tr>`;
+    setStatus("Listo.");
     return;
   }
 
-  tbody.innerHTML = data.map(u=>{
-    const r = (u.role || u.rol || "—");
-    const dni = String(u.dni || "").replace(/\D/g, "").slice(0,8);
-    const canReset = dni.length === 8;
+  renderUsers(__usersCache);
+  setStatus("Listo.");
+}
 
-    // escapar comillas simples para que no rompa el onclick
-    const safeId = String(u.id || "").replace(/'/g, "\\'");
-    const safeDni = dni.replace(/'/g, "\\'");
+function renderUsers(list) {
+  const tbody = document.getElementById("tbodyUsers");
+  if (!tbody) return;
+
+  tbody.innerHTML = list.map(u => {
+    const uRole = (u.role || u.rol || "—");
+    const dni = (u.dni || "");
+    const canReset = /^\d{8}$/.test(String(dni));
 
     return `
       <tr>
-        <td>${u.email||"—"}</td>
-        <td>${u.full_name||"—"}</td>
-        <td>${r}</td>
+        <td>${esc(u.email || "—")}</td>
+        <td>${esc(u.full_name || "—")}</td>
+        <td>${esc(dni || "—")}</td>
+        <td>${esc(uRole)}</td>
         <td>${u.is_active ? "Activo" : "Inactivo"}</td>
-        <td>${dni || "—"}</td>
-        <td class="table-actions">
-          <button class="btn btn-secondary" ${canReset ? "" : "disabled"}
-            onclick="resetPass('${safeId}','${safeDni}')">
-            Reset pass
-          </button>
+        <td style="text-align:right;">
+          <div class="table-actions">
+            <button class="btn btn-secondary"
+              ${canReset ? "" : "disabled"}
+              onclick="resetPass('${esc(u.id)}','${esc(dni)}')">
+              Reset a DNI
+            </button>
+          </div>
         </td>
-      </tr>`;
+      </tr>
+    `;
   }).join("");
 }
 
+// ✅ Reset password = DNI (requiere token + Netlify function reset-password)
 async function resetPass(userId, dni) {
-  if (!dni || String(dni).replace(/\D/g,"").length !== 8) {
-    alert("Este usuario no tiene DNI válido (8 dígitos) para reset.");
+  if (!/^\d{8}$/.test(String(dni || ""))) {
+    alert("Este usuario no tiene DNI válido en profiles.");
     return;
   }
 
   if (!confirm("¿Resetear contraseña al DNI?")) return;
 
-  // ✅ token de sesión
-  const { token, error: sErr } = await getAccessToken();
-  if (sErr || !token) {
-    alert("No hay sesión activa. Inicia sesión otra vez.");
+  const token = await getTokenOrNull();
+  if (!token) {
+    alert("Sesión expirada. Inicia sesión otra vez.");
     return;
   }
 
-// ✅ 1) Obtener token de sesión
-const { data: s, error: sErr } = await window.supabaseClient.auth.getSession();
-const token = s?.session?.access_token;
+  const res = await fetch("/.netlify/functions/reset-password", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + token
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      new_password: dni
+    })
+  });
 
-if (sErr || !token) {
-  alert("Sin token (inicia sesión nuevamente).");
-  return;
+  const txt = await res.text();
+  console.log("RESET RAW:", txt);
+
+  if (!res.ok) {
+    alert("Error reset: " + txt);
+    return;
+  }
+
+  alert("✅ Password reseteado al DNI");
 }
-
-// ✅ 2) colegio_id correcto
-const colegioId = (ctx.school_id || ctx.colegio_id);
-
-// ✅ 3) Llamar a la función con Authorization
-const res = await fetch("/.netlify/functions/create-user", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "Authorization": "Bearer " + token
-  },
-  body: JSON.stringify({
-    dni,
-    role,
-    colegio_id: colegioId,
-    must_change_password: true
-  })
-});
