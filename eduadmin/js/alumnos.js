@@ -209,19 +209,26 @@ async function cargarTabla(colegioId, anioId) {
     const sex = r.sexo || "—";
     const tel = r.telefono || "—";
     const est = r.estado || "—";
+const canAct = canEdit(window.__ROLE_FOR_ALUMNOS__); // lo seteamos en init
 
-    return `
-      <tr>
-        <td>${r.dni || "—"}</td>
-        <td>${r.codigo_alumno || "—"}</td>
-        <td>${full || "—"}</td>
-        <td>${sex}</td>
-        <td>${nac}</td>
-        <td>${tel}</td>
-        <td>${est}</td>
-        <td style="text-align:center;">—</td>
-      </tr>
-    `;
+return `
+  <tr data-id="${r.id}">
+    <td>${r.dni || "—"}</td>
+    <td>${r.codigo_alumno || "—"}</td>
+    <td>${full || "—"}</td>
+    <td>${sex}</td>
+    <td>${nac}</td>
+    <td>${tel}</td>
+    <td>${est}</td>
+    <td style="text-align:center;">
+      ${canAct ? `
+        <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}">Editar</button>
+        <button class="btn btn-danger btn-sm" data-action="del" data-id="${r.id}">Eliminar</button>
+      ` : `<span class="badge" style="opacity:.7;">Solo lectura</span>`}
+    </td>
+  </tr>
+`;
+    
   }).join("");
 }
 
