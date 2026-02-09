@@ -137,14 +137,38 @@ async function cargarUsuarios(ctx){
   }).join("");
 }
 
-async function resetPass(id){
-  if(!confirm("Reset password?")) return;
 
-  const res = await fetch("/.netlify/functions/reset-password",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ user_id:id })
+async function resetPass(userId, dni) {
+  if (!confirm("¿Resetear contraseña al DNI?")) return;
+
+  // obtener token de sesión
+  const { data: s, error: sErr } = await window.supabaseClient.auth.getSession();
+  const token = s?.session?.access_token;
+
+  if (sErr || !token) {
+    alert("No hay sesión activa. Inicia sesión otra vez.");
+    return;
+  }
+
+  const res = await fetch("/.netlify/functions/reset-password", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + token
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      new_password: dni
+    })
   });
 
-  if(res.ok) alert("Correo enviado");
+  const txt = await res.text();
+  console.log("RESET RAW:", txt);
+
+  if (!res.ok) {
+    alert("Error reset: " + txt);
+    return;
+  }
+
+  alert("✅ Password reseteado al DNI");
 }
