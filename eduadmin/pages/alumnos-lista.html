@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es" data-app="eduadmin">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduAdmin | Grados</title>
+
+  <!-- ✅ RUTAS RELATIVAS DESDE /eduadmin/pages/ -->
+  <link rel="stylesheet" href="../../assets/css/variables.css">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/components.css">
+
+  <style>
+    .grid-2 { display:grid; grid-template-columns: 1fr 1.2fr; gap:16px; }
+    @media (max-width: 900px){ .grid-2 { grid-template-columns: 1fr; } }
+    .muted { opacity:.75; }
+  </style>
+</head>
+
+<body>
+  <div class="app-shell">
+
+    <!-- ✅ SIDEBAR DINÁMICO (DESPLEGABLE) -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="../../assets/img/educorp.jpeg" alt="EduAdmin" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
+        </div>
+      </div>
+
+      <!-- 🔥 Menú dinámico -->
+      <nav id="uiSidebarNav" class="nav"></nav>
+    </aside>
+
+    <!-- ✅ MAIN -->
+    <main class="main">
+
+      <!-- ✅ TOPBAR -->
+      <div class="topbar">
+        <div class="topbar-left">
+          <img
+            id="uiSchoolLogo"
+            src="../../assets/img/eduadmin.jpeg"
+            alt="Logo"
+            class="topbar-logo"
+            onerror="this.src='../../assets/img/eduadmin.jpeg';"
+          />
+          <div class="topbar-meta">
+            <div id="uiSchoolName" class="topbar-title">Cargando colegio...</div>
+            <div id="uiYearName" class="topbar-subtitle">Año: —</div>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <button id="btnRefresh" class="btn btn-secondary" type="button">Actualizar</button>
+          <a href="./dashboard.html" class="btn btn-secondary">Volver</a>
+        </div>
+      </div>
+
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>DNI</th>
+              <th>Apellidos</th>
+              <th>Nombres</th>
+              <th>Código</th>
+              <th>Creado</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyAlumnos">
+            <tr><td colspan="5" class="muted">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="/eduadmin/pages/js/alumnos-lista.js"></script>
+</body>
+</html>
