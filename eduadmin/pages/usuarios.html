@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es" data-app="eduadmin">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduAdmin | Usuarios</title>
+
+  <!-- ✅ MISMO CSS (no se toca) -->
+  <link rel="stylesheet" href="../../assets/css/variables.css">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/components.css">
+
+  <style>
+    .grid-2 { display:grid; grid-template-columns: 1fr 1.6fr; gap:16px; }
+    @media (max-width: 1000px){ .grid-2 { grid-template-columns: 1fr; } }
+    .muted { opacity:.75; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+    .row-left { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .tag { padding:6px 10px; border-radius:999px; border:1px solid rgba(0,0,0,.08); font-size:12px; }
+    .tag-ok { background:#e9fff0; border-color:#b7f0c7; }
+    .tag-warn { background:#fff7e6; border-color:#ffe0a3; }
+    .tag-bad { background:#ffecec; border-color:#ffc1c1; }
+    .table-actions { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+    .input-inline { max-width: 360px; width:100%; }
+  </style>
+</head>
+
+<body>
+  <div class="app-shell">
+
+    <!-- ✅ MISMA SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="../../assets/img/educorp.jpeg" alt="EduAdmin" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
+        </div>
+      </div>
+
+      <nav id="uiSidebarNav" class="nav"></nav>
+    </aside>
+
+    <!-- ✅ MAIN -->
+    <main class="main">
+
+      <!-- ✅ MISMO TOPBAR (no se toca) -->
+      <div class="topbar">
+        <div class="topbar-left">
+          <img
+            id="uiSchoolLogo"
+            src="../../assets/img/eduadmin.jpeg"
+            alt="Logo"
+            class="topbar-logo"
+            onerror="this.src='../../assets/img/eduadmin.jpeg';"
+          />
+          <div class="topbar-meta">
+            <div id="uiSchoolName" class="topbar-title">Cargando colegio...</div>
+            <div id="uiYearName" class="topbar-subtitle">Año: —</div>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <button id="btnRefresh" class="btn btn-secondary" type="button">Actualizar</button>
+          <a href="./dashboard.html" class="btn btn-secondary">Volver</a>
+        </div>
+      </div>
+
+      <!-- ✅ CONTENIDO (solo esto es nuevo) -->
+      <div class="page-header">
+        <h1>Usuarios / Roles</h1>
+        <div id="status" class="status muted">Cargando…</div>
+      </div>
+
+      <div class="grid-2">
+        <!-- Crear usuario -->
+        <div class="card">
+          <h2 class="card-title">Crear usuario</h2>
+
+          <form id="formUser" class="form">
+            <div class="form-group">
+              <label>Email</label>
+              <input id="inpEmail" type="email" placeholder="usuario@colegio.com" required />
+            </div>
+
+            <div class="form-group">
+              <label>Nombre completo</label>
+              <input id="inpFullName" type="text" placeholder="Nombres y apellidos" required />
+            </div>
+
+            <div class="form-group">
+              <label>DNI</label>
+              <input id="inpDni" type="text" placeholder="DNI" />
+            </div>
+
+            <div class="form-group">
+              <label>Rol</label>
+              <select id="selRole" required>
+                <option value="">Seleccione</option>
+                <option value="director">Director</option>
+                <option value="secretaria">Secretaría</option>
+                <option value="docente">Docente</option>
+                <option value="alumno">Alumno</option>
+                <option value="apoderado">Apoderado</option>
+              </select>
+              <div class="muted" style="margin-top:8px;">
+                • Director puede crear usuarios de su colegio. • Secretaría solo si el director la habilita.
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Estado</label>
+              <select id="selActive">
+                <option value="true">Activo</option>
+                <option value="false">Inactivo</option>
+              </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%;">Crear usuario</button>
+          </form>
+        </div>
+
+        <!-- Tabla usuarios -->
+        <div class="card">
+          <h2 class="card-title">Usuarios registrados</h2>
+
+          <div class="row" style="padding: 0 14px 10px 14px;">
+            <div class="row-left">
+              <input id="inpBuscar" class="input-inline" placeholder="Buscar por email o nombre..." />
+              <select id="selFiltroRol">
+                <option value="">Todos los roles</option>
+                <option value="director">Director</option>
+                <option value="secretaria">Secretaría</option>
+                <option value="docente">Docente</option>
+                <option value="alumno">Alumno</option>
+                <option value="apoderado">Apoderado</option>
+              </select>
+            </div>
+
+            <div class="row-left">
+              <!-- chips de contexto/rol -->
+              <span id="pillContext" class="badge">Contexto: —</span>
+              <span id="pillRole" class="badge">Rol: —</span>
+              <span id="permMsg" class="badge" style="display:none;"></span>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Nombre</th>
+                  <th>Rol</th>
+                  <th>Activo</th>
+                  <th>Secretaría puede crear</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyUsers">
+                <tr><td colspan="6" class="muted">Cargando…</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ✅ SCRIPTS MISMO ORDEN QUE TU PÁGINA DE GRADOS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabaseClient.js"></script>
+  <script src="../../assets/js/context.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
+    });
+  </script>
+
+  <!-- ✅ JS de esta página -->
+  <script src="../js/usuarios.js"></script>
+</body>
+</html>
