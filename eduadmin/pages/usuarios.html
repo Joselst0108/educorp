@@ -3,32 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin | Usuarios</title>
+  <title>EduAdmin | Usuarios / Roles</title>
 
-  <!-- ✅ MISMO CSS (no se toca) -->
+  <!-- ✅ CSS (igual orden que Grados) -->
   <link rel="stylesheet" href="../../assets/css/variables.css">
   <link rel="stylesheet" href="../../assets/css/main.css">
   <link rel="stylesheet" href="../../assets/css/components.css">
 
   <style>
-    .grid-2 { display:grid; grid-template-columns: 1fr 1.6fr; gap:16px; }
-    @media (max-width: 1000px){ .grid-2 { grid-template-columns: 1fr; } }
-    .muted { opacity:.75; }
-    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
-    .row-left { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .tag { padding:6px 10px; border-radius:999px; border:1px solid rgba(0,0,0,.08); font-size:12px; }
-    .tag-ok { background:#e9fff0; border-color:#b7f0c7; }
-    .tag-warn { background:#fff7e6; border-color:#ffe0a3; }
-    .tag-bad { background:#ffecec; border-color:#ffc1c1; }
-    .table-actions { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
-    .input-inline { max-width: 360px; width:100%; }
+    .grid-2 { display:grid; grid-template-columns: 1fr 1.2fr; gap:16px; }
+    @media (max-width: 900px){ .grid-2 { grid-template-columns: 1fr; } }
+    .muted{ opacity:.75; }
+    .pill-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    .pill{ display:inline-flex; gap:8px; align-items:center; padding:8px 12px; border-radius:999px; background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10); }
+    #permMsg{ display:none; margin-left:auto; }
+    .table-actions{ display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
+    .hint { font-size: 12px; opacity:.8; margin-top:8px; }
+    .row-2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    @media (max-width: 700px){ .row-2 { grid-template-columns: 1fr; } }
   </style>
 </head>
 
 <body>
   <div class="app-shell">
 
-    <!-- ✅ MISMA SIDEBAR -->
+    <!-- ✅ SIDEBAR -->
     <aside class="sidebar">
       <div class="brand">
         <img id="uiAppLogo" src="../../assets/img/educorp.jpeg" alt="EduAdmin" />
@@ -44,7 +43,7 @@
     <!-- ✅ MAIN -->
     <main class="main">
 
-      <!-- ✅ MISMO TOPBAR (no se toca) -->
+      <!-- ✅ TOPBAR -->
       <div class="topbar">
         <div class="topbar-left">
           <img
@@ -66,82 +65,67 @@
         </div>
       </div>
 
-      <!-- ✅ CONTENIDO (solo esto es nuevo) -->
+      <!-- ✅ HEADER -->
       <div class="page-header">
         <h1>Usuarios / Roles</h1>
+        <div class="pill-row">
+          <span id="pillContext" class="pill">Contexto: —</span>
+          <span id="pillRole" class="pill">Rol: —</span>
+          <span id="permMsg" class="pill">🔒 Solo lectura</span>
+        </div>
         <div id="status" class="status muted">Cargando…</div>
       </div>
 
       <div class="grid-2">
-        <!-- Crear usuario -->
+
+        <!-- ✅ CREAR -->
         <div class="card">
           <h2 class="card-title">Crear usuario</h2>
 
           <form id="formUser" class="form">
             <div class="form-group">
-              <label>Email</label>
-              <input id="inpEmail" type="email" placeholder="usuario@colegio.com" required />
+              <label for="inpDni">DNI</label>
+              <input id="inpDni" type="text" inputmode="numeric" maxlength="8" placeholder="8 dígitos" required />
             </div>
 
             <div class="form-group">
-              <label>Nombre completo</label>
-              <input id="inpFullName" type="text" placeholder="Nombres y apellidos" required />
-            </div>
-
-            <div class="form-group">
-              <label>DNI</label>
-              <input id="inpDni" type="text" placeholder="DNI" />
-            </div>
-
-            <div class="form-group">
-              <label>Rol</label>
+              <label for="selRole">Rol</label>
               <select id="selRole" required>
-                <option value="">Seleccione</option>
-                <option value="director">Director</option>
-                <option value="secretaria">Secretaría</option>
+                <option value="">Selecciona un rol</option>
                 <option value="docente">Docente</option>
                 <option value="alumno">Alumno</option>
                 <option value="apoderado">Apoderado</option>
+                <option value="secretaria">Secretaria</option>
+                <!-- superadmin/director usualmente no se crean aquí -->
               </select>
-              <div class="muted" style="margin-top:8px;">
-                • Director puede crear usuarios de su colegio. • Secretaría solo si el director la habilita.
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label>Estado</label>
-              <select id="selActive">
-                <option value="true">Activo</option>
-                <option value="false">Inactivo</option>
-              </select>
+              <div class="hint">* Contraseña inicial será el DNI (y podrá cambiarse luego).</div>
             </div>
 
             <button type="submit" class="btn btn-primary" style="width:100%;">Crear usuario</button>
           </form>
         </div>
 
-        <!-- Tabla usuarios -->
+        <!-- ✅ LISTA -->
         <div class="card">
           <h2 class="card-title">Usuarios registrados</h2>
 
-          <div class="row" style="padding: 0 14px 10px 14px;">
-            <div class="row-left">
-              <input id="inpBuscar" class="input-inline" placeholder="Buscar por email o nombre..." />
+          <div class="row-2" style="margin-bottom:12px;">
+            <div class="form-group" style="margin:0;">
+              <label for="inpBuscar">Buscar (email / nombre / DNI)</label>
+              <input id="inpBuscar" type="text" placeholder="Escribe para filtrar…" />
+            </div>
+
+            <div class="form-group" style="margin:0;">
+              <label for="selFiltroRol">Filtrar por rol</label>
               <select id="selFiltroRol">
-                <option value="">Todos los roles</option>
+                <option value="">Todos</option>
+                <option value="superadmin">Superadmin</option>
                 <option value="director">Director</option>
-                <option value="secretaria">Secretaría</option>
+                <option value="secretaria">Secretaria</option>
                 <option value="docente">Docente</option>
                 <option value="alumno">Alumno</option>
                 <option value="apoderado">Apoderado</option>
               </select>
-            </div>
-
-            <div class="row-left">
-              <!-- chips de contexto/rol -->
-              <span id="pillContext" class="badge">Contexto: —</span>
-              <span id="pillRole" class="badge">Rol: —</span>
-              <span id="permMsg" class="badge" style="display:none;"></span>
             </div>
           </div>
 
@@ -151,10 +135,10 @@
                 <tr>
                   <th>Email</th>
                   <th>Nombre</th>
+                  <th>DNI</th>
                   <th>Rol</th>
-                  <th>Activo</th>
-                  <th>Secretaría puede crear</th>
-                  <th>Acciones</th>
+                  <th>Estado</th>
+                  <th style="text-align:right;">Acciones</th>
                 </tr>
               </thead>
               <tbody id="tbodyUsers">
@@ -162,26 +146,27 @@
               </tbody>
             </table>
           </div>
-
         </div>
+
       </div>
 
     </main>
   </div>
 
-  <!-- ✅ SCRIPTS MISMO ORDEN QUE TU PÁGINA DE GRADOS -->
+  <!-- ✅ Scripts base -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../../assets/js/supabaseClient.js"></script>
   <script src="../../assets/js/context.js"></script>
   <script src="../../assets/js/ui.js"></script>
 
+  <!-- ✅ Sidebar -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
     });
   </script>
 
-  <!-- ✅ JS de esta página -->
+  <!-- ✅ JS de la página -->
   <script src="../js/usuarios.js"></script>
 </body>
 </html>
