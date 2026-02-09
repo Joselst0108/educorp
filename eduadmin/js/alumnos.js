@@ -43,7 +43,13 @@ async function initAlumnos() {
 
   const colegioId = ctx.school_id || ctx.colegio_id || ctx.colegioId;
   const anioId    = ctx.year_id || ctx.anio_academico_id || ctx.anioId;
-  const role      = ctx.role || ctx.rol;
+  const role =
+  ctx.role ||
+  ctx.rol ||
+  ctx.profile?.role ||
+  ctx.user_role ||
+  ctx.current_role ||
+  "";
 
   // Topbar
   const schoolName = ctx.school_name || ctx.school?.nombre || ctx.colegio_nombre || "—";
