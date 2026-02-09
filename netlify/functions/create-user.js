@@ -100,8 +100,11 @@ exports.handler = async (event) => {
 
     if (pErr) return json(500, { error: "profiles read: " + pErr.message });
     if (!prof || prof.is_active === false) return json(403, { error: "No autorizado" });
-    if (prof.role !== "superadmin") return json(403, { error: "Solo superadmin" });
+    
+const reqRole = String(prof.role || "").toLowerCase();
 
+const allowedCreators = ["superadmin", "director", "secretaria"];
+if (!allowedCreators.includes(reqRole)) return json(403, { error: "No autorizado para crear usuarios" });
     // ========= BODY =========
     const body = JSON.parse(event.body || "{}");
     const dni = String(body.dni || "").replace(/\D/g, "").slice(0, 8);
