@@ -55,17 +55,136 @@
       <!-- ===================================================== -->
       <!-- 🔴🔴🔴 DESDE AQUÍ EDITAS CADA PÁGINA 🔴🔴🔴 -->
       <!-- ===================================================== -->
+<div class="page-header">
+  <h1>Colegios</h1>
+  <div id="status" class="status muted">Cargando…</div>
+</div>
 
-      <div class="page-header">
-        <h1>TÍTULO DE LA PÁGINA</h1>
-        <div id="status" class="status muted">Cargando…</div>
+<div class="grid-2">
+
+  <!-- Crear colegio -->
+  <div class="card">
+    <h2 class="card-title">Crear colegio (Superadmin)</h2>
+
+    <div id="msg" class="muted" style="margin-bottom:10px;"></div>
+
+    <form id="formCreateSchool" class="form">
+      <div class="form-group">
+        <label for="newNombre">Nombre</label>
+        <input id="newNombre" type="text" required placeholder="Ej: I.E. Antonia Moreno de Cáceres" />
       </div>
 
-      <!-- CONTENIDO DE TU PÁGINA -->
-      <div class="card">
-        <h2 class="card-title">Sección</h2>
-        <p class="muted">Aquí va tu contenido…</p>
+      <div class="form-group">
+        <label for="newCodigo">Código modular (opcional)</label>
+        <input id="newCodigo" type="text" placeholder="Ej: 1234567" />
       </div>
+
+      <div class="form-group">
+        <label for="newDireccion">Dirección (opcional)</label>
+        <input id="newDireccion" type="text" placeholder="Ej: Ventanilla, Callao" />
+      </div>
+
+      <div class="form-group">
+        <label for="newLogo">Logo URL (opcional)</label>
+        <input id="newLogo" type="text" placeholder="https://..." />
+      </div>
+
+      <div class="form-group" style="display:flex; gap:10px; align-items:center;">
+        <input id="newActivo" type="checkbox" checked />
+        <label for="newActivo" style="margin:0;">Activo</label>
+      </div>
+
+      <button id="btnCreateSchool" type="submit" class="btn btn-primary" style="width:100%;">Crear colegio</button>
+
+      <div id="onlySuperadminMsg" class="muted" style="display:none; margin-top:10px;">
+        🔒 Solo superadmin puede crear colegios.
+      </div>
+    </form>
+  </div>
+
+  <!-- Listado -->
+  <div class="card">
+    <h2 class="card-title">Colegios registrados</h2>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0;">
+      <div class="form-group" style="margin:0; min-width:240px; flex:1;">
+        <label for="qBuscar">Buscar</label>
+        <input id="qBuscar" type="text" placeholder="Nombre o código modular..." />
+      </div>
+
+      <div class="form-group" style="margin:0; min-width:200px;">
+        <label>&nbsp;</label>
+        <button id="btnReload" type="button" class="btn btn-secondary" style="width:100%;">Recargar</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Código</th>
+            <th>Dirección</th>
+            <th>Activo</th>
+            <th style="text-align:right;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tbodySchools">
+          <tr><td colspan="5" class="muted">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="muted" style="margin-top:10px;">
+      * Editar/activar recomendado solo para superadmin.
+    </div>
+  </div>
+
+</div>
+
+<!-- Editor simple -->
+<div class="card" id="editBox" style="display:none;">
+  <h2 class="card-title">Editar colegio</h2>
+
+  <form id="formEditSchool" class="form">
+    <input id="editId" type="hidden" />
+
+    <div class="grid-2">
+      <div class="form-group">
+        <label for="editNombre">Nombre</label>
+        <input id="editNombre" required />
+      </div>
+
+      <div class="form-group">
+        <label for="editCodigo">Código modular</label>
+        <input id="editCodigo" />
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="form-group">
+        <label for="editDireccion">Dirección</label>
+        <input id="editDireccion" />
+      </div>
+
+      <div class="form-group">
+        <label for="editLogo">Logo URL</label>
+        <input id="editLogo" />
+      </div>
+    </div>
+
+    <div class="form-group" style="display:flex; gap:10px; align-items:center;">
+      <input id="editActivo" type="checkbox" />
+      <label for="editActivo" style="margin:0;">Activo</label>
+    </div>
+
+    <div style="display:flex; gap:10px;">
+      <button id="btnSaveEdit" type="submit" class="btn btn-primary">Guardar cambios</button>
+      <button id="btnCancelEdit" type="button" class="btn btn-secondary">Cancelar</button>
+    </div>
+  </form>
+</div>
+
 
       <!-- ===================================================== -->
       <!-- 🔴🔴🔴 HASTA AQUÍ EDITAS 🔴🔴🔴 -->
