@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>EduAdmin | Apoderados</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/eduadmin/assets/js/supabaseClient.js"></script>
+<script src="/assets/js/context.js"></script>
+
+<style>
+body{
+  font-family:system-ui;
+  background:#0b1220;
+  color:#fff;
+  margin:0;
+}
+
+.container{
+  max-width:1100px;
+  margin:auto;
+  padding:20px;
+}
+
+.card{
+  background:#111a33;
+  padding:20px;
+  border-radius:14px;
+  margin-bottom:20px;
+}
+
+h2{margin-top:0}
+
+input,select{
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #333;
+  background:#0b1220;
+  color:#fff;
+  width:100%;
+}
+
+button{
+  padding:10px 14px;
+  border-radius:8px;
+  border:none;
+  background:#2a6df6;
+  color:#fff;
+  cursor:pointer;
+}
+
+.row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+th,td{
+  padding:10px;
+  border-bottom:1px solid #222;
+}
+
+.badge{
+  background:#1b2a4f;
+  padding:6px 10px;
+  border-radius:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <!-- REGISTRAR -->
+  <div class="card">
+    <h2>👨‍👩‍👧 Registrar Apoderado</h2>
+
+    <div class="row">
+      <input id="dni" placeholder="DNI">
+      <input id="nombre" placeholder="Nombres">
+    </div>
+
+    <div class="row">
+      <input id="apellido" placeholder="Apellidos">
+      <input id="telefono" placeholder="Teléfono">
+    </div>
+
+    <div class="row">
+      <select id="parentesco">
+        <option value="">Parentesco</option>
+        <option>Padre</option>
+        <option>Madre</option>
+        <option>Tutor</option>
+        <option>Abuelo</option>
+        <option>Tía</option>
+      </select>
+
+      <button id="btnGuardar">Guardar apoderado</button>
+    </div>
+
+    <div id="msg"></div>
+  </div>
+
+  <!-- LISTA -->
+  <div class="card">
+    <h2>📋 Lista de Apoderados</h2>
+
+    <input id="buscar" placeholder="Buscar...">
+
+    <br><br>
+
+    <table>
+      <thead>
+        <tr>
+          <th>DNI</th>
+          <th>Apellidos</th>
+          <th>Nombres</th>
+          <th>Teléfono</th>
+          <th>Parentesco</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr><td colspan="5">Cargando...</td></tr>
+      </tbody>
+    </table>
+
+  </div>
+
+</div>
+
+<script src="/eduadmin/pages/js/apoderados.js"></script>
+</body>
+</html>
