@@ -1,390 +1,821 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>EduCorp | Iniciar sesión</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduCorp - Plataforma Educativa Integral</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-  <!-- (Opcional) fuentes -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --accent-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #34495e;
+            --success-color: #2ecc71;
+            --transition: all 0.3s ease;
+        }
 
-  <style>
-    :root{
-      --bg1:#0b1220;
-      --bg2:#0f1a33;
-      --card: rgba(255,255,255,.08);
-      --stroke: rgba(255,255,255,.12);
-      --text:#e9eefc;
-      --muted: rgba(233,238,252,.72);
-      --green:#22c55e;
-      --yellow:#facc15;
-      --danger:#ef4444;
-      --shadow: 0 18px 60px rgba(0,0,0,.45);
-      --radius: 18px;
-    }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-attachment: fixed;
+        }
 
-    *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      min-height:100vh;
-      color:var(--text);
-      background:
-        radial-gradient(1200px 600px at 20% 0%, rgba(34,197,94,.25), transparent 55%),
-        radial-gradient(900px 500px at 90% 20%, rgba(250,204,21,.18), transparent 60%),
-        linear-gradient(180deg, var(--bg1), var(--bg2));
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:22px;
-    }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
 
-    .shell{
-      width: min(1040px, 100%);
-      display:grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap:18px;
-      align-items:stretch;
-    }
+        /* Header */
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            padding: 15px 0;
+        }
 
-    @media (max-width: 920px){
-      .shell{ grid-template-columns: 1fr; }
-    }
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-    .left{
-      border-radius: var(--radius);
-      padding:28px;
-      background: linear-gradient(135deg, rgba(34,197,94,.14), rgba(250,204,21,.10));
-      border: 1px solid var(--stroke);
-      box-shadow: var(--shadow);
-      position:relative;
-      overflow:hidden;
-    }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
 
-    .brand{
-      display:flex; gap:12px; align-items:center;
-      margin-bottom:18px;
-    }
-    .logo{
-      width:44px; height:44px; border-radius:14px;
-      display:grid; place-items:center;
-      background: rgba(255,255,255,.10);
-      border:1px solid rgba(255,255,255,.16);
-      font-weight:800;
-    }
-    .brand b{ font-size:18px; }
-    .brand span{ display:block; font-size:13px; color:var(--muted); margin-top:2px; }
+        .logo img {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+        }
 
-    .hero h1{
-      margin:10px 0 10px;
-      font-size:34px;
-      line-height:1.1;
-      letter-spacing:-0.02em;
-    }
-    .hero p{
-      margin:0;
-      color:var(--muted);
-      max-width:52ch;
-      font-size:14px;
-      line-height:1.6;
-    }
+        .logo h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--secondary-color);
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
 
-    .chips{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px;
-      margin-top:18px;
-    }
-    .chip{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:10px 12px;
-      border-radius:999px;
-      background: rgba(255,255,255,.08);
-      border: 1px solid rgba(255,255,255,.12);
-      font-size:13px;
-      color:rgba(255,255,255,.88);
-    }
-    .dot{
-      width:10px; height:10px; border-radius:50%;
-      background: var(--green);
-      box-shadow: 0 0 0 3px rgba(34,197,94,.18);
-    }
-    .dot.yellow{
-      background: var(--yellow);
-      box-shadow: 0 0 0 3px rgba(250,204,21,.18);
-    }
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 30px;
+        }
 
-    .right{
-      border-radius: var(--radius);
-      background: var(--card);
-      border: 1px solid var(--stroke);
-      box-shadow: var(--shadow);
-      padding:22px;
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
-    }
+        nav a {
+            text-decoration: none;
+            color: var(--secondary-color);
+            font-weight: 600;
+            font-size: 16px;
+            transition: var(--transition);
+            position: relative;
+            padding: 5px 0;
+        }
 
-    .card-title{
-      font-size:18px;
-      margin:0 0 6px;
-    }
-    .card-sub{
-      margin:0 0 18px;
-      color:var(--muted);
-      font-size:13px;
-      line-height:1.5;
-    }
+        nav a:hover {
+            color: var(--primary-color);
+        }
 
-    .field{
-      margin-bottom:12px;
-    }
-    label{
-      display:block;
-      font-size:12px;
-      color:rgba(255,255,255,.82);
-      margin-bottom:6px;
-    }
-    .input{
-      width:100%;
-      padding:12px 12px;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.14);
-      outline:none;
-      background: rgba(10,16,30,.55);
-      color: var(--text);
-      font-size:14px;
-    }
-    .input:focus{
-      border-color: rgba(34,197,94,.55);
-      box-shadow: 0 0 0 4px rgba(34,197,94,.14);
-    }
+        nav a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--primary-color);
+            transition: var(--transition);
+        }
 
-    .row{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      justify-content:space-between;
-      margin-top:8px;
-    }
+        nav a:hover::after {
+            width: 100%;
+        }
 
-    .toggle{
-      display:flex; gap:8px; align-items:center;
-      font-size:12px;
-      color: var(--muted);
-      user-select:none;
-      cursor:pointer;
-    }
-    .toggle input{ accent-color: var(--green); }
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 100px 0 50px;
+            position: relative;
+            overflow: hidden;
+        }
 
-    .btn{
-      width:100%;
-      border:none;
-      border-radius:14px;
-      padding:12px 14px;
-      font-weight:700;
-      cursor:pointer;
-      background: linear-gradient(90deg, rgba(34,197,94,1), rgba(250,204,21,1));
-      color:#0b1220;
-      box-shadow: 0 10px 30px rgba(34,197,94,.20);
-      transition: transform .08s ease;
-    }
-    .btn:active{ transform: scale(.99); }
-    .btn[disabled]{ opacity:.7; cursor:not-allowed; }
+        .hero-content {
+            max-width: 600px;
+            color: white;
+            z-index: 1;
+        }
 
-    .msg{
-      margin-top:12px;
-      padding:10px 12px;
-      border-radius:14px;
-      font-size:13px;
-      display:none;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
-      color: rgba(255,255,255,.92);
-    }
-    .msg.error{
-      border-color: rgba(239,68,68,.35);
-      background: rgba(239,68,68,.10);
-      color: #ffd7d7;
-    }
-    .msg.ok{
-      border-color: rgba(34,197,94,.35);
-      background: rgba(34,197,94,.10);
-    }
+        .hero h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            line-height: 1.2;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
 
-    .small-links{
-      margin-top:12px;
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      flex-wrap:wrap;
-      font-size:12px;
-      color: var(--muted);
-    }
-    .small-links a{
-      color: rgba(255,255,255,.86);
-      text-decoration:none;
-      border-bottom:1px dashed rgba(255,255,255,.25);
-    }
+        .hero p {
+            font-size: 20px;
+            margin-bottom: 30px;
+            opacity: 0.95;
+        }
 
-    .hint{
-      margin-top:14px;
-      padding:12px;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.18);
-      color: rgba(255,255,255,.86);
-      font-size:12px;
-      line-height:1.5;
-    }
-    .hint code{
-      background: rgba(255,255,255,.08);
-      padding:2px 6px;
-      border-radius:8px;
-      border:1px solid rgba(255,255,255,.12);
-    }
-  </style>
+        .cta-button {
+            display: inline-block;
+            background: white;
+            color: var(--primary-color);
+            padding: 15px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 18px;
+            transition: var(--transition);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            background: var(--light-color);
+        }
+
+        /* About Section */
+        .about {
+            padding: 100px 0;
+            background: white;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .section-title h2 {
+            font-size: 42px;
+            color: var(--secondary-color);
+            margin-bottom: 15px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .section-title h2::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background: var(--primary-color);
+            border-radius: 2px;
+        }
+
+        .section-title p {
+            color: var(--dark-color);
+            font-size: 18px;
+            margin-top: 20px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .about-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            margin-top: 40px;
+        }
+
+        .about-card {
+            background: var(--light-color);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: var(--transition);
+            text-align: center;
+        }
+
+        .about-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .about-card i {
+            font-size: 48px;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+
+        .about-card h3 {
+            font-size: 24px;
+            color: var(--secondary-color);
+            margin-bottom: 15px;
+        }
+
+        .about-card p {
+            color: var(--dark-color);
+            line-height: 1.8;
+        }
+
+        /* Apps Section */
+        .apps {
+            padding: 100px 0;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin-top: 50px;
+        }
+
+        .app-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .app-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+        }
+
+        .app-header {
+            padding: 30px;
+            text-align: center;
+            background: linear-gradient(135deg, var(--primary-color), #1a5276);
+            color: white;
+        }
+
+        .app-header h3 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .app-header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .app-content {
+            padding: 30px;
+        }
+
+        .app-content h4 {
+            font-size: 20px;
+            color: var(--secondary-color);
+            margin-bottom: 15px;
+        }
+
+        .app-content ul {
+            list-style: none;
+            margin-bottom: 25px;
+        }
+
+        .app-content ul li {
+            padding: 8px 0;
+            color: var(--dark-color);
+            border-bottom: 1px solid #eee;
+            position: relative;
+            padding-left: 25px;
+        }
+
+        .app-content ul li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--success-color);
+            font-weight: bold;
+        }
+
+        .app-link {
+            display: inline-block;
+            background: var(--primary-color);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: var(--transition);
+            text-align: center;
+            width: 100%;
+        }
+
+        .app-link:hover {
+            background: #1a5276;
+            transform: scale(1.05);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 100px 0;
+            background: white;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+            margin-top: 50px;
+        }
+
+        .feature-item {
+            text-align: center;
+            padding: 30px;
+            background: var(--light-color);
+            border-radius: 15px;
+            transition: var(--transition);
+        }
+
+        .feature-item:hover {
+            background: white;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            width: 80px;
+            height: 80px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            color: white;
+            font-size: 32px;
+        }
+
+        .feature-item h3 {
+            font-size: 22px;
+            color: var(--secondary-color);
+            margin-bottom: 15px;
+        }
+
+        .feature-item p {
+            color: var(--dark-color);
+            line-height: 1.8;
+        }
+
+        /* CTA Section */
+        .cta {
+            padding: 100px 0;
+            background: linear-gradient(135deg, var(--secondary-color), var(--dark-color));
+            text-align: center;
+            color: white;
+        }
+
+        .cta h2 {
+            font-size: 42px;
+            margin-bottom: 20px;
+        }
+
+        .cta p {
+            font-size: 20px;
+            margin-bottom: 40px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            opacity: 0.9;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .cta-primary {
+            background: var(--primary-color);
+            color: white;
+            padding: 15px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 18px;
+            transition: var(--transition);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .cta-primary:hover {
+            background: #1a5276;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .cta-secondary {
+            background: transparent;
+            color: white;
+            padding: 15px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 18px;
+            transition: var(--transition);
+            border: 2px solid white;
+        }
+
+        .cta-secondary:hover {
+            background: white;
+            color: var(--secondary-color);
+            transform: translateY(-3px);
+        }
+
+        /* Footer */
+        footer {
+            background: var(--secondary-color);
+            color: white;
+            padding: 60px 0 30px;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+        }
+
+        .footer-section h3 {
+            font-size: 24px;
+            margin-bottom: 25px;
+            position: relative;
+            padding-bottom: 10px;
+        }
+
+        .footer-section h3::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 50px;
+            height: 3px;
+            background: var(--primary-color);
+        }
+
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 12px;
+        }
+
+        .footer-links a {
+            color: #bdc3c7;
+            text-decoration: none;
+            transition: var(--transition);
+            display: block;
+        }
+
+        .footer-links a:hover {
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .footer-bottom {
+            text-align: center;
+            padding-top: 40px;
+            margin-top: 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #bdc3c7;
+            font-size: 14px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            nav ul {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .hero h2 {
+                font-size: 36px;
+            }
+
+            .hero p {
+                font-size: 18px;
+            }
+
+            .section-title h2 {
+                font-size: 32px;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .cta-primary, .cta-secondary {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero h2 {
+                font-size: 28px;
+            }
+
+            nav ul {
+                gap: 15px;
+            }
+
+            nav a {
+                font-size: 14px;
+            }
+        }
+    </style>
 </head>
 <body>
-
-  <div class="shell">
-    <!-- IZQUIERDA / BRAND -->
-    <section class="left">
-      <div class="brand">
-        <div class="logo">E</div>
-        <div>
-          <b>EduCorp</b>
-          <span>Plataforma educativa integral</span>
+    <!-- Header -->
+    <header>
+        <div class="container header-content">
+            <div class="logo">
+                <img src="edubank.png" alt="EduCorp Logo">
+                <h1>EduCorp</h1>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="#about">Sobre Nosotros</a></li>
+                    <li><a href="#apps">Aplicaciones</a></li>
+                    <li><a href="#features">Características</a></li>
+                    <li><a href="#contact">Contacto</a></li>
+                </ul>
+            </nav>
         </div>
-      </div>
+    </header>
 
-      <div class="hero">
-        <h1>Bienvenido 👋</h1>
-        <p>
-          Inicia sesión para acceder a EduAdmin, EduBank, EduAsist y EduIA.
-          Todo en un solo ecosistema para colegios.
-        </p>
-
-        <div class="chips">
-          <div class="chip"><span class="dot"></span> Acceso por roles</div>
-          <div class="chip"><span class="dot yellow"></span> Multi-colegio</div>
-          <div class="chip">🔒 Seguridad con Supabase</div>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h2>Transformando la Educación con Tecnología Innovadora</h2>
+                <p>EduCorp es tu plataforma integral para la gestión educativa moderna. Soluciones completas para administradores, docentes, estudiantes y padres de familia.</p>
+                <a href="#apps" class="cta-button">Descubre Nuestras Aplicaciones</a>
+            </div>
         </div>
-
-        <div class="hint">
-          <b>Tip:</b> Si tu usuario fue creado con DNI, normalmente el correo es:
-          <br/>
-          <code>DNInumeros@educorp.local</code> y la contraseña inicial es el mismo DNI.
-        </div>
-      </div>
     </section>
 
-    <!-- DERECHA / FORM -->
-    <section class="right">
-      <h2 class="card-title">Iniciar sesión</h2>
-      <p class="card-sub">Ingresa tus datos para continuar.</p>
-
-      <form id="loginForm">
-        <div class="field">
-          <label for="email">Correo</label>
-          <input id="email" class="input" type="email" placeholder="45102966@educorp.local" autocomplete="username" required />
+    <!-- About Section -->
+    <section id="about" class="about">
+        <div class="container">
+            <div class="section-title">
+                <h2>¿Qué es EduCorp?</h2>
+                <p>EduCorp es un ecosistema completo de aplicaciones educativas diseñadas para revolucionar la forma en que las instituciones educativas gestionan sus operaciones, finanzas, asistencia y aprendizaje.</p>
+            </div>
+            <div class="about-content">
+                <div class="about-card">
+                    <h3>Plataforma Integral</h3>
+                    <p>Un sistema unificado que conecta todas las áreas de tu institución educativa, desde la administración hasta el aula virtual.</p>
+                </div>
+                <div class="about-card">
+                    <h3>Tecnología Avanzada</h3>
+                    <p>Utilizamos las últimas tecnologías para ofrecer soluciones seguras, rápidas y escalables para instituciones de cualquier tamaño.</p>
+                </div>
+                <div class="about-card">
+                    <h3>Experiencia de Usuario</h3>
+                    <p>Interfaces intuitivas y modernas diseñadas pensando en la facilidad de uso para todos los miembros de la comunidad educativa.</p>
+                </div>
+            </div>
         </div>
-
-        <div class="field">
-          <label for="password">Contraseña</label>
-          <input id="password" class="input" type="password" placeholder="••••••" autocomplete="current-password" required />
-          <div class="row">
-            <label class="toggle">
-              <input id="showPass" type="checkbox" />
-              Mostrar contraseña
-            </label>
-            <span id="loadingText" style="font-size:12px;color:var(--muted);display:none;">Verificando…</span>
-          </div>
-        </div>
-
-        <button id="btnLogin" class="btn" type="submit">Entrar</button>
-
-        <div id="msg" class="msg"></div>
-
-        <div class="small-links">
-          <a href="index.html">← Volver al inicio</a>
-          <a href="planes.html">Ver planes</a>
-        </div>
-      </form>
     </section>
-  </div>
 
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Tu cliente (ajusta ruta si no estás en raíz) -->
-  <script src="./assets/js/supabaseClient.js"></script>
+    <!-- Apps Section -->
+    <section id="apps" class="apps">
+        <div class="container">
+            <div class="section-title">
+                <h2>Nuestras Aplicaciones</h2>
+                <p>Descubre nuestras soluciones especializadas para cada aspecto de la gestión educativa</p>
+            </div>
+            <div class="apps-grid">
+                <!-- EduAdmin -->
+                <div class="app-card">
+                    <div class="app-header" style="background: linear-gradient(135deg, #3498db, #1a5276);">
+                        <h3>EduAdmin</h3>
+                        <p>Gestión Administrativa</p>
+                    </div>
+                    <div class="app-content">
+                        <h4>Control Total de tu Institución</h4>
+                        <ul>
+                            <li>Gestión de usuarios y roles</li>
+                            <li>Configuración de colegios y años escolares</li>
+                            <li>Administración de grados y secciones</li>
+                            <li>Control de personal docente y administrativo</li>
+                            <li>Panel de control completo</li>
+                        </ul>
+                        <a href="eduadmin/index.html" class="app-link">Acceder a EduAdmin</a>
+                    </div>
+                </div>
 
-  <script>
-    const $ = (id) => document.getElementById(id);
+                <!-- EduBank -->
+                <div class="app-card">
+                    <div class="app-header" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">
+                        <h3>EduBank</h3>
+                        <p>Educación Financiera</p>
+                    </div>
+                    <div class="app-content">
+                        <h4>Aprendizaje Financiero Interactivo</h4>
+                        <ul>
+                            <li>Simulaciones de préstamos y pagos</li>
+                            <li>Gestión de billeteras virtuales</li>
+                            <li>Sistema de recompensas y retos</li>
+                            <li>Catálogo de productos educativos</li>
+                            <li>Ranking y competencias</li>
+                        </ul>
+                        <a href="edubank/index.html" class="app-link">Acceder a EduBank</a>
+                    </div>
+                </div>
 
-    $("showPass").addEventListener("change", () => {
-      $("password").type = $("showPass").checked ? "text" : "password";
-    });
+                <!-- EduIA -->
+                <div class="app-card">
+                    <div class="app-header" style="background: linear-gradient(135deg, #9b59b6, #6c3483);">
+                        <h3>EduIA</h3>
+                        <p>Inteligencia Artificial Educativa</p>
+                    </div>
+                    <div class="app-content">
+                        <h4>Aprendizaje Personalizado con IA</h4>
+                        <ul>
+                            <li>Tutoría inteligente personalizada</li>
+                            <li>Análisis de rendimiento estudiantil</li>
+                            <li>Recomendaciones de contenido</li>
+                            <li>Evaluaciones adaptativas</li>
+                            <li>Asistente virtual educativo</li>
+                        </ul>
+                        <a href="eduia/index.html" class="app-link">Acceder a EduIA</a>
+                    </div>
+                </div>
 
-    function showMsg(text, type){
-      const box = $("msg");
-      box.className = "msg" + (type ? " " + type : "");
-      box.textContent = text;
-      box.style.display = "block";
-    }
+                <!-- EduAsist -->
+                <div class="app-card">
+                    <div class="app-header" style="background: linear-gradient(135deg, #2ecc71, #27ae60);">
+                        <h3>EduAsist</h3>
+                        <p>Gestión de Asistencia</p>
+                    </div>
+                    <div class="app-content">
+                        <h4>Control de Asistencia Inteligente</h4>
+                        <ul>
+                            <li>Registro de asistencia digital</li>
+                            <li>Reportes automáticos</li>
+                            <li>Notificaciones en tiempo real</li>
+                            <li>Estadísticas y análisis</li>
+                            <li>Integración con otras apps</li>
+                        </ul>
+                        <a href="eduasist/index.html" class="app-link">Acceder a EduAsist</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
-    function setLoading(on){
-      $("btnLogin").disabled = on;
-      $("loadingText").style.display = on ? "inline" : "none";
-      if(on) $("msg").style.display = "none";
-    }
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-title">
+                <h2>Características Principales</h2>
+                <p>Lo que hace a EduCorp diferente y superior</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-item">
+                    <div class="feature-icon">🔒</div>
+                    <h3>Seguridad</h3>
+                    <p>Protección de datos con los más altos estándares de seguridad y privacidad.</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">📱</div>
+                    <h3>Responsive</h3>
+                    <p>Accede desde cualquier dispositivo con diseño adaptable y optimizado.</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Rápido</h3>
+                    <p>Rendimiento optimizado para una experiencia fluida y sin interrupciones.</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🔄</div>
+                    <h3>Integrado</h3>
+                    <p>Todas las aplicaciones trabajan juntas en un ecosistema unificado.</p>
+                </div>
+            </div>
+        </div>
+    </section>
 
-    $("loginForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
+    <!-- CTA Section -->
+    <section id="contact" class="cta">
+        <div class="container">
+            <h2>¿Listo para Transformar tu Institución Educativa?</h2>
+            <p>Únete a miles de instituciones que ya están aprovechando el poder de EduCorp para mejorar su gestión y potenciar el aprendizaje.</p>
+            <div class="cta-buttons">
+                <a href="#apps" class="cta-primary">Comenzar Ahora</a>
+                <a href="mailto:contacto@educorp.com" class="cta-secondary">Contactar Soporte</a>
+            </div>
+        </div>
+    </section>
 
-      const email = $("email").value.trim();
-      const password = $("password").value.trim();
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>EduCorp</h3>
+                    <p>Plataforma educativa integral que transforma la gestión y el aprendizaje en instituciones educativas de todo el mundo.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Enlaces Rápidos</h3>
+                    <ul class="footer-links">
+                        <li><a href="#about">Sobre Nosotros</a></li>
+                        <li><a href="#apps">Aplicaciones</a></li>
+                        <li><a href="#features">Características</a></li>
+                        <li><a href="#contact">Contacto</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Aplicaciones</h3>
+                    <ul class="footer-links">
+                        <li><a href="eduadmin/index.html">EduAdmin</a></li>
+                        <li><a href="edubank/index.html">EduBank</a></li>
+                        <li><a href="eduia/index.html">EduIA</a></li>
+                        <li><a href="eduasist/index.html">EduAsist</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Contacto</h3>
+                    <ul class="footer-links">
+                        <li>📧 contacto@educorp.com</li>
+                        <li>📞 +1 (555) 123-4567</li>
+                        <li>📍 Av. Educación 123, Ciudad</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 EduCorp. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
 
-      if(!email || !password){
-        showMsg("Completa correo y contraseña.", "error");
-        return;
-      }
+    <script>
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    window.scrollTo({
+                        top: target.offsetTop - 80,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
 
-      setLoading(true);
-      try{
-        const sb = window.supabaseClient || window.supabase;
-        if(!sb) {
-          showMsg("No se cargó Supabase. Revisa supabaseClient.js", "error");
-          setLoading(false);
-          return;
-        }
+        // Header scroll effect
+        window.addEventListener('scroll', function() {
+            const header = document.querySelector('header');
+            if (window.scrollY > 100) {
+                header.style.boxShadow = '0 5px 20px rgba(0, 0, 0, 0.1)';
+                header.style.background = 'rgba(255, 255, 255, 0.98)';
+            } else {
+                header.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.1)';
+                header.style.background = 'rgba(255, 255, 255, 0.95)';
+            }
+        });
 
-        const { data, error } = await sb.auth.signInWithPassword({ email, password });
-        if(error){
-          showMsg(error.message || "No se pudo iniciar sesión.", "error");
-          setLoading(false);
-          return;
-        }
-
-        showMsg("✅ Sesión iniciada. Redirigiendo…", "ok");
-
-        // ✅ Redirección simple (ajusta si quieres)
-        setTimeout(() => {
-          window.location.href = "./eduadmin/pages/dashboard.html";
-        }, 600);
-
-      }catch(err){
-        console.error(err);
-        showMsg("Error inesperado. Revisa consola.", "error");
-      }finally{
-        setLoading(false);
-      }
-    });
-  </script>
-
+        // App card hover effect enhancement
+        const appCards = document.querySelectorAll('.app-card');
+        appCards.forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px)';
+            });
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+            });
+        });
+    </script>
 </body>
 </html>
