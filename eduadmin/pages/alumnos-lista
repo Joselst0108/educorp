@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>EduAdmin | Listar estudiantes</title>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Tu cliente + contexto -->
+  <script src="/eduadmin/assets/js/supabaseClient.js"></script>
+  <script src="/assets/js/context.js"></script>
+
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial;margin:0;background:#0b1220;color:#eaf0ff}
+    .wrap{max-width:1100px;margin:24px auto;padding:16px}
+    .card{background:#0f1a33;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px}
+    h1{margin:0 0 10px;font-size:20px}
+    .meta{opacity:.85;margin-bottom:14px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+    input,button{border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:10px 12px;font-size:14px}
+    input{background:#0b1220;color:#eaf0ff;flex:1;min-width:240px}
+    button{background:#2a6df6;color:#fff;cursor:pointer}
+    button.secondary{background:#18284a}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    .msg{margin:10px 0;padding:10px;border-radius:10px;background:rgba(255,255,255,.06)}
+    .msg.ok{background:rgba(0,255,120,.10)}
+    .muted{opacity:.75}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left}
+    th{opacity:.9;font-weight:600}
+    .right{text-align:right}
+    .badge{display:inline-block;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.08);font-size:12px}
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>📋 Listar estudiantes</h1>
+      <div id="metaInfo" class="meta muted">Cargando colegio...</div>
+
+      <div class="row">
+        <input id="qBuscar" type="text" placeholder="Buscar DNI / Apellidos / Nombres / Código..." />
+        <button id="btnReload" class="secondary" type="button">Recargar</button>
+      </div>
+
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div id="msg" class="msg muted" style="display:none"></div>
+        <div class="badge"><span id="countInfo">0</span></div>
+      </div>
+
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>DNI</th>
+              <th>Apellidos</th>
+              <th>Nombres</th>
+              <th>Código</th>
+              <th>Creado</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyAlumnos">
+            <tr><td colspan="5" class="muted">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="/eduadmin/pages/js/alumnos-lista.js"></script>
+</body>
+</html>
