@@ -146,7 +146,7 @@
       {
         title: "Dashboard",
         type: "single",
-        items: [{ label: "Dashboard", href: "/eduadmin/pages/dashboard.html" }]
+        items: [{ label: "Dashboard", href: "/eduadmin/dashboard.html" }]
       },
 
       {
