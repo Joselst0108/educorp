@@ -1,179 +1,217 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-app="eduadmin">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin | Matrícula</title>
+  <title>EduAdmin | Matrículas</title>
 
+  <!-- ===== CSS GENERAL (NO TOCAR) ===== -->
+  <link rel="stylesheet" href="../../assets/css/variables.css">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/components.css">
+
+  <!-- ===== CSS SOLO DE ESTA PÁGINA (opcional) ===== -->
   <style>
-    body{font-family:system-ui,Arial;margin:18px;background:#f7f8fb}
-    .wrap{max-width:1100px;margin:0 auto}
-    .card{background:#fff;border:1px solid #e6e8f0;border-radius:14px;padding:16px;margin-bottom:14px}
-    h1{margin:0 0 10px}
-    .row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-    .row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-    input,select,button,textarea{padding:10px;border-radius:10px;border:1px solid #d9dbe7;font-size:15px;width:100%;box-sizing:border-box}
-    button{cursor:pointer;border:none;background:#2e7d32;color:#fff}
-    button.secondary{background:#1976d2}
-    button.gray{background:#6b7280}
-    button.purple{background:#8a2be2}
-    button.teal{background:#0f766e}
-    button.dark{background:#111827}
-    button.danger{background:#b00020}
-    button:disabled{opacity:.6;cursor:not-allowed}
-    table{width:100%;border-collapse:collapse}
-    th,td{border-bottom:1px solid #eef0f6;padding:10px;text-align:left;font-size:14px}
-    .muted{color:#6b7280;font-size:13px}
-    .dangerText{color:#b00020;font-weight:600}
-    .badge{display:inline-block;padding:4px 10px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px}
+    .grid-2 { display:grid; grid-template-columns: 1fr 1.2fr; gap:16px; }
+    @media (max-width: 900px){ .grid-2 { grid-template-columns: 1fr; } }
+    .muted { opacity:.75; }
+    .row-3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; }
+    @media (max-width: 900px){ .row-3 { grid-template-columns: 1fr; } }
+    .actions { display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
+    .pill { padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.06); display:inline-block; }
+    .hint { font-size:12px; opacity:.8; margin-top:6px; }
   </style>
 </head>
 
 <body>
-  <div class="wrap">
+  <div class="app-shell">
 
-    <div class="card">
-      <h1>Matrícula</h1>
-      <div class="muted" id="metaInfo">Cargando colegio y año...</div>
-      <div class="dangerText" id="msg"></div>
-    </div>
+    <!-- ===== SIDEBAR (GENERAL) ===== -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="../../assets/img/educorp.jpeg" alt="EduAdmin" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
+        </div>
+      </div>
+      <nav id="uiSidebarNav" class="nav"></nav>
+    </aside>
 
-    <div class="card">
-      <h3 style="margin:0 0 10px">Buscar alumno</h3>
+    <!-- ===== MAIN ===== -->
+    <main class="main">
 
-      <div class="row">
-        <input id="qAlumno" placeholder="Buscar por DNI / código / apellidos / nombres..." />
-        <button id="btnBuscarAlumno" class="secondary" type="button">Buscar</button>
-        <select id="alumnoSelect">
-          <option value="">— Selecciona un alumno —</option>
-        </select>
+      <!-- ===== TOPBAR GENERAL ===== -->
+      <div class="topbar">
+        <div class="topbar-left">
+          <img
+            id="uiSchoolLogo"
+            src="../../assets/img/eduadmin.jpeg"
+            alt="Logo"
+            class="topbar-logo"
+            onerror="this.src='../../assets/img/eduadmin.jpeg';"
+          />
+          <div class="topbar-meta">
+            <div id="uiSchoolName" class="topbar-title">Cargando colegio...</div>
+            <div id="uiYearName" class="topbar-subtitle">Año: —</div>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <button id="btnRefresh" class="btn btn-secondary" type="button">Actualizar</button>
+          <a href="./dashboard.html" class="btn btn-secondary">Volver</a>
+        </div>
       </div>
 
-      <div class="muted" id="infoBusqueda" style="margin-top:8px">
-        Tip: escribe un DNI o apellidos y pulsa Buscar.
+      <!-- ===================================================== -->
+      <!-- 🔴🔴🔴 DESDE AQUÍ EDITAS CADA PÁGINA 🔴🔴🔴 -->
+      <!-- ===================================================== -->
+
+      <div class="page-header">
+        <h1>Matrículas</h1>
+        <div id="status" class="status muted">Cargando…</div>
       </div>
 
-      <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
-        <button id="btnAbrirModal" type="button">Abrir opciones de matrícula</button>
-        <button id="btnIrAlumnos" class="gray" type="button">Registrar alumno (si no existe)</button>
+      <div class="grid-2">
+
+        <!-- ===== CREAR MATRÍCULA ===== -->
+        <div class="card">
+          <h2 class="card-title">Registrar matrícula</h2>
+          <p class="muted">Vincula un alumno al año, nivel, grado y sección del contexto.</p>
+
+          <form id="formMatricula" class="form">
+            <!-- Para edición -->
+            <input type="hidden" id="matricula_id" value="">
+
+            <div class="form-group">
+              <label for="alumno_id">Alumno</label>
+              <select id="alumno_id" required>
+                <option value="">Cargando alumnos…</option>
+              </select>
+              <div class="hint">* Si no aparece, primero crea alumnos.</div>
+            </div>
+
+            <div class="row-3">
+              <div class="form-group">
+                <label for="nivel_id">Nivel</label>
+                <select id="nivel_id" required>
+                  <option value="">Selecciona</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="grado_id">Grado</label>
+                <select id="grado_id" required>
+                  <option value="">Selecciona</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="seccion_id">Sección</label>
+                <select id="seccion_id" required>
+                  <option value="">Selecciona</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row-3">
+              <div class="form-group">
+                <label for="estado">Estado</label>
+                <select id="estado" required>
+                  <option value="matriculado">Matriculado</option>
+                  <option value="reservado">Reservado</option>
+                  <option value="retirado">Retirado</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="fecha">Fecha</label>
+                <input id="fecha" type="date" />
+              </div>
+
+              <div class="form-group">
+                <label for="observacion">Observación</label>
+                <input id="observacion" placeholder="Opcional" />
+              </div>
+            </div>
+
+            <div class="form-group" style="display:flex; gap:10px; align-items:center;">
+              <input id="activo" type="checkbox" checked />
+              <label for="activo" style="margin:0;">Activo</label>
+            </div>
+
+            <div class="actions">
+              <button id="btnLimpiar" class="btn btn-secondary" type="button">Limpiar</button>
+              <button id="btnGuardar" class="btn btn-primary" type="submit">Guardar matrícula</button>
+            </div>
+
+            <div id="msg" class="muted" style="margin-top:10px;"></div>
+          </form>
+        </div>
+
+        <!-- ===== LISTADO ===== -->
+        <div class="card">
+          <h2 class="card-title">Matrículas registradas</h2>
+
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
+            <input id="buscar" placeholder="Buscar por DNI / nombre…" style="flex:1; min-width:220px;">
+            <select id="filtroEstado" style="min-width:160px;">
+              <option value="">Todos</option>
+              <option value="matriculado">Matriculado</option>
+              <option value="reservado">Reservado</option>
+              <option value="retirado">Retirado</option>
+            </select>
+            <span class="pill">Total: <b id="count">0</b></span>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Alumno</th>
+                  <th>Nivel</th>
+                  <th>Grado</th>
+                  <th>Sección</th>
+                  <th>Estado</th>
+                  <th>Activo</th>
+                  <th style="text-align:right;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyMatriculas">
+                <tr><td colspan="7" class="muted">Cargando…</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="muted" style="margin-top:10px;">
+            * Debe filtrar por <b>colegio</b> y <b>año</b> del contexto.
+          </div>
+        </div>
+
       </div>
-    </div>
 
-    <div class="card">
-      <h3 style="margin:0 0 10px">Lista de matriculados (año actual)</h3>
-      <div class="muted" id="countInfo">0 matriculados</div>
+      <!-- ===================================================== -->
+      <!-- 🔴🔴🔴 HASTA AQUÍ EDITAS 🔴🔴🔴 -->
+      <!-- ===================================================== -->
 
-      <div style="overflow:auto;margin-top:10px">
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>DNI</th>
-              <th>Apellidos</th>
-              <th>Nombres</th>
-              <th>Nivel</th>
-              <th>Grado</th>
-              <th>Sección</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyMatriculas"></tbody>
-        </table>
-      </div>
-    </div>
-
+    </main>
   </div>
 
-  <!-- MODAL -->
-  <div id="modalMatricula" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); padding:18px; z-index:9999;">
-    <div style="max-width:620px; margin:40px auto; background:#fff; border-radius:14px; padding:16px; border:1px solid #e6e8f0;">
-      <h3 style="margin:0 0 10px">Opciones de matrícula</h3>
-
-      <div class="muted" id="mAlumno"></div>
-      <div class="muted" id="mEstadoActual" style="margin:6px 0 12px"></div>
-
-      <div class="row2">
-        <input id="mFecha" type="date" />
-        <select id="mNivel">
-          <option value="">— Nivel —</option>
-        </select>
-      </div>
-
-      <div class="row2" style="margin-top:10px">
-        <select id="mGrado" disabled>
-          <option value="">— Grado —</option>
-        </select>
-        <select id="mSeccion" disabled>
-          <option value="">— Sección —</option>
-        </select>
-      </div>
-
-      <div style="margin-top:10px">
-        <input id="mMotivo" placeholder="Motivo / Observación (opcional)" />
-      </div>
-
-      <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:12px;">
-        <button id="btnMatricular" type="button">Matricular</button>
-        <button id="btnReingreso" type="button" class="secondary">Reingreso</button>
-        <button id="btnRetiro" type="button" class="danger">Retiro</button>
-        <button id="btnTraslado" type="button" class="purple">Traslado</button>
-        <button id="btnCambio" type="button" class="teal">Cambio grado/sección</button>
-        <button id="btnAnular" type="button" class="dark">Anular</button>
-        <button id="btnCerrarModal" type="button" class="gray">Cerrar</button>
-      </div>
-<!-- MODAL ASIGNAR APODERADO -->
-<div id="modalApoderado" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); padding:18px; z-index:10000;">
-  <div style="max-width:640px; margin:40px auto; background:#fff; border-radius:14px; padding:16px; border:1px solid #e6e8f0;">
-    <h3 style="margin:0 0 10px">Asignar apoderado</h3>
-
-    <div class="muted" id="aAlumno"></div>
-    <div class="dangerText" id="aMsg" style="margin:8px 0"></div>
-
-    <div class="row2">
-      <input id="aBuscar" placeholder="Buscar apoderado por DNI o apellidos..." />
-      <button id="btnBuscarApoderado" type="button" class="secondary">Buscar</button>
-    </div>
-
-    <div style="margin-top:10px">
-      <select id="apoderadoSelect">
-        <option value="">— Selecciona un apoderado encontrado —</option>
-      </select>
-      <div class="muted" style="margin-top:6px">Si no existe, créalo abajo.</div>
-    </div>
-
-    <hr style="border:none;border-top:1px solid #eef0f6;margin:14px 0" />
-
-    <h4 style="margin:0 0 8px">Crear apoderado</h4>
-    <div class="row2">
-      <input id="aDni" placeholder="DNI (opcional)" />
-      <input id="aTelefono" placeholder="Teléfono (opcional)" />
-    </div>
-    <div class="row2" style="margin-top:10px">
-      <input id="aNombres" placeholder="Nombres" />
-      <input id="aApellidos" placeholder="Apellidos" />
-    </div>
-    <div style="margin-top:10px">
-      <input id="aParentesco" placeholder="Parentesco (Padre/Madre/Tutor)" />
-    </div>
-
-    <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
-      <button id="btnVincularExistente" type="button">Vincular seleccionado</button>
-      <button id="btnCrearYVincular" type="button" class="teal">Crear y vincular</button>
-      <button id="btnCerrarApoderado" type="button" class="gray">Cerrar</button>
-    </div>
-  </div>
-</div>
-      <div class="dangerText" id="mMsg" style="margin-top:10px"></div>
-      <div class="muted" style="margin-top:8px">
-        Estados: <span class="badge">MATRICULADO</span> <span class="badge">RETIRADO</span>
-        <span class="badge">TRASLADADO</span> <span class="badge">ANULADO</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- SCRIPTS: una sola vez y rutas correctas -->
+  <!-- ===== SCRIPTS GENERALES (NO TOCAR) ===== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../../assets/js/supabaseClient.js"></script>
-  <script src="./js/matricula.js"></script>
+  <script src="../../assets/js/context.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+
+  <!-- ACTIVA SIDEBAR -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
+    });
+  </script>
+
+  <!-- ===== JS SOLO DE ESTA PÁGINA ===== -->
+  <script src="../js/matriculas.js"></script>
+
 </body>
 </html>
