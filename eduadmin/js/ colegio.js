@@ -1,293 +1,118 @@
-/* =====================================================
-   🟢 EDUADMIN | DATOS DEL COLEGIO (colegio.js)
-   - No rompe tu context.js
-   - Lee ctx.school_id
-   - Permisos por rol
-   - Carga datos del colegio y permite editar (si rol puede)
-===================================================== */
+<!DOCTYPE html>
+<html lang="es" data-app="eduadmin">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduAdmin | Datos del colegio</title>
 
-document.addEventListener("DOMContentLoaded", async () => {
-  const supabase = window.supabaseClient;
+  <link rel="stylesheet" href="/assets/css/variables.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
+</head>
 
-  if (!supabase) {
-    alert("Supabase no cargó");
-    return;
-  }
+<body>
+  <div class="app-shell">
 
-  // Sidebar (si existe)
-  try {
-    if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
-  } catch (e) {}
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
+        </div>
+      </div>
 
-  /* ===============================
-     CONTEXTO GLOBAL (NO ROMPER)
-  =============================== */
-  let ctx = null;
-  try {
-    ctx = await window.getContext();
-  } catch (e) {
-    console.error("Error context:", e);
-  }
+      <!-- ✅ si ya usas ui.js para menú dinámico, puedes reemplazar esto por:
+           <nav class="nav" id="uiSidebarNav"></nav>
+           y llamar renderEduAdminSidebar() desde tu ui.js
+      -->
+      <nav class="nav">
+        <a href="/eduadmin/dashboard.html"><div class="nav-item">Dashboard</div></a>
+        <a href="/eduadmin/pages/colegio.html"><div class="nav-item active">Datos del colegio</div></a>
+        <a href="/eduadmin/pages/usuarios.html"><div class="nav-item">Usuarios y roles</div></a>
+        <a href="/eduadmin/pages/anio.html"><div class="nav-item">Año académico</div></a>
+      </nav>
+    </aside>
 
-  const colegioId = ctx?.school_id || null;
-  const userRole = (ctx?.user_role || ctx?.role || "").toLowerCase();
+    <!-- MAIN -->
+    <main class="main">
 
-  // Si tu ui.js usa window.APP para rol, lo dejamos seteado por compatibilidad
-  window.APP = window.APP || {};
-  window.APP.userRole = userRole;
+      <!-- TOPBAR -->
+      <div class="topbar">
+        <div class="left">
+          <div class="school-chip">
+            <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio" />
+            <div class="meta">
+              <b id="uiSchoolName">Cargando colegio…</b>
+              <span id="uiYearName">Cargando año…</span>
+            </div>
+          </div>
+        </div>
 
-  if (!colegioId) {
-    alert("No hay colegio seleccionado");
-    window.location.href = "./dashboard.html";
-    return;
-  }
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-secondary" id="btnRefresh">Actualizar</button>
+          <button class="btn btn-secondary" id="logoutBtn">Cerrar sesión</button>
+        </div>
+      </div>
 
-  /* ===============================
-     UI HEADER (GENERAL)
-  =============================== */
-  const $ = (id) => document.getElementById(id);
+      <section class="page">
+        <div class="card">
+          <h1 class="h1">Datos del colegio</h1>
+          <p class="muted" id="status">Cargando…</p>
+        </div>
 
-  if ($("uiSchoolName")) $("uiSchoolName").textContent = ctx?.school_name || "Colegio";
-  if ($("uiYearName")) $("uiYearName").textContent = "Año: " + (ctx?.year_name || "—");
+        <div class="card">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px;">
+            <div>
+              <label><b>Nombre del colegio</b></label>
+              <input id="inpNombre" type="text" placeholder="Nombre del colegio" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);" />
+              <div class="muted" style="font-size:12px;margin-top:8px;">
+                Este nombre se muestra en el sistema.
+              </div>
+            </div>
 
-  const setStatus = (t) => {
-    const el = $("status");
-    if (el) el.textContent = t || "";
-  };
+            <div>
+              <label><b>Logo actual</b></label>
+              <div style="display:flex; align-items:center; gap:12px; margin-top:8px;">
+                <img id="previewLogo" src="/assets/img/educorp.jpeg" alt="Logo" style="width:64px;height:64px;border-radius:14px;object-fit:cover;border:1px solid var(--border);" />
+                <div class="muted" style="font-size:12px;">
+                  Puedes subir un logo desde tu PC y se guardará en Supabase Storage.
+                </div>
+              </div>
+            </div>
+          </div>
 
-  const setMsg = (t, ok = true) => {
-    const el = $("msg");
-    if (!el) return;
-    el.textContent = t || "";
-    el.className = ok ? "status ok" : "status bad";
-  };
+          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;" />
 
-  /* ===============================
-     PERMISOS POR ROL
-  =============================== */
-  const canWrite =
-    userRole === "superadmin" ||
-    userRole === "director" ||
-    userRole === "secretaria";
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px;">
+            <div>
+              <label><b>Subir nuevo logo (desde tu PC)</b></label>
+              <input id="fileLogo" type="file" accept="image/*" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);" />
+              <div class="muted" style="font-size:12px;margin-top:8px;">
+                Formatos: PNG/JPG. Recomendado: 512x512.
+              </div>
+            </div>
 
-  // Superadmin puede crear colegios (si tu HTML trae panel de creación)
-  const canCreateSchool = userRole === "superadmin";
+            <div style="display:flex; align-items:end; gap:10px;">
+              <button class="btn btn-primary" id="btnGuardar" style="width:auto;">Guardar cambios</button>
+              <button class="btn btn-secondary" id="btnSubirLogo" style="width:auto;">Subir logo</button>
+            </div>
+          </div>
 
-  /* ===============================
-     ELEMENTOS (IDs esperados)
-     - nombre, direccion, telefono, logo_url
-     - btnGuardar
-     - (opcionales) schoolLogoPreview, uiSchoolLogo
-     - (opcional para superadmin) formCrearColegio + inputs: new_nombre,new_direccion,new_telefono,new_logo_url
-  =============================== */
-  const els = {
-    nombre: $("nombre"),
-    direccion: $("direccion"),
-    telefono: $("telefono"),
-    logo_url: $("logo_url"),
-    btnGuardar: $("btnGuardar"),
+          <div class="muted" style="font-size:12px;margin-top:12px;">
+            <b>Nota:</b> El logo reemplaza el campo <code>colegios.logo_url</code>.
+          </div>
+        </div>
+      </section>
 
-    // Opcional preview
-    schoolLogoPreview: $("schoolLogoPreview"),
-  };
+    </main>
+  </div>
 
-  // Deshabilitar inputs si solo lectura
-  function setReadOnly(ro) {
-    ["nombre", "direccion", "telefono", "logo_url"].forEach((k) => {
-      const el = els[k];
-      if (!el) return;
-      el.disabled = !!ro;
-    });
-    if (els.btnGuardar) els.btnGuardar.disabled = !!ro;
-  }
-
-  if (!canWrite) setReadOnly(true);
-
-  /* ===============================
-     HELPERS
-  =============================== */
-  function cleanStr(v) {
-    return String(v ?? "").trim();
-  }
-
-  function normalizePhone(v) {
-    return cleanStr(v).replace(/\s+/g, " ");
-  }
-
-  function setLogo(url) {
-    const u = cleanStr(url);
-    if (els.schoolLogoPreview) {
-      els.schoolLogoPreview.src = u || "../../assets/img/eduadmin.jpeg";
-      els.schoolLogoPreview.onerror = function () {
-        this.src = "../../assets/img/eduadmin.jpeg";
-      };
-    }
-    if ($("uiSchoolLogo")) {
-      $("uiSchoolLogo").src = u || "../../assets/img/eduadmin.jpeg";
-      $("uiSchoolLogo").onerror = function () {
-        this.src = "../../assets/img/eduadmin.jpeg";
-      };
-    }
-  }
-
-  async function loadSchool() {
-    setStatus("Cargando colegio...");
-    setMsg("");
-
-    const { data, error } = await supabase
-      .from("colegios")
-      .select("id,nombre,direccion,telefono,logo_url")
-      .eq("id", colegioId)
-      .single();
-
-    if (error) {
-      console.error(error);
-      setStatus("Error cargando colegio");
-      setMsg("No se pudo cargar el colegio. Revisa consola.", false);
-      return null;
-    }
-
-    // Pintar en formulario
-    if (els.nombre) els.nombre.value = data?.nombre || "";
-    if (els.direccion) els.direccion.value = data?.direccion || "";
-    if (els.telefono) els.telefono.value = data?.telefono || "";
-    if (els.logo_url) els.logo_url.value = data?.logo_url || "";
-
-    // Topbar + preview
-    if ($("uiSchoolName")) $("uiSchoolName").textContent = data?.nombre || "Colegio";
-    setLogo(data?.logo_url || "");
-
-    setStatus("Listo");
-    return data;
-  }
-
-  async function saveSchool() {
-    if (!canWrite) {
-      setMsg("Tu rol no tiene permisos para editar.", false);
-      return;
-    }
-
-    const payload = {
-      nombre: cleanStr(els.nombre?.value),
-      direccion: cleanStr(els.direccion?.value),
-      telefono: normalizePhone(els.telefono?.value),
-      logo_url: cleanStr(els.logo_url?.value),
-    };
-
-    if (!payload.nombre) {
-      setMsg("El nombre del colegio es obligatorio.", false);
-      return;
-    }
-
-    setStatus("Guardando...");
-    setMsg("");
-
-    const { error } = await supabase
-      .from("colegios")
-      .update(payload)
-      .eq("id", colegioId);
-
-    if (error) {
-      console.error(error);
-      setStatus("Error");
-      setMsg("No se pudo guardar. Revisa consola.", false);
-      return;
-    }
-
-    // Actualizar UI + contexto local (sin romper)
-    if ($("uiSchoolName")) $("uiSchoolName").textContent = payload.nombre || "Colegio";
-    setLogo(payload.logo_url);
-
-    setStatus("Listo");
-    setMsg("✅ Cambios guardados.");
-  }
-
-  /* ===============================
-     CREAR COLEGIO (Solo SuperAdmin) - Opcional
-     Requiere HTML:
-       <form id="formCrearColegio">
-         #new_nombre #new_direccion #new_telefono #new_logo_url
-       </form>
-       <div id="msgCreate"></div> (opcional)
-  =============================== */
-  const formCrear = $("formCrearColegio");
-  const msgCreate = $("msgCreate");
-  const setMsgCreate = (t, ok = true) => {
-    if (!msgCreate) return;
-    msgCreate.textContent = t || "";
-    msgCreate.className = ok ? "status ok" : "status bad";
-  };
-
-  async function createSchoolFromForm() {
-    if (!canCreateSchool) {
-      setMsgCreate("Solo SuperAdmin puede crear colegios.", false);
-      return;
-    }
-
-    const nn = cleanStr($("new_nombre")?.value);
-    const nd = cleanStr($("new_direccion")?.value);
-    const nt = normalizePhone($("new_telefono")?.value);
-    const nl = cleanStr($("new_logo_url")?.value);
-
-    if (!nn) {
-      setMsgCreate("El nombre es obligatorio.", false);
-      return;
-    }
-
-    setMsgCreate("Creando...", true);
-
-    const { data, error } = await supabase
-      .from("colegios")
-      .insert([{ nombre: nn, direccion: nd, telefono: nt, logo_url: nl }])
-      .select("id,nombre")
-      .single();
-
-    if (error) {
-      console.error(error);
-      setMsgCreate("Error creando colegio. Revisa consola.", false);
-      return;
-    }
-
-    setMsgCreate(`✅ Colegio creado: ${data.nombre}`, true);
-    // OJO: aquí NO cambio ctx.school_id automáticamente para no romper tu flujo
-    // Si quieres, luego hacemos un botón "Usar este colegio" para setearlo en context/localStorage.
-  }
-
-  /* ===============================
-     EVENTOS
-  =============================== */
-  // Botón actualizar (topbar)
-  const btnRefresh = $("btnRefresh");
-  btnRefresh?.addEventListener("click", async () => {
-    await loadSchool();
-  });
-
-  // Guardar cambios
-  els.btnGuardar?.addEventListener("click", async (e) => {
-    e.preventDefault();
-    await saveSchool();
-  });
-
-  // Preview logo al escribir
-  els.logo_url?.addEventListener("input", (e) => {
-    setLogo(e.target.value);
-  });
-
-  // Crear colegio (opcional)
-  if (formCrear) {
-    // si no es superadmin, lo oculto para evitar confusión
-    if (!canCreateSchool) {
-      formCrear.style.display = "none";
-    } else {
-      formCrear.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        await createSchoolFromForm();
-      });
-    }
-  }
-
-  /* ===============================
-     INIT
-  =============================== */
-  await loadSchool();
-});
+  <!-- Scripts (orden obligatorio) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/assets/js/supabaseClient.js"></script>
+  <script src="/assets/js/context.js"></script>
+  <script src="/eduadmin/js/colegio.js"></script>
+</body>
+</html>
