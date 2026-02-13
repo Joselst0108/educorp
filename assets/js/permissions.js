@@ -1,8 +1,55 @@
-// assets/js/permissions.js
-import { allowedAppsByRole } from "./roles.js";
+// ===============================
+// PERMISOS EDUCORP CENTRAL
+// ===============================
 
-// Verifica si un perfil puede acceder a una app
-export function canAccessApp(profile, appKey) {
-  if (!profile || !profile.role) return false;
-  return allowedAppsByRole(profile.role).includes(appKey);
-}
+window.PERMISOS = {
+
+  superadmin: {
+    apps: ["eduadmin","edubank","eduia","eduasist"],
+    menu: "all"
+  },
+
+  director: {
+    apps: ["eduadmin","eduia","eduasist"],
+    menu: [
+      "dashboard",
+      "colegio",
+      "estructura",
+      "estudiantes",
+      "finanzas",
+      "reportes"
+    ]
+  },
+
+  secretaria: {
+    apps: ["eduadmin"],
+    menu: [
+      "estudiantes",
+      "finanzas"
+    ]
+  },
+
+  docente: {
+    apps: ["eduasist","eduia"],
+    menu: [
+      "asistencia",
+      "notas"
+    ]
+  },
+
+  alumno: {
+    apps: ["edubank","eduasist"],
+    menu: [
+      "mis_notas",
+      "mis_pagos"
+    ]
+  },
+
+  apoderado: {
+    apps: ["edubank"],
+    menu: [
+      "pagos"
+    ]
+  }
+
+};
