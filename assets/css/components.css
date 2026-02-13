@@ -1,8 +1,145 @@
+/* Cards */
+.card{
+  background: var(--surface);
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding:16px;
+}
+
+.card-title{
+  margin:0 0 10px 0;
+  font-size:16px;
+  font-weight:800;
+  letter-spacing:.2px;
+}
+
+.muted{ color: var(--muted); }
+
+/* Buttons */
+.btn{
+  border:none;
+  cursor:pointer;
+  border-radius: 14px;
+  padding:10px 14px;
+  font-weight:700;
+  transition:.15s transform, .15s filter, .15s opacity;
+}
+.btn:active{ transform: translateY(1px); }
+
 .btn-primary{
   background: linear-gradient(135deg, var(--accent), rgba(255,255,255,.10));
   color: white;
   box-shadow: 0 10px 26px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.08) inset;
 }
-.btn-primary:hover{
-  filter: brightness(1.06);
+.btn-primary:hover{ filter: brightness(1.06); }
+
+.btn-secondary{
+  background: rgba(255,255,255,.08);
+  color: var(--text);
+  border:1px solid var(--border);
+}
+.btn-secondary:hover{ filter: brightness(1.04); }
+
+/* Form */
+.form{ display:grid; gap:12px; }
+.form-group{ display:grid; gap:6px; }
+label{ font-size: 13px; color: var(--muted); font-weight:700; }
+input, select{
+  width:100%;
+  padding:10px 12px;
+  border-radius: 12px;
+  border:1px solid var(--border);
+  background: rgba(0,0,0,.18);
+  color: var(--text);
+  outline: none;
+}
+input:focus, select:focus{
+  border-color: rgba(255,255,255,.20);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Table */
+.table-wrap{ overflow:auto; border-radius: 14px; }
+.table{
+  width:100%;
+  border-collapse: collapse;
+  overflow:hidden;
+  border-radius: 14px;
+}
+.table th, .table td{
+  padding:12px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size:14px;
+}
+.table th{
+  text-align:left;
+  color: var(--muted);
+  font-weight:800;
+  background: rgba(255,255,255,.05);
+}
+
+/* Modal simple */
+.modal{
+  position: fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background: rgba(0,0,0,.55);
+  z-index:1000;
+}
+.modal.open{ display:flex; }
+.modal .content{
+  width:min(980px, 92vw);
+  background: #0f172a;
+  border:1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding:16px;
+}
+
+/* Topbar logo fix */
+.topbar-logo,
+#uiSchoolLogo{
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 10px;
+  flex: 0 0 44px;
+}
+
+/* Sidebar accordion (nav-cat) */
+.nav-cat-header{
+  padding:10px;
+  font-weight:800;
+  display:flex;
+  justify-content:space-between;
+  cursor:pointer;
+}
+.nav-cat-list{ padding-left:6px; }
+
+.nav-cat.open .chev{ transform:rotate(180deg); }
+
+/* FIX: evita botón blanco en el sidebar */
+.sidebar .nav-cat-header{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  width: 100%;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:10px 10px;
+  cursor:pointer;
+  font: inherit;
+}
+.sidebar .nav-cat-header:focus{ outline:none; }
+.sidebar .nav-cat-header .chev{
+  opacity:.7;
+  transition: transform .15s ease;
+}
+.sidebar .nav-cat.open .nav-cat-header .chev{
+  transform: rotate(180deg);
 }
