@@ -1,154 +1,121 @@
-// /eduadmin/js/dashboard.js
-document.addEventListener("DOMContentLoaded", async () => {
-  const sb = window.supabaseClient || window.supabase;
-  if (!sb) {
-    alert("Supabase no cargó. Revisa /assets/js/supabaseClient.js");
-    return;
-  }
+<!DOCTYPE html>
+<html lang="es" data-app="eduadmin">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduAdmin | Dashboard</title>
 
-  // 1) Contexto
-  let ctx = null;
-  try {
-    ctx = await window.getContext?.(false);
-  } catch (e) {
-    console.error(e);
-    // si no hay sesión, manda a login
-    location.href = "/login.html";
-    return;
-  }
+  <link rel="stylesheet" href="/assets/css/variables.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
+</head>
 
-  // 2) Sidebar por rol (EduAdmin)
-  try {
-    if (typeof window.renderEduAdminSidebar === "function") {
-      window.renderEduAdminSidebar();
-    }
-  } catch (e) {
-    console.error("Error render sidebar:", e);
-  }
+<body>
+  <div class="app-shell">
 
-  // 3) Enforcer por rol: bloquea URLs no permitidas + oculta menú
-  try {
-    if (window.permissions?.apply) {
-      await window.permissions.apply({ app: "eduadmin" });
-    }
-  } catch (e) {
-    console.error("permissions.apply error:", e);
-  }
+    <!-- SIDEBAR (se renderiza por JS según rol) -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
+        </div>
+      </div>
 
-  // 4) Pintar topbar
-  setText("uiSchoolName", ctx.school_name || "—");
-  setText("uiYearName", ctx.year_name ? `Año: ${ctx.year_name}` : "Sin año activo");
-  const logo = document.getElementById("uiSchoolLogo");
-  if (logo) logo.src = ctx.school_logo_url || "/assets/img/eduadmin.jpeg";
+      <!-- aquí se monta el menú -->
+      <nav class="nav" id="uiSidebarNav"></nav>
+    </aside>
 
-  // 5) Botones
-  document.getElementById("btnRefresh")?.addEventListener("click", async () => {
-    await refreshAll(true);
-  });
+    <!-- MAIN -->
+    <main class="main">
 
-  document.getElementById("btnLogout")?.addEventListener("click", async () => {
-    try { await sb.auth.signOut(); } catch {}
-    localStorage.removeItem("EDUCORP_CONTEXT_V1");
-    localStorage.removeItem("educorp_user");
-    location.href = "/login.html";
-  });
+      <!-- TOPBAR -->
+      <div class="topbar">
+        <div class="left">
+          <div class="school-chip">
+            <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio" />
+            <div class="meta">
+              <b id="uiSchoolName">Cargando colegio…</b>
+              <span id="uiYearName">Cargando año…</span>
+            </div>
+          </div>
+        </div>
 
-  // 6) Cargar KPIs
-  await refreshAll(false);
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-secondary" id="btnRefresh" type="button">Actualizar</button>
+          <button class="btn btn-secondary" id="btnLogout" type="button">Cerrar sesión</button>
+        </div>
+      </div>
 
-  async function refreshAll(forceCtx) {
-    setText("dashStatus", "Cargando indicadores…");
-    try {
-      if (forceCtx && window.getContext) ctx = await window.getContext(true);
+      <!-- CONTENT -->
+      <section class="page">
 
-      const schoolId = ctx.school_id;
-      const yearId = ctx.year_id || null;
+        <div class="card">
+          <h1 class="h1">Dashboard</h1>
+          <p class="muted" id="dashStatus">Cargando indicadores…</p>
+        </div>
 
-      // Intenta contar en tablas típicas (ajusta nombres si tu schema usa otros)
-      const alumnos = await safeCount(sb, "alumnos", { colegio_id: schoolId });
-      const aulas   = await safeCount(sb, "secciones", { colegio_id: schoolId, anio_academico_id: yearId });
-      const mats    = await safeCount(sb, "matriculas", { colegio_id: schoolId, anio_academico_id: yearId });
+        <!-- KPIs -->
+        <div style="display:grid; grid-template-columns: repeat(12, 1fr); gap:14px;">
+          <div class="card" style="grid-column: span 3;">
+            <div class="muted">Alumnos registrados</div>
+            <div style="font-size:28px;font-weight:800;margin-top:6px;" id="kpiAlumnos">—</div>
+          </div>
 
-      // pagos del mes (tabla "pagos" con created_at)
-      const pagosMes = await safeCountMonth(sb, "pagos", { colegio_id: schoolId });
+          <div class="card" style="grid-column: span 3;">
+            <div class="muted">Aulas / Secciones</div>
+            <div style="font-size:28px;font-weight:800;margin-top:6px;" id="kpiAulas">—</div>
+          </div>
 
-      // morosos (si aún no hay tabla, se deja —)
-      const morosos = await safeCount(sb, "deudas", { colegio_id: schoolId, estado: "pendiente" });
+          <div class="card" style="grid-column: span 3;">
+            <div class="muted">Matriculados (año)</div>
+            <div style="font-size:28px;font-weight:800;margin-top:6px;" id="kpiMatriculas">—</div>
+          </div>
 
-      setKpi("kpiAlumnos", alumnos);
-      setKpi("kpiAulas", aulas);
-      setKpi("kpiMatriculas", mats);
-      setKpi("kpiPagosMes", pagosMes);
-      setKpi("kpiMorosos", morosos);
+          <div class="card" style="grid-column: span 3;">
+            <div class="muted">Pagos del mes</div>
+            <div style="font-size:28px;font-weight:800;margin-top:6px;" id="kpiPagosMes">—</div>
+          </div>
 
-      const hint = document.getElementById("morososHint");
-      if (hint) {
-        hint.textContent = (morosos === null) ? "(Aún no existe tabla de deudas/morosidad)" : "";
-      }
+          <div class="card" style="grid-column: span 6;">
+            <div class="muted">Morosos</div>
+            <div style="font-size:28px;font-weight:800;margin-top:6px;" id="kpiMorosos">—</div>
+            <div class="muted" style="margin-top:6px;font-size:12px;" id="morososHint"></div>
+          </div>
 
-      setText("dashStatus", "Listo ✅");
-    } catch (e) {
-      console.error(e);
-      setText("dashStatus", "No se pudieron cargar algunos indicadores.");
-    }
-  }
-});
+          <div class="card" style="grid-column: span 6;">
+            <div class="muted">Acciones rápidas</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+              <a href="/eduadmin/pages/anio.html"><button class="btn btn-secondary" type="button">Crear año</button></a>
+              <a href="/eduadmin/pages/niveles.html"><button class="btn btn-secondary" type="button">Niveles</button></a>
+              <a href="/eduadmin/pages/grados.html"><button class="btn btn-secondary" type="button">Grados</button></a>
+              <a href="/eduadmin/pages/secciones.html"><button class="btn btn-secondary" type="button">Aulas</button></a>
+              <a href="/eduadmin/pages/alumnos.html"><button class="btn btn-primary" type="button">Registrar alumno</button></a>
+              <a href="/eduadmin/pages/matriculas.html"><button class="btn btn-primary" type="button">Matricular</button></a>
+              <a href="/eduadmin/pages/pagos.html"><button class="btn btn-primary" type="button">Registrar pago</button></a>
+              <a href="/eduadmin/pages/caja.html"><button class="btn btn-secondary" type="button">Caja</button></a>
+            </div>
+          </div>
+        </div>
 
-function setText(id, v) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = (v ?? "");
-}
+      </section>
 
-function setKpi(id, n) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  if (n === null || n === undefined) el.textContent = "—";
-  else el.textContent = String(n);
-}
+    </main>
+  </div>
 
-/**
- * Cuenta filas sin romper si la tabla/columna no existe.
- * Usa select('id', { count:'exact', head:true }) que es liviano.
- */
-async function safeCount(sb, table, eqFilters = {}) {
-  try {
-    let q = sb.from(table).select("id", { count: "exact", head: true });
+  <!-- Scripts (orden obligatorio) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/assets/js/supabaseClient.js"></script>
+  <script src="/assets/js/context.js"></script>
 
-    Object.entries(eqFilters).forEach(([k, v]) => {
-      if (v === null || v === undefined) return;
-      q = q.eq(k, v);
-    });
+  <!-- tu menú dinámico (renderEduAdminSidebar) -->
+  <script src="/assets/js/ui.js"></script>
 
-    const { count, error } = await q;
-    if (error) return null;
-    return count ?? 0;
-  } catch {
-    return null;
-  }
-}
+  <!-- permisos por rol -->
+  <script src="/assets/js/permissions.js"></script>
 
-/**
- * Cuenta pagos del mes actual (requiere created_at).
- */
-async function safeCountMonth(sb, table, eqFilters = {}) {
-  try {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
-
-    let q = sb.from(table).select("id", { count: "exact", head: true })
-      .gte("created_at", start)
-      .lt("created_at", end);
-
-    Object.entries(eqFilters).forEach(([k, v]) => {
-      if (v === null || v === undefined) return;
-      q = q.eq(k, v);
-    });
-
-    const { count, error } = await q;
-    if (error) return null;
-    return count ?? 0;
-  } catch {
-    return null;
-  }
-}
+  <!-- dashboard -->
+  <script src="/eduadmin/js/dashboard.js"></script>
+</body>
+</html>
