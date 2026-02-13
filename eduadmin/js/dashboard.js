@@ -1,97 +1,91 @@
-// ===============================================
-// EDUADMIN DASHBOARD JS
-// Ruta: /eduadmin/js/dashboard.js
-// Compatible con:
-// - supabaseClient.js
-// - context.js
-// - permissions.js
-// - ui.js (sidebar dinámico)
-// ===============================================
+// ============================================
+// EDUADMIN DASHBOARD FINAL ESTABLE
+// ============================================
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    console.log("🚀 Dashboard iniciando...");
+    console.log("🚀 Iniciando dashboard...");
 
-    // ==============================
-    // 1. OBTENER CONTEXTO GLOBAL
-    // ==============================
-    const ctx = await window.getContext();
+    const sb = window.supabaseClient;
+
+    // ===============================
+    // 1. VERIFICAR SESIÓN REAL
+    // ===============================
+    const { data: sess } = await sb.auth.getSession();
+    const user = sess?.session?.user;
+
+    if (!user) {
+      console.log("❌ Sin sesión → login");
+      window.location.href = "/login.html";
+      return;
+    }
+
+    console.log("Usuario activo:", user.id);
+
+    // ===============================
+    // 2. OBTENER CONTEXTO GLOBAL
+    // ===============================
+    const ctx = await window.getContext(true);
 
     if (!ctx) {
       alert("No se pudo cargar el contexto");
-      location.href = "/login.html";
       return;
     }
 
     console.log("CTX:", ctx);
 
-    // ==============================
-    // 2. PINTAR COLEGIO + AÑO
-    // ==============================
-    setText("uiSchoolName", ctx.school_name || "Sin colegio");
-    setText("uiYearName", ctx.year_name || "Sin año");
+    // ===============================
+    // 3. PINTAR COLEGIO
+    // ===============================
+    setText("uiSchoolName", ctx.school_name);
+    setText("uiYearName", ctx.year_name);
 
     const logo = document.getElementById("uiSchoolLogo");
-    if (logo && ctx.school_logo_url) {
-      logo.src = ctx.school_logo_url;
-    }
+    if (logo && ctx.school_logo_url) logo.src = ctx.school_logo_url;
 
-    // ==============================
-    // 3. RENDER SIDEBAR DINÁMICO
-    // ==============================
+    // ===============================
+    // 4. RENDER SIDEBAR
+    // ===============================
     if (window.renderEduAdminSidebar) {
       window.renderEduAdminSidebar();
     }
 
-    // ==============================
-    // 4. CARGAR KPIs
-    // ==============================
+    // ===============================
+    // 5. KPIs
+    // ===============================
     await loadKPIs(ctx);
 
-    // ==============================
-    // 5. BOTÓN REFRESH
-    // ==============================
-    const btnRefresh = document.getElementById("btnRefresh");
-    if (btnRefresh) {
-      btnRefresh.addEventListener("click", async () => {
-        setStatus("Actualizando...");
-        await loadKPIs(ctx);
-        setStatus("Actualizado");
-      });
-    }
+    // ===============================
+    // 6. BOTÓN REFRESH
+    // ===============================
+    document.getElementById("btnRefresh")?.addEventListener("click", async () => {
+      await loadKPIs(ctx);
+    });
 
-    // ==============================
-    // 6. LOGOUT
-    // ==============================
-    const logoutBtn = document.getElementById("logoutBtn");
-    if (logoutBtn) {
-      logoutBtn.addEventListener("click", async () => {
-        await window.supabaseClient.auth.signOut();
-        window.clearContext();
-        location.href = "/login.html";
-      });
-    }
+    // ===============================
+    // 7. LOGOUT
+    // ===============================
+    document.getElementById("logoutBtn")?.addEventListener("click", async () => {
+      await sb.auth.signOut();
+      localStorage.clear();
+      window.location.href = "/login.html";
+    });
 
   } catch (err) {
     console.error("❌ Error dashboard:", err);
-    alert("Error cargando dashboard");
   }
 });
 
 
-// ===============================================
+// ============================================
 // KPI LOADER
-// ===============================================
+// ============================================
 async function loadKPIs(ctx) {
   const sb = window.supabaseClient;
 
-  if (!ctx.school_id) return;
-
   setStatus("Cargando indicadores...");
 
-  // ===============================
   // ALUMNOS
-  // ===============================
   try {
     const { count } = await sb
       .from("alumnos")
@@ -103,9 +97,7 @@ async function loadKPIs(ctx) {
     setText("kpiAlumnos", 0);
   }
 
-  // ===============================
-  // AULAS / SECCIONES
-  // ===============================
+  // SECCIONES
   try {
     const { count } = await sb
       .from("secciones")
@@ -117,9 +109,7 @@ async function loadKPIs(ctx) {
     setText("kpiAulas", 0);
   }
 
-  // ===============================
   // MATRÍCULAS
-  // ===============================
   try {
     const { count } = await sb
       .from("matriculas")
@@ -132,23 +122,15 @@ async function loadKPIs(ctx) {
     setText("kpiMatriculas", 0);
   }
 
-  // ===============================
-  // PAGOS DEL MES
-  // ===============================
+  // PAGOS
   try {
-    const inicioMes = new Date();
-    inicioMes.setDate(1);
-
     const { data } = await sb
       .from("pagos")
       .select("monto")
-      .eq("colegio_id", ctx.school_id)
-      .gte("created_at", inicioMes.toISOString());
+      .eq("colegio_id", ctx.school_id);
 
     let total = 0;
-    if (data) {
-      data.forEach(p => total += Number(p.monto || 0));
-    }
+    data?.forEach(p => total += Number(p.monto || 0));
 
     setText("kpiPagosMes", "S/ " + total);
   } catch {
@@ -159,15 +141,15 @@ async function loadKPIs(ctx) {
 }
 
 
-// ===============================================
+// ============================================
 // HELPERS
-// ===============================================
-function setText(id, value) {
+// ============================================
+function setText(id, v) {
   const el = document.getElementById(id);
-  if (el) el.textContent = value;
+  if (el) el.textContent = v;
 }
 
-function setStatus(msg) {
+function setStatus(t) {
   const el = document.getElementById("dashStatus");
-  if (el) el.textContent = msg;
+  if (el) el.textContent = t;
 }
