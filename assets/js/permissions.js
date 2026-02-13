@@ -1,8 +1,8 @@
 // ===============================
-// PERMISOS EDUCORP CENTRAL
+// PERMISSIONS EDUCORP CENTRAL
 // ===============================
 
-window.PERMISOS = {
+window.PERMISSIONS = {
 
   superadmin: {
     apps: ["eduadmin","edubank","eduia","eduasist"],
