@@ -1,118 +1,161 @@
-<!DOCTYPE html>
-<html lang="es" data-app="eduadmin">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin | Datos del colegio</title>
+// /eduadmin/js/colegio.js
+document.addEventListener("DOMContentLoaded", async () => {
+  const sb = window.supabaseClient || window.supabase;
+  if (!sb) return alert("Supabase no está disponible");
 
-  <link rel="stylesheet" href="/assets/css/variables.css">
-  <link rel="stylesheet" href="/assets/css/main.css">
-  <link rel="stylesheet" href="/assets/css/components.css">
-</head>
+  const elStatus = document.getElementById("status");
+  const btnRefresh = document.getElementById("btnRefresh");
+  const btnGuardar = document.getElementById("btnGuardar");
+  const btnSubirLogo = document.getElementById("btnSubirLogo");
+  const logoutBtn = document.getElementById("logoutBtn");
 
-<body>
-  <div class="app-shell">
+  const inpNombre = document.getElementById("inpNombre");
+  const fileLogo = document.getElementById("fileLogo");
+  const previewLogo = document.getElementById("previewLogo");
 
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
-      <div class="brand">
-        <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin" />
-        <div class="titles">
-          <b>EduAdmin</b>
-          <span>Administración real</span>
-        </div>
-      </div>
+  const uiSchoolName = document.getElementById("uiSchoolName");
+  const uiYearName = document.getElementById("uiYearName");
+  const uiSchoolLogo = document.getElementById("uiSchoolLogo");
 
-      <!-- ✅ si ya usas ui.js para menú dinámico, puedes reemplazar esto por:
-           <nav class="nav" id="uiSidebarNav"></nav>
-           y llamar renderEduAdminSidebar() desde tu ui.js
-      -->
-      <nav class="nav">
-        <a href="/eduadmin/dashboard.html"><div class="nav-item">Dashboard</div></a>
-        <a href="/eduadmin/pages/colegio.html"><div class="nav-item active">Datos del colegio</div></a>
-        <a href="/eduadmin/pages/usuarios.html"><div class="nav-item">Usuarios y roles</div></a>
-        <a href="/eduadmin/pages/anio.html"><div class="nav-item">Año académico</div></a>
-      </nav>
-    </aside>
+  let ctx = null;
+  let colegio = null;
 
-    <!-- MAIN -->
-    <main class="main">
+  const setStatus = (m) => { if (elStatus) elStatus.textContent = m || ""; };
 
-      <!-- TOPBAR -->
-      <div class="topbar">
-        <div class="left">
-          <div class="school-chip">
-            <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio" />
-            <div class="meta">
-              <b id="uiSchoolName">Cargando colegio…</b>
-              <span id="uiYearName">Cargando año…</span>
-            </div>
-          </div>
-        </div>
+  async function cargar() {
+    setStatus("Cargando contexto…");
+    ctx = await window.getContext(true);
 
-        <div style="display:flex; gap:10px;">
-          <button class="btn btn-secondary" id="btnRefresh">Actualizar</button>
-          <button class="btn btn-secondary" id="logoutBtn">Cerrar sesión</button>
-        </div>
-      </div>
+    // ✅ Topbar
+    if (uiSchoolName) uiSchoolName.textContent = ctx.school_name || "—";
+    if (uiYearName) uiYearName.textContent = ctx.year_name || "Sin año activo";
 
-      <section class="page">
-        <div class="card">
-          <h1 class="h1">Datos del colegio</h1>
-          <p class="muted" id="status">Cargando…</p>
-        </div>
+    // ✅ Cargar colegio
+    setStatus("Cargando colegio…");
+    const { data, error } = await sb
+      .from("colegios")
+      .select("id, nombre, logo_url")
+      .eq("id", ctx.school_id)
+      .single();
 
-        <div class="card">
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px;">
-            <div>
-              <label><b>Nombre del colegio</b></label>
-              <input id="inpNombre" type="text" placeholder="Nombre del colegio" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);" />
-              <div class="muted" style="font-size:12px;margin-top:8px;">
-                Este nombre se muestra en el sistema.
-              </div>
-            </div>
+    if (error) {
+      console.error(error);
+      setStatus("Error cargando colegio: " + error.message);
+      return;
+    }
 
-            <div>
-              <label><b>Logo actual</b></label>
-              <div style="display:flex; align-items:center; gap:12px; margin-top:8px;">
-                <img id="previewLogo" src="/assets/img/educorp.jpeg" alt="Logo" style="width:64px;height:64px;border-radius:14px;object-fit:cover;border:1px solid var(--border);" />
-                <div class="muted" style="font-size:12px;">
-                  Puedes subir un logo desde tu PC y se guardará en Supabase Storage.
-                </div>
-              </div>
-            </div>
-          </div>
+    colegio = data;
 
-          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;" />
+    // ✅ Inputs
+    inpNombre.value = colegio.nombre || "";
 
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px;">
-            <div>
-              <label><b>Subir nuevo logo (desde tu PC)</b></label>
-              <input id="fileLogo" type="file" accept="image/*" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);" />
-              <div class="muted" style="font-size:12px;margin-top:8px;">
-                Formatos: PNG/JPG. Recomendado: 512x512.
-              </div>
-            </div>
+    const logo = colegio.logo_url || "/assets/img/educorp.jpeg";
+    previewLogo.src = logo;
+    if (uiSchoolLogo) uiSchoolLogo.src = logo;
 
-            <div style="display:flex; align-items:end; gap:10px;">
-              <button class="btn btn-primary" id="btnGuardar" style="width:auto;">Guardar cambios</button>
-              <button class="btn btn-secondary" id="btnSubirLogo" style="width:auto;">Subir logo</button>
-            </div>
-          </div>
+    setStatus("Listo ✅");
+  }
 
-          <div class="muted" style="font-size:12px;margin-top:12px;">
-            <b>Nota:</b> El logo reemplaza el campo <code>colegios.logo_url</code>.
-          </div>
-        </div>
-      </section>
+  // ✅ Guardar nombre
+  btnGuardar?.addEventListener("click", async () => {
+    try {
+      btnGuardar.disabled = true;
+      setStatus("Guardando nombre…");
 
-    </main>
-  </div>
+      const nombre = (inpNombre.value || "").trim();
+      if (!nombre) return alert("Ingresa el nombre del colegio");
 
-  <!-- Scripts (orden obligatorio) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/assets/js/supabaseClient.js"></script>
-  <script src="/assets/js/context.js"></script>
-  <script src="/eduadmin/js/colegio.js"></script>
-</body>
-</html>
+      const { error } = await sb
+        .from("colegios")
+        .update({ nombre })
+        .eq("id", ctx.school_id);
+
+      if (error) {
+        console.error(error);
+        return alert("Error guardando: " + error.message);
+      }
+
+      // refrescar contexto (para que se vea en topbar en otras páginas)
+      await window.getContext(true);
+
+      setStatus("Nombre actualizado ✅");
+      await cargar();
+    } catch (e) {
+      alert("Error: " + (e?.message || e));
+    } finally {
+      btnGuardar.disabled = false;
+    }
+  });
+
+  // ✅ Subir logo a Supabase Storage y guardar URL en colegios.logo_url
+  btnSubirLogo?.addEventListener("click", async () => {
+    try {
+      btnSubirLogo.disabled = true;
+
+      const f = fileLogo?.files?.[0];
+      if (!f) return alert("Selecciona un archivo de logo");
+
+      setStatus("Subiendo logo…");
+
+      // ⚠️ Necesitas un bucket en Supabase Storage llamado "logos"
+      // Storage > Buckets > New bucket > name: logos (public)
+      const ext = (f.name.split(".").pop() || "png").toLowerCase();
+      const filePath = `colegios/${ctx.school_id}/logo.${ext}`;
+
+      // sube (upsert true: reemplaza)
+      const { error: upErr } = await sb.storage
+        .from("logos")
+        .upload(filePath, f, { upsert: true, contentType: f.type });
+
+      if (upErr) {
+        console.error(upErr);
+        return alert("Error subiendo logo: " + upErr.message);
+      }
+
+      // obtener URL pública
+      const { data: pub } = sb.storage.from("logos").getPublicUrl(filePath);
+      const publicUrl = pub?.publicUrl;
+
+      if (!publicUrl) return alert("No se pudo obtener URL pública del logo.");
+
+      // guardar URL en DB
+      const { error: dbErr } = await sb
+        .from("colegios")
+        .update({ logo_url: publicUrl })
+        .eq("id", ctx.school_id);
+
+      if (dbErr) {
+        console.error(dbErr);
+        return alert("Error guardando logo_url: " + dbErr.message);
+      }
+
+      // ✅ Reemplaza en pantalla (topbar + preview)
+      previewLogo.src = publicUrl;
+      if (uiSchoolLogo) uiSchoolLogo.src = publicUrl;
+
+      // ✅ refrescar contexto cacheado
+      await window.getContext(true);
+
+      setStatus("Logo actualizado ✅ (reemplazó colegios.logo_url)");
+    } catch (e) {
+      alert("Error: " + (e?.message || e));
+    } finally {
+      btnSubirLogo.disabled = false;
+    }
+  });
+
+  // ✅ refresh
+  btnRefresh?.addEventListener("click", async () => {
+    await cargar();
+  });
+
+  // ✅ logout
+  logoutBtn?.addEventListener("click", async (e) => {
+    e.preventDefault();
+    await sb.auth.signOut().catch(() => {});
+    localStorage.removeItem("EDUCORP_CONTEXT_V1");
+    window.location.href = "/login.html";
+  });
+
+  await cargar();
+});
