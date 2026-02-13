@@ -5,123 +5,114 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Datos del colegio</title>
 
-  <!-- CSS GENERAL -->
-  <link rel="stylesheet" href="../../assets/css/variables.css">
-  <link rel="stylesheet" href="../../assets/css/main.css">
-  <link rel="stylesheet" href="../../assets/css/components.css">
-
-  <style>
-    .grid-2{display:grid;grid-template-columns:1fr 1.2fr;gap:16px}
-    @media(max-width:900px){.grid-2{grid-template-columns:1fr}}
-    .muted{opacity:.7}
-    .logo-preview{width:120px;height:120px;object-fit:contain;border-radius:12px;background:#111;padding:10px}
-  </style>
+  <link rel="stylesheet" href="/assets/css/variables.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
 </head>
 
 <body>
-<div class="app-shell">
+  <div class="app-shell">
 
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="brand">
-      <img src="../../assets/img/educorp.jpeg">
-      <div class="titles">
-        <b>EduAdmin</b>
-        <span>Administración real</span>
-      </div>
-    </div>
-    <nav id="uiSidebarNav" class="nav"></nav>
-  </aside>
-
-  <!-- MAIN -->
-  <main class="main">
-
-    <!-- TOPBAR -->
-    <div class="topbar">
-      <div class="topbar-left">
-        <img id="uiSchoolLogo" src="../../assets/img/eduadmin.jpeg" class="topbar-logo">
-        <div class="topbar-meta">
-          <div id="uiSchoolName" class="topbar-title">Cargando...</div>
-          <div id="uiYearName" class="topbar-subtitle">Año: —</div>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
         </div>
       </div>
 
-      <div class="topbar-actions">
-        <button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
-        <a href="./dashboard.html" class="btn btn-secondary">Volver</a>
-      </div>
-    </div>
+      <!-- ✅ si ya usas ui.js para menú dinámico, puedes reemplazar esto por:
+           <nav class="nav" id="uiSidebarNav"></nav>
+           y llamar renderEduAdminSidebar() desde tu ui.js
+      -->
+      <nav class="nav">
+        <a href="/eduadmin/dashboard.html"><div class="nav-item">Dashboard</div></a>
+        <a href="/eduadmin/pages/colegio.html"><div class="nav-item active">Datos del colegio</div></a>
+        <a href="/eduadmin/pages/usuarios.html"><div class="nav-item">Usuarios y roles</div></a>
+        <a href="/eduadmin/pages/anio.html"><div class="nav-item">Año académico</div></a>
+      </nav>
+    </aside>
 
-    <!-- HEADER -->
-    <div class="page-header">
-      <h1>Datos del colegio</h1>
-      <div id="status" class="status muted">Cargando…</div>
-    </div>
+    <!-- MAIN -->
+    <main class="main">
 
-    <div class="grid-2">
-
-      <!-- FORM -->
-      <div class="card">
-        <h2 class="card-title">Editar colegio</h2>
-
-        <form id="formColegio" class="form">
-          <div class="form-group">
-            <label>Nombre del colegio</label>
-            <input id="nombre" required>
+      <!-- TOPBAR -->
+      <div class="topbar">
+        <div class="left">
+          <div class="school-chip">
+            <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio" />
+            <div class="meta">
+              <b id="uiSchoolName">Cargando colegio…</b>
+              <span id="uiYearName">Cargando año…</span>
+            </div>
           </div>
+        </div>
 
-          <div class="form-group">
-            <label>Dirección</label>
-            <input id="direccion">
-          </div>
-
-          <div class="form-group">
-            <label>Teléfono</label>
-            <input id="telefono">
-          </div>
-
-          <div class="form-group">
-            <label>Logo URL</label>
-            <input id="logo">
-          </div>
-
-          <button class="btn btn-primary" style="width:100%">Guardar cambios</button>
-          <div id="msg" class="muted"></div>
-        </form>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-secondary" id="btnRefresh">Actualizar</button>
+          <button class="btn btn-secondary" id="logoutBtn">Cerrar sesión</button>
+        </div>
       </div>
 
-      <!-- PREVIEW -->
-      <div class="card">
-        <h2 class="card-title">Vista previa</h2>
+      <section class="page">
+        <div class="card">
+          <h1 class="h1">Datos del colegio</h1>
+          <p class="muted" id="status">Cargando…</p>
+        </div>
 
-        <img id="previewLogo" class="logo-preview">
+        <div class="card">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px;">
+            <div>
+              <label><b>Nombre del colegio</b></label>
+              <input id="inpNombre" type="text" placeholder="Nombre del colegio" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);" />
+              <div class="muted" style="font-size:12px;margin-top:8px;">
+                Este nombre se muestra en el sistema.
+              </div>
+            </div>
 
-        <p><b>Nombre:</b> <span id="prevNombre">—</span></p>
-        <p><b>Dirección:</b> <span id="prevDireccion">—</span></p>
-        <p><b>Teléfono:</b> <span id="prevTelefono">—</span></p>
+            <div>
+              <label><b>Logo actual</b></label>
+              <div style="display:flex; align-items:center; gap:12px; margin-top:8px;">
+                <img id="previewLogo" src="/assets/img/educorp.jpeg" alt="Logo" style="width:64px;height:64px;border-radius:14px;object-fit:cover;border:1px solid var(--border);" />
+                <div class="muted" style="font-size:12px;">
+                  Puedes subir un logo desde tu PC y se guardará en Supabase Storage.
+                </div>
+              </div>
+            </div>
+          </div>
 
-        <div class="muted">Estos datos se verán en todo el sistema.</div>
-      </div>
+          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;" />
 
-    </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px;">
+            <div>
+              <label><b>Subir nuevo logo (desde tu PC)</b></label>
+              <input id="fileLogo" type="file" accept="image/*" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);" />
+              <div class="muted" style="font-size:12px;margin-top:8px;">
+                Formatos: PNG/JPG. Recomendado: 512x512.
+              </div>
+            </div>
 
-  </main>
-</div>
+            <div style="display:flex; align-items:end; gap:10px;">
+              <button class="btn btn-primary" id="btnGuardar" style="width:auto;">Guardar cambios</button>
+              <button class="btn btn-secondary" id="btnSubirLogo" style="width:auto;">Subir logo</button>
+            </div>
+          </div>
 
-<!-- SCRIPTS GENERALES -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../../assets/js/supabaseClient.js"></script>
-<script src="../../assets/js/context.js"></script>
-<script src="../../assets/js/ui.js"></script>
+          <div class="muted" style="font-size:12px;margin-top:12px;">
+            <b>Nota:</b> El logo reemplaza el campo <code>colegios.logo_url</code>.
+          </div>
+        </div>
+      </section>
 
-<script>
-document.addEventListener("DOMContentLoaded",()=>{
-  if(window.renderEduAdminSidebar) window.renderEduAdminSidebar();
-});
-</script>
+    </main>
+  </div>
 
-<!-- JS DE ESTA PÁGINA -->
-<script src="/eduadmin/js/colegio.js"></script>
-
+  <!-- Scripts (orden obligatorio) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/assets/js/supabaseClient.js"></script>
+  <script src="/assets/js/context.js"></script>
+  <script src="/eduadmin/js/colegio.js"></script>
 </body>
 </html>
