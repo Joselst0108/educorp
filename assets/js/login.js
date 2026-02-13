@@ -7,7 +7,99 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
+  const btn = // /assets/js/login.js
+document.addEventListener("DOMContentLoaded", () => {
+  const sb = window.supabaseClient || window.supabase;
+  if (!sb) {
+    alert("Supabase no cargó. Revisa supabaseClient.js / CDN.");
+    return;
+  }
+
+  const form = document.getElementById("loginForm");
   const btn = document.getElementById("btnEntrar");
+  const inpUsuario = document.getElementById("inpUsuario");
+  const inpPassword = document.getElementById("inpPassword");
+
+  async function doLogin() {
+    btn.disabled = true;
+
+    try {
+      const dni = (inpUsuario.value || "").trim();
+      const pass = (inpPassword.value || "").trim();
+
+      if (!dni || !pass) {
+        alert("Ingresa DNI y contraseña");
+        return;
+      }
+
+      if (!/^\d{8}$/.test(dni)) {
+        alert("El DNI debe tener 8 dígitos numéricos.");
+        return;
+      }
+
+      const email = `${dni}@educorp.local`;
+
+      const { data, error } = await sb.auth.signInWithPassword({
+        email,
+        password: pass,
+      });
+
+      if (error || !data?.user) {
+        alert("❌ Usuario o contraseña incorrectos");
+        return;
+      }
+
+      // ✅ Construir y guardar el contexto ÚNICO del sistema
+      // context.js ya hace localStorage.setItem("EDUCORP_CONTEXT_V1", ...)
+      if (!window.getContext) {
+        alert("No existe getContext(). Revisa que estés cargando /assets/js/context.js en las páginas internas.");
+      }
+
+      // Forzamos reconstruir desde DB (por si cambió rol/colegio)
+      const ctx = window.getContext ? await window.getContext(true) : null;
+
+      // ✅ Redirección por rol usando el contexto estándar
+      const role = String(ctx?.user_role || "").toLowerCase();
+
+      if (role === "superadmin" || role === "director" || role === "secretaria") {
+        window.location.href = "/eduadmin/dashboard.html";
+        return;
+      }
+
+      if (role === "docente") {
+        window.location.href = "/eduasist/pages/dashboard.html";
+        return;
+      }
+
+      if (role === "alumno" || role === "apoderado") {
+        // puedes mandarlos a EduBank o EduAsist según tu lógica
+        window.location.href = "/edubank/pages/dashboard.html";
+        return;
+      }
+
+      // fallback
+      window.location.href = "/eduadmin/dashboard.html";
+    } catch (e) {
+      alert("Error inesperado: " + (e?.message || e));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // Submit del form
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    doLogin();
+  });
+
+  // Enter en password
+  inpPassword?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      doLogin();
+    }
+  });
+});;
   const inpUsuario = document.getElementById("inpUsuario");
   const inpPassword = document.getElementById("inpPassword");
 
