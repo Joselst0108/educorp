@@ -48,9 +48,7 @@
       height: 200%;
       background: linear-gradient(45deg, transparent, rgba(52, 152, 219, 0.05), transparent);
       transform: rotate(45deg);
-
-      /* ✅ CLAVE: no bloquear clics */
-      pointer-events: none;
+      pointer-events: none; /* no bloquear clics */
     }
 
     .card-header { text-align: center; margin-bottom: 30px; }
@@ -62,6 +60,7 @@
       margin-bottom: 15px;
       border: 3px solid #ecf0f1;
       box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      object-fit: cover;
     }
 
     h1 {
@@ -165,17 +164,6 @@
 
     .link a:hover { color: #2980b9; text-decoration: underline; }
 
-    .small {
-      font-size: 13px;
-      color: #e74c3c;
-      margin-top: 15px;
-      text-align: center;
-      min-height: 20px;
-      font-weight: 500;
-    }
-
-    .success { color: #2ecc71; }
-
     @media (max-width: 480px) {
       .card { padding: 30px 25px; }
       h1 { font-size: 24px; }
@@ -195,7 +183,6 @@
       <h1><i class="fas fa-sign-in-alt"></i> Login EduCorp</h1>
       <p>Ingresa con tu DNI y tu contraseña.</p>
 
-      <!-- ✅ Form normal (sin onsubmit="return false") -->
       <form id="loginForm" autocomplete="on">
         <div class="input-group">
           <i class="fas fa-id-card"></i>
@@ -208,6 +195,7 @@
             autocomplete="username"
             inputmode="numeric"
             pattern="[0-9]{8}"
+            maxlength="8"
             required
           />
         </div>
@@ -226,7 +214,6 @@
         </div>
 
         <div class="row">
-          <!-- ✅ submit mantiene click normal; tu login.js igual escucha click -->
           <button type="submit" id="btnEntrar">
             <i class="fas fa-sign-in-alt"></i> Entrar
           </button>
@@ -237,8 +224,6 @@
             <i class="fas fa-arrow-left"></i> Volver al inicio
           </a>
         </div>
-
-        <div class="small" id="status"></div>
       </form>
     </div>
   </div>
@@ -259,7 +244,7 @@
       }
     });
 
-    // ✅ Evitar que el submit recargue la página (por si el botón es submit)
+    // Evita recargar: el submit llama al click (login.js escucha click)
     document.getElementById("loginForm").addEventListener("submit", (e) => {
       e.preventDefault();
       document.getElementById("btnEntrar").click();
