@@ -1,5 +1,5 @@
 // /assets/js/context.js
-// Contexto global: colegio + año académico activo
+// Contexto global: colegio + año académico activo + usuario/rol
 // Se guarda en localStorage para que todas las páginas lo usen.
 
 (() => {
@@ -16,26 +16,39 @@
     localStorage.removeItem(KEY);
   }
 
+  function readCache() {
+    const cached = localStorage.getItem(KEY);
+    if (!cached) return null;
+    try { return JSON.parse(cached); } catch { return null; }
+  }
+
   async function buildContextFromDB() {
-    const supabase = window.supabaseClient;
+    const supabase = window.supabaseClient || window.supabase;
     if (!supabase) throw new Error("SupabaseClient no está disponible");
 
-    // 1) usuario
-    const { data: u, error: uErr } = await supabase.auth.getUser();
-    if (uErr) throw uErr;
-    if (!u?.user) throw new Error("No hay sesión");
+    // 1) Sesión / usuario
+    const { data: sess, error: sErr } = await supabase.auth.getSession();
+    if (sErr) throw sErr;
+    const user = sess?.session?.user;
+    if (!user) throw new Error("No hay sesión");
 
-    // 2) profile → colegio
+    // 2) Profiles (rol + colegio del usuario)
     const { data: prof, error: pErr } = await supabase
       .from("profiles")
-      .select("colegio_id, full_name, role")
-      .eq("id", u.user.id)
+      .select("id, email, full_name, role, colegio_id, is_active")
+      .eq("id", user.id)
       .single();
 
     if (pErr) throw pErr;
     if (!prof?.colegio_id) throw new Error("El usuario no tiene colegio_id en profiles");
 
-    // 3) colegio info (nombre, logo)
+    if (prof?.is_active === false) {
+      // si quieres, forzar logout
+      await supabase.auth.signOut().catch(() => {});
+      throw new Error("Usuario desactivado");
+    }
+
+    // 3) Colegio info
     const { data: col, error: cErr } = await supabase
       .from("colegios")
       .select("id, nombre, logo_url")
@@ -44,7 +57,7 @@
 
     if (cErr) throw cErr;
 
-    // 4) año activo
+    // 4) Año académico activo (no rompe si no hay)
     const { data: year, error: yErr } = await supabase
       .from("anios_academicos")
       .select("id, nombre, anio, activo")
@@ -54,37 +67,37 @@
 
     if (yErr) throw yErr;
 
+    // 5) Contexto final
     return {
+      // colegio
       school_id: col.id,
       school_name: col.nombre || "",
       school_logo_url: col.logo_url || "",
 
+      // año
       year_id: year?.id || null,
       year_name: year?.nombre || (year?.anio ? String(year.anio) : ""),
       year_anio: year?.anio ?? null,
 
-      user_id: u.user.id,
+      // usuario
+      user_id: user.id,
+      user_email: user.email || prof.email || "",
       user_name: prof.full_name || "",
-      user_role: prof.role || ""
+      user_role: String(prof.role || "").trim().toLowerCase(),
     };
   }
 
   /**
    * getContext(force=false)
-   * - Si existe en cache, lo devuelve.
-   * - Si no existe o force=true, lo reconstruye desde DB.
-   * - Si no hay año activo, NO rompe: retorna ctx con year_id=null.
+   * - Si existe cache y force=false → devuelve cache
+   * - Si no existe o force=true → lo reconstruye de DB y lo guarda
    */
   async function getContext(force = false) {
-    const cached = localStorage.getItem(KEY);
-    if (!force && cached) {
-      try {
-        const ctx = JSON.parse(cached);
-        log("cache ok", ctx);
-        return ctx;
-      } catch {
-        // cache corrupto
-        clearContext();
+    if (!force) {
+      const cached = readCache();
+      if (cached) {
+        log("cache ok", cached);
+        return cached;
       }
     }
 
@@ -96,6 +109,7 @@
 
   /**
    * Requiere año activo; si no hay → redirige a anio.html
+   * Úsalo en páginas que dependan del año (niveles, grados, secciones, notas, etc.)
    */
   async function requireYearOrRedirect() {
     const ctx = await getContext();
