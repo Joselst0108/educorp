@@ -1,121 +1,173 @@
-<!DOCTYPE html>
-<html lang="es" data-app="eduadmin">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin | Dashboard</title>
+// ===============================================
+// EDUADMIN DASHBOARD JS
+// Ruta: /eduadmin/js/dashboard.js
+// Compatible con:
+// - supabaseClient.js
+// - context.js
+// - permissions.js
+// - ui.js (sidebar dinámico)
+// ===============================================
 
-  <link rel="stylesheet" href="/assets/css/variables.css">
-  <link rel="stylesheet" href="/assets/css/main.css">
-  <link rel="stylesheet" href="/assets/css/components.css">
-</head>
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    console.log("🚀 Dashboard iniciando...");
 
-<body>
-  <div class="app-shell">
+    // ==============================
+    // 1. OBTENER CONTEXTO GLOBAL
+    // ==============================
+    const ctx = await window.getContext();
 
-    <!-- SIDEBAR (se renderiza por JS según rol) -->
-    <aside class="sidebar">
-      <div class="brand">
-        <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin" />
-        <div class="titles">
-          <b>EduAdmin</b>
-          <span>Administración real</span>
-        </div>
-      </div>
+    if (!ctx) {
+      alert("No se pudo cargar el contexto");
+      location.href = "/login.html";
+      return;
+    }
 
-      <!-- aquí se monta el menú -->
-      <nav class="nav" id="uiSidebarNav"></nav>
-    </aside>
+    console.log("CTX:", ctx);
 
-    <!-- MAIN -->
-    <main class="main">
+    // ==============================
+    // 2. PINTAR COLEGIO + AÑO
+    // ==============================
+    setText("uiSchoolName", ctx.school_name || "Sin colegio");
+    setText("uiYearName", ctx.year_name || "Sin año");
 
-      <!-- TOPBAR -->
-      <div class="topbar">
-        <div class="left">
-          <div class="school-chip">
-            <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio" />
-            <div class="meta">
-              <b id="uiSchoolName">Cargando colegio…</b>
-              <span id="uiYearName">Cargando año…</span>
-            </div>
-          </div>
-        </div>
+    const logo = document.getElementById("uiSchoolLogo");
+    if (logo && ctx.school_logo_url) {
+      logo.src = ctx.school_logo_url;
+    }
 
-        <div style="display:flex; gap:10px;">
-          <button class="btn btn-secondary" id="btnRefresh" type="button">Actualizar</button>
-          <button class="btn btn-secondary" id="btnLogout" type="button">Cerrar sesión</button>
-        </div>
-      </div>
+    // ==============================
+    // 3. RENDER SIDEBAR DINÁMICO
+    // ==============================
+    if (window.renderEduAdminSidebar) {
+      window.renderEduAdminSidebar();
+    }
 
-      <!-- CONTENT -->
-      <section class="page">
+    // ==============================
+    // 4. CARGAR KPIs
+    // ==============================
+    await loadKPIs(ctx);
 
-        <div class="card">
-          <h1 class="h1">Dashboard</h1>
-          <p class="muted" id="dashStatus">Cargando indicadores…</p>
-        </div>
+    // ==============================
+    // 5. BOTÓN REFRESH
+    // ==============================
+    const btnRefresh = document.getElementById("btnRefresh");
+    if (btnRefresh) {
+      btnRefresh.addEventListener("click", async () => {
+        setStatus("Actualizando...");
+        await loadKPIs(ctx);
+        setStatus("Actualizado");
+      });
+    }
 
-        <!-- KPIs -->
-        <div style="display:grid; grid-template-columns: repeat(12, 1fr); gap:14px;">
-          <div class="card" style="grid-column: span 3;">
-            <div class="muted">Alumnos registrados</div>
-            <div style="font-size:28px;font-weight:800;margin-top:6px;" id="kpiAlumnos">—</div>
-          </div>
+    // ==============================
+    // 6. LOGOUT
+    // ==============================
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", async () => {
+        await window.supabaseClient.auth.signOut();
+        window.clearContext();
+        location.href = "/login.html";
+      });
+    }
 
-          <div class="card" style="grid-column: span 3;">
-            <div class="muted">Aulas / Secciones</div>
-            <div style="font-size:28px;font-weight:800;margin-top:6px;" id="kpiAulas">—</div>
-          </div>
+  } catch (err) {
+    console.error("❌ Error dashboard:", err);
+    alert("Error cargando dashboard");
+  }
+});
 
-          <div class="card" style="grid-column: span 3;">
-            <div class="muted">Matriculados (año)</div>
-            <div style="font-size:28px;font-weight:800;margin-top:6px;" id="kpiMatriculas">—</div>
-          </div>
 
-          <div class="card" style="grid-column: span 3;">
-            <div class="muted">Pagos del mes</div>
-            <div style="font-size:28px;font-weight:800;margin-top:6px;" id="kpiPagosMes">—</div>
-          </div>
+// ===============================================
+// KPI LOADER
+// ===============================================
+async function loadKPIs(ctx) {
+  const sb = window.supabaseClient;
 
-          <div class="card" style="grid-column: span 6;">
-            <div class="muted">Morosos</div>
-            <div style="font-size:28px;font-weight:800;margin-top:6px;" id="kpiMorosos">—</div>
-            <div class="muted" style="margin-top:6px;font-size:12px;" id="morososHint"></div>
-          </div>
+  if (!ctx.school_id) return;
 
-          <div class="card" style="grid-column: span 6;">
-            <div class="muted">Acciones rápidas</div>
-            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
-              <a href="/eduadmin/pages/anio.html"><button class="btn btn-secondary" type="button">Crear año</button></a>
-              <a href="/eduadmin/pages/niveles.html"><button class="btn btn-secondary" type="button">Niveles</button></a>
-              <a href="/eduadmin/pages/grados.html"><button class="btn btn-secondary" type="button">Grados</button></a>
-              <a href="/eduadmin/pages/secciones.html"><button class="btn btn-secondary" type="button">Aulas</button></a>
-              <a href="/eduadmin/pages/alumnos.html"><button class="btn btn-primary" type="button">Registrar alumno</button></a>
-              <a href="/eduadmin/pages/matriculas.html"><button class="btn btn-primary" type="button">Matricular</button></a>
-              <a href="/eduadmin/pages/pagos.html"><button class="btn btn-primary" type="button">Registrar pago</button></a>
-              <a href="/eduadmin/pages/caja.html"><button class="btn btn-secondary" type="button">Caja</button></a>
-            </div>
-          </div>
-        </div>
+  setStatus("Cargando indicadores...");
 
-      </section>
+  // ===============================
+  // ALUMNOS
+  // ===============================
+  try {
+    const { count } = await sb
+      .from("alumnos")
+      .select("*", { count: "exact", head: true })
+      .eq("colegio_id", ctx.school_id);
 
-    </main>
-  </div>
+    setText("kpiAlumnos", count || 0);
+  } catch {
+    setText("kpiAlumnos", 0);
+  }
 
-  <!-- Scripts (orden obligatorio) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/assets/js/supabaseClient.js"></script>
-  <script src="/assets/js/context.js"></script>
+  // ===============================
+  // AULAS / SECCIONES
+  // ===============================
+  try {
+    const { count } = await sb
+      .from("secciones")
+      .select("*", { count: "exact", head: true })
+      .eq("colegio_id", ctx.school_id);
 
-  <!-- tu menú dinámico (renderEduAdminSidebar) -->
-  <script src="/assets/js/ui.js"></script>
+    setText("kpiAulas", count || 0);
+  } catch {
+    setText("kpiAulas", 0);
+  }
 
-  <!-- permisos por rol -->
-  <script src="/assets/js/permissions.js"></script>
+  // ===============================
+  // MATRÍCULAS
+  // ===============================
+  try {
+    const { count } = await sb
+      .from("matriculas")
+      .select("*", { count: "exact", head: true })
+      .eq("colegio_id", ctx.school_id)
+      .eq("anio_academico_id", ctx.year_id);
 
-  <!-- dashboard -->
-  <script src="/eduadmin/js/dashboard.js"></script>
-</body>
-</html>
+    setText("kpiMatriculas", count || 0);
+  } catch {
+    setText("kpiMatriculas", 0);
+  }
+
+  // ===============================
+  // PAGOS DEL MES
+  // ===============================
+  try {
+    const inicioMes = new Date();
+    inicioMes.setDate(1);
+
+    const { data } = await sb
+      .from("pagos")
+      .select("monto")
+      .eq("colegio_id", ctx.school_id)
+      .gte("created_at", inicioMes.toISOString());
+
+    let total = 0;
+    if (data) {
+      data.forEach(p => total += Number(p.monto || 0));
+    }
+
+    setText("kpiPagosMes", "S/ " + total);
+  } catch {
+    setText("kpiPagosMes", "S/ 0");
+  }
+
+  setStatus("Dashboard listo");
+}
+
+
+// ===============================================
+// HELPERS
+// ===============================================
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+function setStatus(msg) {
+  const el = document.getElementById("dashStatus");
+  if (el) el.textContent = msg;
+}
