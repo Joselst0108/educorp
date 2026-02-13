@@ -1,7 +1,6 @@
-/* /assets/css/variables.css */
 :root{
   /* ===== Base profesional (dark) ===== */
-  --bg: #0b1020;                 /* fondo principal */
+  --bg: #0b1020;
   --surface: rgba(255,255,255,.06);
   --surface-2: rgba(255,255,255,.10);
   --text: rgba(255,255,255,.92);
@@ -11,11 +10,12 @@
   --radius: 18px;
   --shadow: 0 18px 50px rgba(0,0,0,.45);
 
-  /* ===== Acentos default (fallback) ===== */
-  --accent: #3b82f6;
-  --accent-2: rgba(59,130,246,.18);
+  /* ===== Acento default (fallback) ===== */
+  --accent: #2563eb;
+  --accent-2: rgba(37, 99, 235, .18);
+  --accent-soft: rgba(37, 99, 235, .12);
 
-  /* ===== Paletas por app (PRO) ===== */
+  /* ===== Paletas PRO por app ===== */
   /* EduAdmin: azul corporativo */
   --eduadmin:  #2563eb; /* blue-600 */
   --eduadmin2: #60a5fa; /* blue-400 */
@@ -24,16 +24,16 @@
   --edubank:   #059669; /* emerald-600 */
   --edubank2:  #34d399; /* emerald-400 */
 
-  /* EduIA: morado/indigo tech */
+  /* EduIA: violeta tech */
   --eduia:     #7c3aed; /* violet-600 */
   --eduia2:    #a78bfa; /* violet-400 */
 
-  /* EduAsist: ámbar/naranja controlado (no chillón) */
+  /* EduAsist: naranja controlado */
   --eduasist:  #ea580c; /* orange-600 */
   --eduasist2: #fb923c; /* orange-400 */
 }
 
-/* ===== Switch por app usando data-app ===== */
+/* Switch por app usando data-app */
 [data-app="eduadmin"]{
   --accent: var(--eduadmin);
   --accent-2: rgba(37, 99, 235, .18);
