@@ -1,5 +1,6 @@
+// /assets/js/ui.js
 // ===============================
-// SIDEBAR EDUCORP (MENÚS POR APP) - COMPLETO
+// SIDEBAR EDUCORP (MENÚS POR APP) - POR ROL
 // - EduAdmin: renderEduAdminSidebar()
 // - EduIA:    renderEduIASidebar()
 // - EduBank:  renderEduBankSidebar()
@@ -8,27 +9,33 @@
 (function () {
   // ---------- Utils ----------
   function isActiveLink(href) {
-    const current = location.pathname;
-    return current === href;
+    return location.pathname === href;
   }
 
-  // ✅ Lee rol desde context.js (localStorage EDUC0RP_CONTEXT_V1)
-  function getUserRole() {
-    const cached = localStorage.getItem("EDUCORP_CONTEXT_V1");
-    if (!cached) return null;
-    try {
-      const ctx = JSON.parse(cached);
-      return String(ctx.user_role || ctx.role || ctx.rol || "").trim().toLowerCase() || null;
-    } catch {
-      return null;
-    }
+  function safeLower(v) {
+    return String(v || "").trim().toLowerCase();
   }
 
-  // ✅ Lee contexto (colegio/año) por si luego lo necesitas
-  function getCTX() {
+  function readCTXFromCache() {
     const cached = localStorage.getItem("EDUCORP_CONTEXT_V1");
     if (!cached) return null;
     try { return JSON.parse(cached); } catch { return null; }
+  }
+
+  async function getCTXSafe() {
+    // 1) intenta cache
+    const cached = readCTXFromCache();
+    if (cached?.user_role) return cached;
+
+    // 2) si existe getContext, reconstruye (sin forzar si no quieres)
+    try {
+      if (window.getContext) {
+        const ctx = await window.getContext(false);
+        return ctx || cached || null;
+      }
+    } catch (_) {}
+
+    return cached || null;
   }
 
   function createLink(label, href) {
@@ -45,12 +52,35 @@
     return a;
   }
 
-  function renderMenu(mountId, menu) {
+  function isItemVisibleByRole(item, role) {
+    const r = safeLower(role);
+
+    // 1) onlyRole (string o array)
+    if (item.onlyRole) {
+      if (Array.isArray(item.onlyRole)) return item.onlyRole.map(safeLower).includes(r);
+      return safeLower(item.onlyRole) === r;
+    }
+
+    // 2) allowRoles (array)
+    if (Array.isArray(item.allowRoles) && item.allowRoles.length) {
+      return item.allowRoles.map(safeLower).includes(r);
+    }
+
+    // 3) denyRoles (array)
+    if (Array.isArray(item.denyRoles) && item.denyRoles.length) {
+      return !item.denyRoles.map(safeLower).includes(r);
+    }
+
+    // 4) sin reglas => visible
+    return true;
+  }
+
+  async function renderMenu(mountId, menu) {
     const mount = document.getElementById(mountId);
     if (!mount) return;
 
-    const role = getUserRole(); // "superadmin", "director", etc.
-    const ctx = getCTX(); // (opcional)
+    const ctx = await getCTXSafe();
+    const role = safeLower(ctx?.user_role);
 
     mount.innerHTML = "";
 
@@ -58,14 +88,11 @@
       const items = cat.items || [];
 
       // Filtrar items por rol
-      const visibleItems = items.filter((it) => {
-        if (!it.onlyRole) return true;
-        if (Array.isArray(it.onlyRole)) return it.onlyRole.includes(role);
-        return role === it.onlyRole;
-      });
+      const visibleItems = items.filter((it) => isItemVisibleByRole(it, role));
 
       if (!visibleItems.length) return;
 
+      // Single
       if (cat.type === "single") {
         visibleItems.forEach((it) => mount.appendChild(createLink(it.label, it.href)));
         return;
@@ -107,6 +134,7 @@
                 await window.supabaseClient.auth.signOut();
               }
             } finally {
+              localStorage.removeItem("EDUCORP_CONTEXT_V1");
               window.location.href = "/login.html";
             }
           });
@@ -141,7 +169,7 @@
   // ======================================================
   // ✅ MENÚ EDUADMIN (con INVENTARIO + PLATAFORMAS)
   // ======================================================
-  window.renderEduAdminSidebar = function () {
+  window.renderEduAdminSidebar = async function () {
     const menu = [
       {
         title: "Dashboard",
@@ -153,8 +181,11 @@
         title: "COLEGIO",
         type: "group",
         items: [
-          { label: "Datos del colegio", href: "/eduadmin/pages/colegio.html" },
-          { label: "Usuarios y roles", href: "/eduadmin/pages/usuarios.html" },
+          // Visible para admin-level
+          { label: "Datos del colegio", href: "/eduadmin/pages/colegio.html", allowRoles: ["superadmin", "director", "secretaria"] },
+          { label: "Usuarios y roles", href: "/eduadmin/pages/usuarios.html", allowRoles: ["superadmin", "director"] },
+
+          // SOLO SUPERADMIN
           { label: "Colegios (SuperAdmin)", href: "/eduadmin/pages/colegios.html", onlyRole: "superadmin" },
         ]
       },
@@ -163,11 +194,11 @@
         title: "ESTRUCTURA ACADÉMICA",
         type: "group",
         items: [
-          { label: "Año académico", href: "/eduadmin/pages/anio.html" },
-          { label: "Niveles", href: "/eduadmin/pages/niveles.html" },
-          { label: "Grados", href: "/eduadmin/pages/grados.html" },
-          { label: "Secciones / Aulas", href: "/eduadmin/pages/secciones.html" },
-          { label: "Vacantes", href: "/eduadmin/pages/vacantes.html" },
+          { label: "Año académico", href: "/eduadmin/pages/anio.html", allowRoles: ["superadmin", "director", "secretaria"] },
+          { label: "Niveles", href: "/eduadmin/pages/niveles.html", allowRoles: ["superadmin", "director", "secretaria"] },
+          { label: "Grados", href: "/eduadmin/pages/grados.html", allowRoles: ["superadmin", "director", "secretaria"] },
+          { label: "Secciones / Aulas", href: "/eduadmin/pages/secciones.html", allowRoles: ["superadmin", "director", "secretaria"] },
+          { label: "Vacantes", href: "/eduadmin/pages/vacantes.html", allowRoles: ["superadmin", "director", "secretaria"] },
         ]
       },
 
@@ -175,10 +206,10 @@
         title: "ESTUDIANTES",
         type: "group",
         items: [
-          { label: "Registrar alumnos", href: "/eduadmin/pages/alumnos.html" },
-          { label: "Lista de alumnos", href: "/eduadmin/pages/lista-alumnos.html" },
-          { label: "Apoderados", href: "/eduadmin/pages/apoderados.html" },
-          { label: "Matrículas", href: "/eduadmin/pages/matriculas.html" },
+          { label: "Registrar alumnos", href: "/eduadmin/pages/alumnos.html", allowRoles: ["superadmin", "director", "secretaria"] },
+          { label: "Lista de alumnos", href: "/eduadmin/pages/lista-alumnos.html", allowRoles: ["superadmin", "director", "secretaria"] },
+          { label: "Apoderados", href: "/eduadmin/pages/apoderados.html", allowRoles: ["superadmin", "director", "secretaria"] },
+          { label: "Matrículas", href: "/eduadmin/pages/matriculas.html", allowRoles: ["superadmin", "director", "secretaria"] },
         ]
       },
 
@@ -186,43 +217,33 @@
         title: "FINANZAS REALES",
         type: "group",
         items: [
-          { label: "Conceptos de pago", href: "/eduadmin/pages/conceptos-pago.html" },
-          { label: "Registrar pagos", href: "/eduadmin/pages/pagos.html" },
-          { label: "Caja", href: "/eduadmin/pages/caja.html" },
-          { label: "Morosidad", href: "/eduadmin/pages/morosidad.html" },
-          { label: "Reportes financieros", href: "/eduadmin/pages/reportes-financieros.html" },
+          { label: "Conceptos de pago", href: "/eduadmin/pages/conceptos-pago.html", allowRoles: ["superadmin", "director", "secretaria"] },
+          { label: "Registrar pagos", href: "/eduadmin/pages/pagos.html", allowRoles: ["superadmin", "director", "secretaria"] },
+          { label: "Caja", href: "/eduadmin/pages/caja.html", allowRoles: ["superadmin", "director", "secretaria"] },
+          { label: "Morosidad", href: "/eduadmin/pages/morosidad.html", allowRoles: ["superadmin", "director", "secretaria"] },
+          { label: "Reportes financieros", href: "/eduadmin/pages/reportes-financieros.html", allowRoles: ["superadmin", "director"] },
         ]
       },
 
-      // ✅ NUEVO: INVENTARIO
       {
         title: "INVENTARIO",
         type: "group",
         items: [
-          { label: "Productos", href: "/eduadmin/pages/inventario-productos.html" },
-          { label: "Entradas / Salidas", href: "/eduadmin/pages/inventario-movimientos.html" },
-          { label: "Kardex", href: "/eduadmin/pages/inventario-kardex.html" },
-          { label: "Stock mínimo", href: "/eduadmin/pages/inventario-alertas.html" },
+          { label: "Productos", href: "/eduadmin/pages/inventario-productos.html", allowRoles: ["superadmin", "director", "secretaria"] },
+          { label: "Entradas / Salidas", href: "/eduadmin/pages/inventario-movimientos.html", allowRoles: ["superadmin", "director", "secretaria"] },
+          { label: "Kardex", href: "/eduadmin/pages/inventario-kardex.html", allowRoles: ["superadmin", "director"] },
+          { label: "Stock mínimo", href: "/eduadmin/pages/inventario-alertas.html", allowRoles: ["superadmin", "director"] },
         ]
       },
 
-      // ✅ NUEVO: PLATAFORMAS (links a otras apps)
       {
         title: "PLATAFORMAS",
         type: "group",
         items: [
+          // estos links pueden verlos todos los roles, o restringe si quieres
           { label: "EduIA", href: "/eduia/pages/dashboard.html" },
           { label: "EduBank", href: "/edubank/pages/dashboard.html" },
           { label: "EduAsist", href: "/eduasist/pages/dashboard.html" },
-        ]
-      },
-
-      {
-        title: "REPORTES",
-        type: "group",
-        items: [
-          { label: "Alumnos por grado", href: "/eduadmin/pages/reporte-alumnos-grado.html" },
-          { label: "Matrículas por aula", href: "/eduadmin/pages/reporte-matriculas-aula.html" },
         ]
       },
 
@@ -230,103 +251,89 @@
         title: "SISTEMA",
         type: "group",
         items: [
-          { label: "Configuración", href: "/eduadmin/pages/configuracion.html" },
+          { label: "Configuración", href: "/eduadmin/pages/configuracion.html", allowRoles: ["superadmin", "director"] },
           { label: "Cerrar sesión", href: "#logout" },
         ]
       }
     ];
 
-    renderMenu("uiSidebarNav", menu);
+    await renderMenu("uiSidebarNav", menu);
   };
 
   // ======================================================
-  // ✅ MENÚ EDUIA (placeholder listo)
+  // ✅ MENÚ EDUIA
   // ======================================================
-  window.renderEduIASidebar = function () {
+  window.renderEduIASidebar = async function () {
     const menu = [
       { title: "Dashboard", type: "single", items: [{ label: "Dashboard", href: "/eduia/pages/dashboard.html" }] },
       {
         title: "IA DOCENTE",
         type: "group",
         items: [
-          { label: "Sesiones", href: "/eduia/pages/sesiones.html" },
-          { label: "Programaciones", href: "/eduia/pages/programaciones.html" },
+          { label: "Sesiones", href: "/eduia/pages/sesiones.html", denyRoles: ["alumno", "apoderado"] },
+          { label: "Programaciones", href: "/eduia/pages/programaciones.html", denyRoles: ["alumno", "apoderado"] },
           { label: "Banco de recursos", href: "/eduia/pages/recursos.html" },
         ]
       },
       {
-        title: "PLATAFORMAS",
+        title: "SISTEMA",
         type: "group",
-        items: [
-          { label: "EduAdmin", href: "/eduadmin/pages/dashboard.html" },
-          { label: "EduBank", href: "/edubank/pages/dashboard.html" },
-          { label: "EduAsist", href: "/eduasist/pages/dashboard.html" },
-        ]
-      },
-      { title: "SISTEMA", type: "group", items: [{ label: "Cerrar sesión", href: "#logout" }] }
+        items: [{ label: "Cerrar sesión", href: "#logout" }]
+      }
     ];
-
-    renderMenu("uiSidebarNav", menu);
+    await renderMenu("uiSidebarNav", menu);
   };
 
   // ======================================================
-  // ✅ MENÚ EDUBANK (placeholder listo)
+  // ✅ MENÚ EDUBANK
   // ======================================================
-  window.renderEduBankSidebar = function () {
+  window.renderEduBankSidebar = async function () {
     const menu = [
       { title: "Dashboard", type: "single", items: [{ label: "Dashboard", href: "/edubank/pages/dashboard.html" }] },
       {
         title: "CUENTAS",
         type: "group",
         items: [
-          { label: "Mis pagos", href: "/edubank/pages/mis-pagos.html" },
-          { label: "Estado de cuenta", href: "/edubank/pages/estado-cuenta.html" },
-          { label: "Notificaciones", href: "/edubank/pages/notificaciones.html" },
+          { label: "Mis pagos", href: "/edubank/pages/mis-pagos.html", allowRoles: ["alumno", "apoderado"] },
+          { label: "Estado de cuenta", href: "/edubank/pages/estado-cuenta.html", allowRoles: ["alumno", "apoderado"] },
+          { label: "Notificaciones", href: "/edubank/pages/notificaciones.html", allowRoles: ["alumno", "apoderado"] },
+
+          // admin-level también podría ver reportes bank:
+          { label: "Pagos (Admin)", href: "/edubank/pages/pagos-admin.html", allowRoles: ["superadmin", "director", "secretaria"] },
         ]
       },
       {
-        title: "PLATAFORMAS",
+        title: "SISTEMA",
         type: "group",
-        items: [
-          { label: "EduAdmin", href: "/eduadmin/pages/dashboard.html" },
-          { label: "EduIA", href: "/eduia/pages/dashboard.html" },
-          { label: "EduAsist", href: "/eduasist/pages/dashboard.html" },
-        ]
-      },
-      { title: "SISTEMA", type: "group", items: [{ label: "Cerrar sesión", href: "#logout" }] }
+        items: [{ label: "Cerrar sesión", href: "#logout" }]
+      }
     ];
-
-    renderMenu("uiSidebarNav", menu);
+    await renderMenu("uiSidebarNav", menu);
   };
 
   // ======================================================
-  // ✅ MENÚ EDUASIST (placeholder listo)
+  // ✅ MENÚ EDUASIST
   // ======================================================
-  window.renderEduAsistSidebar = function () {
+  window.renderEduAsistSidebar = async function () {
     const menu = [
       { title: "Dashboard", type: "single", items: [{ label: "Dashboard", href: "/eduasist/pages/dashboard.html" }] },
       {
         title: "ASISTENCIA",
         type: "group",
         items: [
-          { label: "Tomar asistencia", href: "/eduasist/pages/asistencia.html" },
-          { label: "Notas", href: "/eduasist/pages/notas.html" },
-          { label: "Reportes", href: "/eduasist/pages/reportes.html" },
+          { label: "Tomar asistencia", href: "/eduasist/pages/asistencia.html", denyRoles: ["alumno", "apoderado"] },
+          { label: "Notas", href: "/eduasist/pages/notas.html", denyRoles: ["alumno", "apoderado"] },
+          { label: "Mis notas", href: "/eduasist/pages/mis-notas.html", allowRoles: ["alumno"] },
+          { label: "Mis asistencias", href: "/eduasist/pages/mis-asistencias.html", allowRoles: ["alumno"] },
+          { label: "Reportes", href: "/eduasist/pages/reportes.html", allowRoles: ["superadmin", "director"] },
         ]
       },
       {
-        title: "PLATAFORMAS",
+        title: "SISTEMA",
         type: "group",
-        items: [
-          { label: "EduAdmin", href: "/eduadmin/pages/dashboard.html" },
-          { label: "EduIA", href: "/eduia/pages/dashboard.html" },
-          { label: "EduBank", href: "/edubank/pages/dashboard.html" },
-        ]
-      },
-      { title: "SISTEMA", type: "group", items: [{ label: "Cerrar sesión", href: "#logout" }] }
+        items: [{ label: "Cerrar sesión", href: "#logout" }]
+      }
     ];
-
-    renderMenu("uiSidebarNav", menu);
+    await renderMenu("uiSidebarNav", menu);
   };
-
 })();
