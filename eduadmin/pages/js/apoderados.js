@@ -1,378 +1,441 @@
-/* =====================================================
-   ✅ EDUADMIN | APODERADOS (basado en tu plantilla)
-   Archivo: /eduadmin/pages/js/apoderados.js  (según tu HTML)
-   (Ojo: tu HTML lo llama como ../js/apoderados.js)
-===================================================== */
-
+// /eduadmin/pages/js/apoderados.js
 document.addEventListener("DOMContentLoaded", async () => {
-  const supabase = window.supabaseClient;
-
-  if (!supabase) {
-    alert("Supabase no cargó");
-    return;
-  }
-
-  /* ===============================
-     CONTEXTO GLOBAL
-  =============================== */
-  let ctx = null;
-
   try {
-    ctx = await window.getContext();
+    await initApoderados();
   } catch (e) {
-    console.error("Error context:", e);
+    console.error("Apoderados init error:", e);
+    alert("Error cargando apoderados. Revisa consola.");
   }
+});
 
-  const colegioId = ctx?.school_id;
-  const userRole = ctx?.user_role || "";
+function getSB() {
+  return window.supabaseClient || window.supabase;
+}
 
-  if (!colegioId) {
-    alert("No hay colegio seleccionado");
-    window.location.href = "./dashboard.html";
-    return;
+function esc(v) {
+  return String(v ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function showPerm(msg) {
+  const box = document.getElementById("permMsg");
+  if (!box) return;
+  box.style.display = "inline-flex";
+  box.textContent = msg;
+}
+
+function setText(id, v) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = v || "";
+}
+
+function canWrite(role) {
+  const r = String(role || "").toLowerCase();
+  return r === "superadmin" || r === "director" || r === "secretaria";
+}
+
+async function initApoderados() {
+  const sb = getSB();
+  if (!sb) throw new Error("Supabase no cargó");
+
+  // ✅ Para apoderados NO obligo year_id, pero lo uso para selects (niveles/secciones suelen depender de año)
+  const ctx = (window.getContext ? await window.getContext(false) : null) || null;
+  if (!ctx?.school_id) throw new Error("No hay colegio en contexto");
+
+  const colegioId = ctx.school_id;
+  const yearId = ctx.year_id || null;
+
+  const role = String(ctx.user_role || ctx.role || "").toLowerCase();
+
+  // Topbar
+  setText("uiSchoolName", ctx.school_name || "Colegio");
+  setText("uiYearName", yearId ? `Año: ${ctx.year_name || "—"}` : "Año: —");
+  const logo = document.getElementById("uiSchoolLogo");
+  if (logo) logo.src = ctx.school_logo_url || "/assets/img/eduadmin.jpeg";
+
+  setText("pillContext", `Contexto: ${ctx.school_name || "—"} / ${ctx.year_name || "—"}`);
+  setText("pillRole", `Rol: ${role || "—"}`);
+
+  if (!canWrite(role)) {
+    showPerm("🔒 Solo lectura");
+    document.getElementById("btnCrear")?.setAttribute("disabled", "disabled");
+    document.getElementById("btnAsignar")?.setAttribute("disabled", "disabled");
   }
-
-  /* ===============================
-     UI HEADER (GENERAL)
-  =============================== */
-  const elSchoolName = document.getElementById("uiSchoolName");
-  const elYearName = document.getElementById("uiYearName");
-
-  if (elSchoolName) elSchoolName.textContent = ctx?.school_name || "Colegio";
-  if (elYearName) elYearName.textContent = "Año: " + (ctx?.year_name || "—");
 
   const status = document.getElementById("status");
   const setStatus = (t) => status && (status.textContent = t);
 
-  /* ===============================
-     PERMISOS POR ROL
-  =============================== */
-  const canWrite =
-    userRole === "superadmin" ||
-    userRole === "director" ||
-    userRole === "secretaria";
+  const saveStatus = document.getElementById("saveStatus");
+  const setSave = (t) => saveStatus && (saveStatus.textContent = t || "");
 
-  if (!canWrite) console.warn("Modo solo lectura");
+  const assignStatus = document.getElementById("assignStatus");
+  const setAssign = (t) => assignStatus && (assignStatus.textContent = t || "");
 
-  /* =====================================================
-     🔴 CÓDIGO DE LA PÁGINA: APODERADOS
-  ===================================================== */
-
-  // ---- ELEMENTOS
+  // DOM
   const els = {
-    form: () => document.getElementById("formApoderado"),
-    dni: () => document.getElementById("dni"),
-    nombres: () => document.getElementById("nombres"),
-    apellidos: () => document.getElementById("apellidos"),
-    telefono: () => document.getElementById("telefono"),
-    parentesco: () => document.getElementById("parentesco"),
-    activo: () => document.getElementById("activo"),
+    dni: () => document.getElementById("inpDni"),
+    telefono: () => document.getElementById("inpTelefono"),
+    nombres: () => document.getElementById("inpNombres"),
+    apellidos: () => document.getElementById("inpApellidos"),
+    correo: () => document.getElementById("inpCorreo"),
+    direccion: () => document.getElementById("inpDireccion"),
+    btnCrear: () => document.getElementById("btnCrear"),
     btnLimpiar: () => document.getElementById("btnLimpiar"),
     btnRefresh: () => document.getElementById("btnRefresh"),
-    msg: () => document.getElementById("msg"),
 
-    buscar: () => document.getElementById("buscar"),
-    filtroParentesco: () => document.getElementById("filtroParentesco"),
+    buscar: () => document.getElementById("inpBuscar"),
     tbody: () => document.getElementById("tbodyApoderados"),
-    count: () => document.getElementById("count"),
+
+    selNivel: () => document.getElementById("selNivel"),
+    selGrado: () => document.getElementById("selGrado"),
+    selSeccion: () => document.getElementById("selSeccion"),
+    selAlumno: () => document.getElementById("selAlumno"),
+    selApoderado: () => document.getElementById("selApoderado"),
+    btnAsignar: () => document.getElementById("btnAsignar"),
   };
 
-  const setMsg = (t, type = "info") => {
-    const box = els.msg();
-    if (!box) return;
-    box.textContent = t || "";
-    box.style.opacity = "1";
-    box.style.marginTop = "10px";
-    // sin romper tu CSS: solo un poquito de color con inline suave
-    box.style.color =
-      type === "error" ? "#ff8b8b" : type === "ok" ? "#86efac" : "#cbd5e1";
-  };
-
-  const esc = (s) =>
-    String(s ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#39;");
-
-  const isDniOk = (dni) => /^\d{8}$/.test(String(dni || "").trim());
-
-  // ---- DATA (cache local de apoderados)
   let CACHE = [];
 
-  // ---- RENDER TABLA
-  const render = (list) => {
+  function clearForm() {
+    ["dni","telefono","nombres","apellidos","correo","direccion"].forEach(k => {
+      const m = ({
+        dni:"inpDni", telefono:"inpTelefono", nombres:"inpNombres", apellidos:"inpApellidos",
+        correo:"inpCorreo", direccion:"inpDireccion"
+      })[k];
+      const el = document.getElementById(m);
+      if (el) el.value = "";
+    });
+    setSave("");
+  }
+
+  function render(list) {
     const tbody = els.tbody();
     if (!tbody) return;
 
-    const count = els.count();
-    if (count) count.textContent = String(list.length);
-
-    if (!list.length) {
-      tbody.innerHTML = `<tr><td colspan="6" class="muted">Sin registros.</td></tr>`;
+    if (!list?.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="muted">Sin apoderados</td></tr>`;
       return;
     }
 
-    tbody.innerHTML = list
-      .map((a) => {
-        const id = a.id;
-        const dni = a.dni || "";
-        const full = `${a.apellidos || ""} ${a.nombres || ""}`.trim();
-        const tel = a.telefono || "—";
-        const par = a.parentesco || "—";
-        const activo = !!a.activo;
+    tbody.innerHTML = list.map(a => {
+      const full = `${a.apellidos || ""} ${a.nombres || ""}`.trim();
+      return `
+        <tr>
+          <td>${esc(a.dni || "—")}</td>
+          <td>${esc(full || "—")}</td>
+          <td>${esc(a.telefono || "—")}</td>
+          <td>${esc(a.correo || "—")}</td>
+          <td style="text-align:center;">
+            <button class="btn btn-secondary btn-pick" data-id="${esc(a.id)}">Usar</button>
+          </td>
+        </tr>
+      `;
+    }).join("");
 
-        return `
-          <tr>
-            <td>${esc(dni)}</td>
-            <td>${esc(full || "—")}</td>
-            <td>${esc(tel)}</td>
-            <td>${esc(par)}</td>
-            <td>${activo ? "Sí" : "No"}</td>
-            <td style="text-align:right;">
-              <div class="table-actions">
-                <button
-                  class="btn btn-secondary btn-toggle"
-                  data-id="${esc(id)}"
-                  ${canWrite ? "" : "disabled"}
-                  title="Activar / Desactivar"
-                >
-                  ${activo ? "Desactivar" : "Activar"}
-                </button>
-
-                <button
-                  class="btn btn-secondary btn-delete"
-                  data-id="${esc(id)}"
-                  ${canWrite ? "" : "disabled"}
-                  title="Eliminar"
-                >
-                  Eliminar
-                </button>
-              </div>
-            </td>
-          </tr>
-        `;
-      })
-      .join("");
-  };
-
-  // ---- FILTRO + RENDER
-  const applyFilters = () => {
-    const q = (els.buscar()?.value || "").trim().toLowerCase();
-    const par = (els.filtroParentesco()?.value || "").trim();
-
-    let arr = [...CACHE];
-
-    if (par) arr = arr.filter((x) => String(x.parentesco || "") === par);
-
-    if (q) {
-      arr = arr.filter((x) => {
-        const dni = String(x.dni || "").toLowerCase();
-        const nom = String(x.nombres || "").toLowerCase();
-        const ape = String(x.apellidos || "").toLowerCase();
-        return dni.includes(q) || nom.includes(q) || ape.includes(q);
+    tbody.querySelectorAll(".btn-pick").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.id;
+        const sel = els.selApoderado();
+        if (sel && id) sel.value = id;
+        setAssign("Apoderado seleccionado ✅");
       });
-    }
+    });
+  }
 
-    render(arr);
-  };
+  function applyFilter() {
+    const q = (els.buscar()?.value || "").trim().toLowerCase();
+    if (!q) return render(CACHE);
 
-  // ---- CARGAR DESDE SUPABASE
-  const loadApoderados = async () => {
+    const filtered = CACHE.filter(a => {
+      const s = `${a.dni||""} ${a.nombres||""} ${a.apellidos||""} ${a.telefono||""}`.toLowerCase();
+      return s.includes(q);
+    });
+
+    render(filtered);
+  }
+
+  async function loadApoderados() {
     setStatus("Cargando apoderados…");
-    setMsg("");
+    const tbody = els.tbody();
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5">Cargando...</td></tr>`;
 
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from("apoderados")
-      .select("id, school_id, dni, nombres, apellidos, telefono, parentesco, activo, created_at")
-      .eq("school_id", colegioId)
-      .order("apellidos", { ascending: true });
+      .select("id, dni, nombres, apellidos, telefono, correo, direccion, created_at")
+      .eq("colegio_id", colegioId)
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error(error);
-      setStatus("Error al cargar");
-      setMsg("Error cargando apoderados: " + (error.message || ""), "error");
+      setStatus("Error cargando apoderados");
+      if (tbody) tbody.innerHTML = `<tr><td colspan="5">Error</td></tr>`;
       return;
     }
 
     CACHE = data || [];
-    applyFilters();
-    setStatus("Listo");
-  };
+    applyFilter();
 
-  // ---- LIMPIAR FORM
-  const clearForm = () => {
-    els.dni() && (els.dni().value = "");
-    els.nombres() && (els.nombres().value = "");
-    els.apellidos() && (els.apellidos().value = "");
-    els.telefono() && (els.telefono().value = "");
-    els.parentesco() && (els.parentesco().value = "");
-    els.activo() && (els.activo().checked = true);
-    setMsg("");
-  };
-
-  // ---- GUARDAR (INSERT / UPSERT)
-  const saveApoderado = async () => {
-    if (!canWrite) {
-      setMsg("No tienes permisos para registrar.", "error");
-      return;
+    // llenar selector apoderados
+    const sel = els.selApoderado();
+    if (sel) {
+      const cur = sel.value;
+      sel.innerHTML = `<option value="">Seleccione un apoderado…</option>` + CACHE.map(a => {
+        const full = `${a.apellidos||""} ${a.nombres||""}`.trim();
+        return `<option value="${esc(a.id)}">${esc(full)}${a.dni ? " - " + esc(a.dni) : ""}</option>`;
+      }).join("");
+      if (cur) sel.value = cur;
     }
 
-    const dni = (els.dni()?.value || "").trim();
+    setStatus("Listo");
+  }
+
+  async function createApoderado() {
+    if (!canWrite(role)) return alert("No tienes permisos.");
+
+    const dni = (els.dni()?.value || "").replace(/\D/g, "").trim();
+    const telefono = (els.telefono()?.value || "").trim();
     const nombres = (els.nombres()?.value || "").trim();
     const apellidos = (els.apellidos()?.value || "").trim();
-    const telefono = (els.telefono()?.value || "").trim();
-    const parentesco = (els.parentesco()?.value || "").trim();
-    const activo = !!els.activo()?.checked;
+    const correo = (els.correo()?.value || "").trim();
+    const direccion = (els.direccion()?.value || "").trim();
 
-    if (!isDniOk(dni)) {
-      setMsg("DNI inválido. Debe tener 8 dígitos.", "error");
-      els.dni()?.focus();
-      return;
-    }
-    if (!nombres || !apellidos) {
-      setMsg("Completa nombres y apellidos.", "error");
-      return;
-    }
-    if (!parentesco) {
-      setMsg("Selecciona parentesco.", "error");
-      return;
-    }
+    if (!nombres || !apellidos) return alert("Faltan nombres o apellidos.");
+    if (dni && dni.length < 8) return alert("DNI muy corto.");
 
-    setStatus("Guardando…");
+    setSave("Guardando...");
 
-    // ✅ UPSERT por (school_id, dni) si tienes unique constraint.
-    // Si no tienes unique, esto igual insertará y duplicará.
+    // opcional: evitar DNI duplicado (si tu índice unique está activo)
     const payload = {
-      school_id: colegioId,
-      dni,
+      colegio_id: colegioId,
+      dni: dni || null,
+      telefono: telefono || null,
       nombres,
       apellidos,
-      telefono: telefono || null,
-      parentesco,
-      activo,
+      correo: correo || null,
+      direccion: direccion || null,
     };
 
-    const { error } = await supabase
-      .from("apoderados")
-      .upsert(payload, { onConflict: "school_id,dni" });
+    const { error } = await sb.from("apoderados").insert(payload);
 
     if (error) {
       console.error(error);
-      setStatus("Error");
-      setMsg("No se pudo guardar: " + (error.message || ""), "error");
+      setSave("Error");
+      alert(error.message || "No se pudo guardar.");
       return;
     }
 
-    setMsg("✅ Apoderado guardado.", "ok");
-    setStatus("Listo");
+    setSave("Guardado ✅");
     clearForm();
     await loadApoderados();
-  };
+  }
 
-  // ---- TOGGLE ACTIVO
-  const toggleActivo = async (id) => {
-    if (!canWrite) return;
+  // ========= SELECTS (Nivel -> Grado -> Sección -> Alumno) =========
 
-    const row = CACHE.find((x) => x.id === id);
-    if (!row) return;
+  async function cargarNiveles() {
+    const selNivel = els.selNivel();
+    const selGrado = els.selGrado();
+    const selSeccion = els.selSeccion();
+    const selAlumno = els.selAlumno();
 
-    const next = !row.activo;
-    setStatus(next ? "Activando…" : "Desactivando…");
+    if (!selNivel || !selGrado || !selSeccion || !selAlumno) return;
 
-    const { error } = await supabase
-      .from("apoderados")
-      .update({ activo: next })
-      .eq("id", id)
-      .eq("school_id", colegioId);
+    selNivel.innerHTML = `<option value="">Cargando...</option>`;
+    selGrado.innerHTML = `<option value="">Seleccione nivel</option>`;
+    selGrado.disabled = true;
+    selSeccion.innerHTML = `<option value="">Seleccione grado</option>`;
+    selSeccion.disabled = true;
+    selAlumno.innerHTML = `<option value="">Seleccione sección</option>`;
+    selAlumno.disabled = true;
 
+    // ✅ niveles por colegio y (si aplica) por año
+    let q = sb.from("niveles").select("id,nombre").eq("colegio_id", colegioId).order("nombre");
+    if (yearId) q = q.eq("anio_academico_id", yearId);
+
+    const { data, error } = await q;
     if (error) {
       console.error(error);
-      setStatus("Error");
-      setMsg("No se pudo actualizar: " + (error.message || ""), "error");
+      selNivel.innerHTML = `<option value="">Error</option>`;
       return;
     }
 
-    setStatus("Listo");
-    await loadApoderados();
-  };
+    selNivel.innerHTML = `<option value="">Seleccione</option>` + (data || [])
+      .map(n => `<option value="${esc(n.id)}">${esc(n.nombre)}</option>`)
+      .join("");
 
-  // ---- DELETE
-  const deleteRow = async (id) => {
-    if (!canWrite) return;
+    selNivel.onchange = async () => {
+      const nivelId = selNivel.value;
 
-    if (!confirm("¿Eliminar este apoderado?")) return;
+      selGrado.innerHTML = `<option value="">Seleccione nivel</option>`;
+      selGrado.disabled = true;
+      selSeccion.innerHTML = `<option value="">Seleccione grado</option>`;
+      selSeccion.disabled = true;
+      selAlumno.innerHTML = `<option value="">Seleccione sección</option>`;
+      selAlumno.disabled = true;
 
-    setStatus("Eliminando…");
+      if (!nivelId) return;
+      await cargarGrados(nivelId);
+    };
+  }
 
-    const { error } = await supabase
-      .from("apoderados")
-      .delete()
-      .eq("id", id)
-      .eq("school_id", colegioId);
+  async function cargarGrados(nivelId) {
+    const selGrado = els.selGrado();
+    const selSeccion = els.selSeccion();
+    const selAlumno = els.selAlumno();
+    if (!selGrado || !selSeccion || !selAlumno) return;
+
+    selGrado.disabled = false;
+    selGrado.innerHTML = `<option value="">Cargando...</option>`;
+    selSeccion.innerHTML = `<option value="">Seleccione grado</option>`;
+    selSeccion.disabled = true;
+    selAlumno.innerHTML = `<option value="">Seleccione sección</option>`;
+    selAlumno.disabled = true;
+
+    const { data, error } = await sb
+      .from("grados")
+      .select("id,nombre,orden")
+      .eq("nivel_id", nivelId)
+      .order("orden", { ascending: true });
 
     if (error) {
       console.error(error);
-      setStatus("Error");
-      setMsg("No se pudo eliminar: " + (error.message || ""), "error");
+      selGrado.innerHTML = `<option value="">Error</option>`;
       return;
     }
 
-    setStatus("Listo");
-    setMsg("✅ Eliminado.", "ok");
-    await loadApoderados();
-  };
+    selGrado.innerHTML = `<option value="">Seleccione</option>` + (data || [])
+      .map(g => `<option value="${esc(g.id)}">${esc(g.nombre)}</option>`)
+      .join("");
 
-  // ---- EVENTOS
-  els.form()?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    await saveApoderado();
-  });
+    selGrado.onchange = async () => {
+      const gradoId = selGrado.value;
 
-  els.btnLimpiar()?.addEventListener("click", () => clearForm());
+      selSeccion.innerHTML = `<option value="">Seleccione grado</option>`;
+      selSeccion.disabled = true;
+      selAlumno.innerHTML = `<option value="">Seleccione sección</option>`;
+      selAlumno.disabled = true;
 
+      if (!gradoId) return;
+      await cargarSecciones(gradoId);
+    };
+  }
+
+  async function cargarSecciones(gradoId) {
+    const selSeccion = els.selSeccion();
+    const selAlumno = els.selAlumno();
+    if (!selSeccion || !selAlumno) return;
+
+    selSeccion.disabled = false;
+    selSeccion.innerHTML = `<option value="">Cargando...</option>`;
+    selAlumno.innerHTML = `<option value="">Seleccione sección</option>`;
+    selAlumno.disabled = true;
+
+    const { data, error } = await sb
+      .from("secciones")
+      .select("id,nombre")
+      .eq("colegio_id", colegioId)
+      .eq("anio_academico_id", yearId)   // ✅ secciones sí dependen del año
+      .eq("grado_id", gradoId)
+      .order("nombre");
+
+    if (error) {
+      console.error(error);
+      selSeccion.innerHTML = `<option value="">Error</option>`;
+      return;
+    }
+
+    selSeccion.innerHTML = `<option value="">Seleccione</option>` + (data || [])
+      .map(s => `<option value="${esc(s.id)}">${esc(s.nombre)}</option>`)
+      .join("");
+
+    selSeccion.onchange = async () => {
+      const seccionId = selSeccion.value;
+      selAlumno.innerHTML = `<option value="">Seleccione sección</option>`;
+      selAlumno.disabled = true;
+      if (!seccionId) return;
+
+      // ✅ Por ahora: alumnos del colegio (porque tu tabla alumnos NO tiene seccion_id)
+      // Si tienes tabla matriculas: aquí lo cambiamos para traer solo alumnos matriculados en esa sección.
+      await cargarAlumnosDelColegio();
+    };
+  }
+
+  async function cargarAlumnosDelColegio() {
+    const selAlumno = els.selAlumno();
+    if (!selAlumno) return;
+
+    selAlumno.disabled = false;
+    selAlumno.innerHTML = `<option value="">Cargando...</option>`;
+
+    const { data, error } = await sb
+      .from("alumnos")
+      .select("id, dni, apellidos, nombres")
+      .eq("colegio_id", colegioId)
+      .order("apellidos", { ascending: true })
+      .limit(2000);
+
+    if (error) {
+      console.error(error);
+      selAlumno.innerHTML = `<option value="">Error</option>`;
+      return;
+    }
+
+    selAlumno.innerHTML = `<option value="">Seleccione alumno</option>` + (data || []).map(a => {
+      const full = `${a.apellidos || ""} ${a.nombres || ""}`.trim();
+      const tag = `${full}${a.dni ? " - " + a.dni : ""}`;
+      return `<option value="${esc(a.id)}">${esc(tag)}</option>`;
+    }).join("");
+  }
+
+  async function asignarApoderado() {
+    if (!canWrite(role)) return alert("No tienes permisos.");
+
+    const alumnoId = els.selAlumno()?.value || "";
+    const apoderadoId = els.selApoderado()?.value || "";
+
+    if (!alumnoId) return alert("Selecciona un alumno.");
+    if (!apoderadoId) return alert("Selecciona un apoderado.");
+
+    setAssign("Asignando...");
+
+    // ✅ asignación simple: alumnos.apoderado_id
+    const { error } = await sb
+      .from("alumnos")
+      .update({ apoderado_id: apoderadoId })
+      .eq("id", alumnoId)
+      .eq("colegio_id", colegioId);
+
+    if (error) {
+      console.error(error);
+      setAssign("Error");
+      alert(error.message || "No se pudo asignar.");
+      return;
+    }
+
+    setAssign("Asignado ✅");
+    alert("✅ Apoderado asignado al alumno");
+  }
+
+  // Eventos
+  els.btnCrear()?.addEventListener("click", createApoderado);
+  els.btnLimpiar()?.addEventListener("click", clearForm);
   els.btnRefresh()?.addEventListener("click", async () => {
     await loadApoderados();
   });
+  els.buscar()?.addEventListener("input", applyFilter);
+  els.btnAsignar()?.addEventListener("click", asignarApoderado);
 
-  els.buscar()?.addEventListener("input", () => applyFilters());
-  els.filtroParentesco()?.addEventListener("change", () => applyFilters());
-
-  // Delegación de clicks en tabla
-  els.tbody()?.addEventListener("click", async (e) => {
-    const btnToggle = e.target.closest(".btn-toggle");
-    const btnDelete = e.target.closest(".btn-delete");
-
-    if (btnToggle) {
-      const id = btnToggle.dataset.id;
-      if (id) await toggleActivo(id);
-      return;
-    }
-
-    if (btnDelete) {
-      const id = btnDelete.dataset.id;
-      if (id) await deleteRow(id);
-      return;
-    }
-  });
-
-  // ---- MODO SOLO LECTURA: bloquear form
-  if (!canWrite) {
-    const disable = (el) => el && (el.disabled = true);
-    disable(els.dni());
-    disable(els.nombres());
-    disable(els.apellidos());
-    disable(els.telefono());
-    disable(els.parentesco());
-    disable(els.activo());
-    // el submit se bloquea solo con disabled del botón (si existe),
-    // pero tu HTML no tiene id directo al botón guardar (es submit).
-    // igual el submit handler valida canWrite y corta.
-    setMsg("Modo solo lectura (sin permisos de edición).", "info");
-  }
-
-  // ---- INIT
+  // Init
   setStatus("Cargando…");
   await loadApoderados();
-});
+  await cargarNiveles();
+  setStatus("Listo ✅");
+
+  // Si NO hay yearId, avisa porque secciones dependen del año
+  if (!yearId) {
+    showPerm("⚠️ No hay año activo. Para filtrar por sección necesitas activar un año.");
+  }
+}
