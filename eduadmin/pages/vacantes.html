@@ -3,17 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin | Niveles</title>
+  <title>EduAdmin | Vacantes</title>
 
   <link rel="stylesheet" href="/assets/css/variables.css">
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/components.css">
+
+  <style>
+    .pill { padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); }
+    .pill-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .warn { display:none; margin-top:10px; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); }
+  </style>
 </head>
 
 <body>
   <div class="app-shell">
 
-    <!-- ✅ SIDEBAR DINÁMICO (DESPLEGABLE) -->
     <aside class="sidebar">
       <div class="brand">
         <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin" />
@@ -22,131 +27,121 @@
           <span>Administración real</span>
         </div>
       </div>
-
-      <!-- 🔥 Menú generado por /assets/js/ui.js -->
       <nav id="uiSidebarNav" class="nav"></nav>
     </aside>
 
-    <!-- MAIN -->
     <main class="main">
 
       <div class="topbar">
-        <div class="left">
-          <div class="school-chip">
-            <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio" />
-            <div class="meta">
-              <b id="uiSchoolName">Cargando colegio…</b>
-              <span id="uiYearName">Año: —</span>
-            </div>
+        <div class="topbar-left">
+          <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio" class="topbar-logo"
+               onerror="this.src='/assets/img/eduadmin.jpeg';" />
+          <div class="topbar-meta">
+            <div id="uiSchoolName" class="topbar-title">Cargando colegio…</div>
+            <div id="uiYearName" class="topbar-subtitle">Año: —</div>
           </div>
         </div>
 
-       
+        <div class="topbar-actions">
+          <button id="btnRefresh" class="btn btn-secondary" type="button">Actualizar</button>
+          <a href="/eduadmin/pages/dashboard.html" class="btn btn-secondary">Volver</a>
+        </div>
       </div>
- <!-- =========================
-     CONTENIDO VACANTES (REEMPLAZA SOLO ESTA PARTE)
-     No toques <head> ni scripts
-========================== -->
 
-<section class="card">
-  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-    <div>
-      <h2 style="margin:0;">Vacantes (Cupos)</h2>
-      <p style="margin:6px 0 0; opacity:.85;">
-        El director registra el cupo por sección. Luego el sistema calcula vacantes disponibles.
-      </p>
-    </div>
+      <section class="page">
+        <div class="card">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div>
+              <h1 class="h1" style="margin:0;">Vacantes (Cupos)</h1>
+              <p class="muted" style="margin:6px 0 0;">
+                Registra el cupo por sección. El sistema calcula vacantes disponibles.
+              </p>
+            </div>
 
-    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-      <!-- ✅ Estos 2 IDs son clave para que aparezca Rol y Contexto -->
-      <span id="pillContext" class="badge">Contexto: ...</span>
-      <span id="pillRole" class="badge">Rol: ...</span>
+            <div class="pill-row">
+              <span id="pillContext" class="pill">Contexto: —</span>
+              <span id="pillRole" class="pill">Rol: —</span>
+            </div>
+          </div>
 
-      <button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
-    </div>
+          <div id="permMsg" class="warn"></div>
+        </div>
+
+        <div class="card" style="margin-top:14px;">
+          <h2 class="h2" style="margin:0 0 10px;">Registrar cupo</h2>
+
+          <div style="display:grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap:12px;">
+            <div>
+              <label class="label" style="display:block; margin-bottom:6px;">Nivel</label>
+              <select id="selNivel" class="input">
+                <option value="">Cargando...</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="label" style="display:block; margin-bottom:6px;">Grado</label>
+              <select id="selGrado" class="input" disabled>
+                <option value="">Seleccione nivel</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="label" style="display:block; margin-bottom:6px;">Sección</label>
+              <select id="selSeccion" class="input" disabled>
+                <option value="">Seleccione grado</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="label" style="display:block; margin-bottom:6px;">Cupo (vacantes)</label>
+              <input id="inpCupo" class="input" type="number" min="0" max="200" placeholder="Ej: 30" />
+            </div>
+          </div>
+
+          <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+            <button id="btnGuardar" class="btn btn-primary" type="button">Guardar cupo</button>
+            <button id="btnLimpiar" class="btn btn-secondary" type="button">Limpiar</button>
+            <span id="saveStatus" class="pill" style="opacity:.85;"></span>
+          </div>
+        </div>
+
+        <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+          <div class="pill">Secciones: <b id="countSecciones">0</b></div>
+          <div class="pill">Total matriculados: <b id="countMatriculados">0</b></div>
+        </div>
+
+        <div class="card" style="margin-top:14px; overflow:auto;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Nivel</th>
+                <th>Grado</th>
+                <th>Sección</th>
+                <th style="text-align:center;">Matriculados</th>
+                <th style="text-align:center;">Cupo</th>
+                <th style="text-align:center;">Vacantes</th>
+                <th style="text-align:center;">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="vacantesTbody">
+              <tr><td colspan="7">Cargando...</td></tr>
+            </tbody>
+          </table>
+
+          <p class="muted" style="margin-top:10px; font-size:13px;">
+            • Director y SuperAdmin pueden editar cupos. • Secretaría solo visualiza.
+          </p>
+        </div>
+      </section>
+
+    </main>
   </div>
 
-  <!-- ✅ Mensaje permisos -->
-  <div id="permMsg" class="badge" style="margin-top:12px; display:none;"></div>
-
-  <!-- ✅ Formulario: Nivel -> Grado -> Sección -> Cupo -->
-  <div class="card" style="margin-top:14px;">
-    <h3 style="margin:0 0 10px;">Registrar cupo</h3>
-
-    <div style="display:grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap:12px;">
-      <div>
-        <label style="display:block; margin-bottom:6px;">Nivel</label>
-        <select id="selNivel" class="input">
-          <option value="">Cargando...</option>
-        </select>
-      </div>
-
-      <div>
-        <label style="display:block; margin-bottom:6px;">Grado</label>
-        <select id="selGrado" class="input" disabled>
-          <option value="">Seleccione nivel</option>
-        </select>
-      </div>
-
-      <div>
-        <label style="display:block; margin-bottom:6px;">Sección</label>
-        <select id="selSeccion" class="input" disabled>
-          <option value="">Seleccione grado</option>
-        </select>
-      </div>
-
-      <div>
-        <label style="display:block; margin-bottom:6px;">Cupo (vacantes)</label>
-        <input id="inpCupo" class="input" type="number" min="0" max="200" placeholder="Ej: 30" />
-      </div>
-    </div>
-
-    <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-      <button id="btnGuardar" class="btn btn-primary">Guardar cupo</button>
-      <button id="btnLimpiar" class="btn btn-secondary">Limpiar</button>
-      <span id="saveStatus" class="badge" style="opacity:.85;"></span>
-    </div>
-  </div>
-
-  <!-- ✅ Resumen -->
-  <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
-    <div class="badge">Secciones: <b id="countSecciones">0</b></div>
-    <div class="badge">Total matriculados: <b id="countMatriculados">0</b></div>
-  </div>
-
-  <!-- ✅ Tabla -->
-  <div style="margin-top:14px; overflow:auto;">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Nivel</th>
-          <th>Grado</th>
-          <th>Sección</th>
-          <th style="text-align:center;">Matriculados</th>
-          <th style="text-align:center;">Cupo</th>
-          <th style="text-align:center;">Vacantes</th>
-          <th style="text-align:center;">Acción</th>
-        </tr>
-      </thead>
-      <tbody id="vacantesTbody">
-        <tr><td colspan="7">Cargando...</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <p style="margin-top:10px; opacity:.75; font-size:13px;">
-    • Director y Superadmin pueden editar cupos. • Secretaría solo visualiza.
-  </p>
-</section>
-
- 
-  <!-- Scripts (orden correcto) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/assets/js/supabaseClient.js"></script>
   <script src="/assets/js/context.js"></script>
   <script src="/assets/js/ui.js"></script>
 
-  <!-- ✅ Activa menú desplegable -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
