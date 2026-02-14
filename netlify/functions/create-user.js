@@ -18,12 +18,30 @@ function pickAuthHeader(headers = {}) {
   return headers.authorization || headers.Authorization || "";
 }
 
+async function findUserByEmail(admin, email) {
+  // Busca usuario en Auth usando Admin API (con paginación)
+  let page = 1;
+  const perPage = 200;
+
+  while (page <= 50) { // límite razonable (10k usuarios)
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+
+    const users = data?.users || [];
+    const hit = users.find((u) => String(u.email || "").toLowerCase() === String(email).toLowerCase());
+    if (hit) return hit;
+
+    if (users.length < perPage) break;
+    page++;
+  }
+
+  return null;
+}
+
 exports.handler = async (event) => {
   try {
     // ✅ Preflight CORS
-    if (event.httpMethod === "OPTIONS") {
-      return json(200, { ok: true });
-    }
+    if (event.httpMethod === "OPTIONS") return json(200, { ok: true });
 
     // ========= GET = diagnóstico rápido =========
     if (event.httpMethod === "GET") {
@@ -61,7 +79,7 @@ exports.handler = async (event) => {
         }
       }
 
-      return json(200, { ok: true, message: "Diagnóstico OK. (Usa POST para crear usuario)", tests });
+      return json(200, { ok: true, message: "Diagnóstico OK. (Usa POST para crear/actualizar usuario)", tests });
     }
 
     // ========= POST =========
@@ -90,14 +108,12 @@ exports.handler = async (event) => {
     // ========= TOKEN =========
     const authHeader = pickAuthHeader(event.headers);
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
-
     if (!token) return json(401, { error: "Sin token (Authorization: Bearer ...)" });
 
     const { data: u, error: uErr } = await userClient.auth.getUser(token);
     if (uErr || !u?.user) {
       return json(401, { error: "Token inválido o expirado", detail: uErr?.message || null });
     }
-
     const requesterId = u.user.id;
 
     // ========= verificar perfil solicitante =========
@@ -118,9 +134,11 @@ exports.handler = async (event) => {
 
     // ========= BODY =========
     const body = JSON.parse(event.body || "{}");
+
     const dni = String(body.dni || "").replace(/\D/g, "").slice(0, 8);
     const role = String(body.role || "").trim().toLowerCase();
     const colegio_id = String(body.colegio_id || "").trim();
+    const full_name = String(body.full_name || "").trim(); // ✅ NUEVO
 
     let password = String(body.initial_password || "").trim();
     if (!password) password = dni;
@@ -132,9 +150,7 @@ exports.handler = async (event) => {
     if (!colegio_id) return json(400, { error: "Falta colegio_id" });
     if (password.length < 6) return json(400, { error: "La contraseña debe tener mínimo 6 caracteres" });
 
-    // ✅ Reglas mínimas por rol (sin romper nada)
-    // - superadmin: puede crear todo
-    // - director/secretaria: SOLO pueden crear usuarios de su mismo colegio
+    // Reglas por rol
     if (reqRole !== "superadmin") {
       if (!prof.colegio_id) return json(403, { error: "Tu perfil no tiene colegio_id asignado." });
       if (String(prof.colegio_id) !== String(colegio_id)) {
@@ -142,26 +158,60 @@ exports.handler = async (event) => {
       }
     }
 
-    // - secretaria no puede crear superadmin
     if (reqRole === "secretaria" && role === "superadmin") {
       return json(403, { error: "Secretaría no puede crear superadmin." });
     }
 
     const email = `${dni}@educorp.local`;
 
-    // ========= (opcional) check si existe en auth.users =========
+    // ========= 1) SI YA EXISTE EN AUTH → NO CREAR, SOLO ACTUALIZAR PROFILES =========
+    let existingUser = null;
     try {
-      const { data: existing } = await admin
-        .schema("auth")
-        .from("users")
-        .select("id")
-        .eq("email", email)
-        .maybeSingle();
+      existingUser = await findUserByEmail(admin, email);
+    } catch (e) {
+      return json(500, { error: "auth listUsers: " + (e?.message || String(e)) });
+    }
 
-      if (existing?.id) return json(409, { error: "Ya existe ese usuario", email });
-    } catch (_) {}
+    if (existingUser?.id) {
+      // Actualizar metadata (opcional)
+      await admin.auth.admin.updateUserById(existingUser.id, {
+        user_metadata: {
+          dni,
+          role,
+          colegio_id,
+          must_change_password,
+        },
+      }).catch(() => {});
 
-    // ========= CREAR USER (Auth Admin) =========
+      // Upsert en profiles (incluye full_name y dni)
+      const { error: upErr } = await admin.from("profiles").upsert(
+        {
+          id: existingUser.id,
+          email,
+          role,
+          colegio_id,
+          dni,
+          full_name: full_name || undefined,
+          must_change_password,
+          is_active: true,
+        },
+        { onConflict: "id" }
+      );
+
+      if (upErr) return json(500, { error: "profiles upsert (existing): " + upErr.message });
+
+      return json(200, {
+        ok: true,
+        existed: true,
+        created_user_id: existingUser.id,
+        email,
+        password_used: null, // no cambiamos contraseña aquí
+        must_change_password,
+        message: "Usuario ya existía en Auth. Perfil actualizado.",
+      });
+    }
+
+    // ========= 2) SI NO EXISTE → CREAR USER =========
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
       password,
@@ -178,18 +228,18 @@ exports.handler = async (event) => {
       return json(500, {
         error: "createUser: " + (createErr?.message || "Unknown error"),
         detail: createErr || null,
-        hint:
-          "Si tienes trigger handle_new_user y profiles tiene NOT NULL, el trigger puede fallar. Revisa triggers en auth.users.",
       });
     }
 
-    // ========= PERFIL (por si NO tienes trigger o para asegurar) =========
+    // ========= PERFIL (asegurar) =========
     const { error: upErr } = await admin.from("profiles").upsert(
       {
         id: created.user.id,
         email,
         role,
         colegio_id,
+        dni,
+        full_name: full_name || null,
         must_change_password,
         is_active: true,
       },
@@ -202,10 +252,12 @@ exports.handler = async (event) => {
 
     return json(200, {
       ok: true,
+      existed: false,
       created_user_id: created.user.id,
       email,
       password_used: password,
       must_change_password,
+      message: "Usuario creado correctamente.",
     });
   } catch (e) {
     return json(500, { error: String(e?.message || e) });
