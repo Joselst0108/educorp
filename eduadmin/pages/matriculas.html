@@ -1,3 +1,4 @@
+<!-- /eduadmin/pages/matriculas.html -->
 <!DOCTYPE html>
 <html lang="es" data-app="eduadmin">
 <head>
@@ -10,6 +11,7 @@
   <link rel="stylesheet" href="../../assets/css/main.css">
   <link rel="stylesheet" href="../../assets/css/components.css">
 
+  <!-- ===== CSS SOLO DE ESTA PÁGINA (opcional) ===== -->
   <style>
     .grid-2 { display:grid; grid-template-columns: 1fr 1.2fr; gap:16px; }
     @media (max-width: 900px){ .grid-2 { grid-template-columns: 1fr; } }
@@ -19,38 +21,8 @@
     .actions { display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
     .pill { padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.06); display:inline-block; }
     .hint { font-size:12px; opacity:.8; margin-top:6px; }
-    .btn-sm { padding:8px 10px; font-size:13px; }
-    .modal-backdrop{
-      position:fixed; inset:0; background:rgba(0,0,0,.55);
-      display:none; align-items:center; justify-content:center;
-      z-index:9999;
-    }
-    .modal{
-      width:min(760px, 95vw);
-      background:#0b1220;
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:16px;
-      box-shadow:0 16px 40px rgba(0,0,0,.45);
-      overflow:hidden;
-    }
-    .modal-head{
-      display:flex; align-items:center; justify-content:space-between;
-      padding:14px 16px;
-      border-bottom:1px solid rgba(255,255,255,.08);
-    }
-    .modal-body{ padding:14px 16px; }
-    .modal-foot{
-      padding:14px 16px;
-      border-top:1px solid rgba(255,255,255,.08);
-      display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;
-    }
-    .table-mini{ width:100%; border-collapse:collapse; }
-    .table-mini th, .table-mini td{
-      padding:10px 10px;
-      border-bottom:1px solid rgba(255,255,255,.08);
-      text-align:left;
-    }
-    .table-mini th{ opacity:.85; font-weight:600; }
+    .table-wrap { overflow:auto; }
+    .status { margin-top:6px; }
   </style>
 </head>
 
@@ -66,6 +38,8 @@
           <span>Administración real</span>
         </div>
       </div>
+
+      <!-- Menú dinámico -->
       <nav id="uiSidebarNav" class="nav"></nav>
     </aside>
 
@@ -94,6 +68,7 @@
         </div>
       </div>
 
+      <!-- ===== HEADER ===== -->
       <div class="page-header">
         <h1>Matrículas</h1>
         <div id="status" class="status muted">Cargando…</div>
@@ -104,9 +79,10 @@
         <!-- ===== CREAR MATRÍCULA ===== -->
         <div class="card">
           <h2 class="card-title">Registrar matrícula</h2>
-          <p class="muted">Vincula un alumno al año, nivel, grado y sección del contexto. (Apoderado se asigna aquí con modal)</p>
+          <p class="muted">Vincula un alumno al año, nivel, grado y sección del contexto.</p>
 
           <form id="formMatricula" class="form">
+            <!-- Para edición -->
             <input type="hidden" id="matricula_id" value="">
 
             <div class="form-group">
@@ -115,18 +91,6 @@
                 <option value="">Cargando alumnos…</option>
               </select>
               <div class="hint">* Si no aparece, primero crea alumnos.</div>
-            </div>
-
-            <!-- ✅ APODERADO (MODAL) -->
-            <div class="form-group">
-              <label>Apoderado</label>
-              <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-                <input id="apoderado_id" type="hidden" value="">
-                <div id="apoderadoLabel" class="pill" style="flex:1; min-width:240px;">Sin apoderado asignado</div>
-                <button id="btnPickApoderado" class="btn btn-secondary btn-sm" type="button">Asignar apoderado</button>
-                <button id="btnClearApoderado" class="btn btn-secondary btn-sm" type="button">Quitar</button>
-              </div>
-              <div id="apoderadoHint" class="hint">* Si tu tabla matrículas no tiene apoderado_id, esta función se desactiva sola.</div>
             </div>
 
             <div class="row-3">
@@ -210,14 +174,13 @@
                   <th>Nivel</th>
                   <th>Grado</th>
                   <th>Sección</th>
-                  <th>Apoderado</th>
                   <th>Estado</th>
                   <th>Activo</th>
                   <th style="text-align:right;">Acciones</th>
                 </tr>
               </thead>
               <tbody id="tbodyMatriculas">
-                <tr><td colspan="8" class="muted">Cargando…</td></tr>
+                <tr><td colspan="7" class="muted">Cargando…</td></tr>
               </tbody>
             </table>
           </div>
@@ -232,51 +195,13 @@
     </main>
   </div>
 
-  <!-- ===== MODAL APODERADO ===== -->
-  <div id="modalBackdrop" class="modal-backdrop" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <div class="modal-head">
-        <div>
-          <div id="modalTitle" style="font-weight:700; font-size:16px;">Asignar apoderado</div>
-          <div class="muted" style="font-size:12px;">Busca por DNI / apellidos / nombres</div>
-        </div>
-        <button id="btnCloseModal" class="btn btn-secondary btn-sm" type="button">Cerrar</button>
-      </div>
-
-      <div class="modal-body">
-        <input id="qApoderado" class="input" placeholder="Ej: 12345678 / Pérez / Juan" />
-        <div class="hint" style="margin:8px 0 12px;">* Se listan solo apoderados del colegio del contexto.</div>
-
-        <div style="overflow:auto; max-height: 45vh;">
-          <table class="table-mini">
-            <thead>
-              <tr>
-                <th>DNI</th>
-                <th>Apellidos y nombres</th>
-                <th>Teléfono</th>
-                <th style="width:120px;">Acción</th>
-              </tr>
-            </thead>
-            <tbody id="tbodyApoderados">
-              <tr><td colspan="4" class="muted">Cargando…</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="modal-foot">
-        <button id="btnModalClear" class="btn btn-secondary" type="button">Quitar apoderado</button>
-        <button id="btnModalOk" class="btn btn-primary" type="button">Listo</button>
-      </div>
-    </div>
-  </div>
-
   <!-- ===== SCRIPTS GENERALES (NO TOCAR) ===== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../../assets/js/supabaseClient.js"></script>
   <script src="../../assets/js/context.js"></script>
   <script src="../../assets/js/ui.js"></script>
 
+  <!-- ACTIVA SIDEBAR -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
@@ -284,6 +209,8 @@
   </script>
 
   <!-- ===== JS SOLO DE ESTA PÁGINA ===== -->
-  <script src="../pages/js/matriculas.js"></script>
+  <!-- OJO: esta ruta es correcta si tu archivo está en /eduadmin/pages/js/matriculas.js -->
+  <script src="./js/matriculas.js"></script>
+
 </body>
 </html>
