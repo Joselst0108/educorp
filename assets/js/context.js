@@ -128,7 +128,3 @@
   window.requireYearOrRedirect = requireYearOrRedirect;
 
   log("cargado ✅");
-})();
-window.__CTX = window.__CTX || ctx;
-window.APP_CONTEXT = window.__CTX;
-console.log("[context] construido", window.__CTX);
