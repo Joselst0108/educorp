@@ -124,7 +124,7 @@
     </main>
   </div>
 
-  <!-- ✅ Scripts al final (mejor práctica) -->
+  <!-- ✅ Scripts al final -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../../assets/js/supabaseClient.js"></script>
   <script src="../../assets/js/context.js"></script>
@@ -133,15 +133,11 @@
   <!-- ✅ Activa menú desplegable -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
-      if (window.renderEduAdminSidebar) {
-        window.renderEduAdminSidebar();
-      } else {
-        console.error("renderEduAdminSidebar no existe. Revisa ../../assets/js/ui.js");
-      }
+      if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
     });
   </script>
 
-  <!-- ✅ Tu JS real de página -->
-  <script src="./js/grados.js"></script>
+  <!-- ✅ JS real de página (CORREGIDO) -->
+  <script src="../js/grados.js"></script>
 </body>
 </html>
