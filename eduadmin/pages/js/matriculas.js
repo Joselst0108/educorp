@@ -301,7 +301,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       grado_id,
       seccion_id,
       estado,
-      fecha: fecha || null,
+      fecha_matricula: fecha || null,
       observacion: observacion || null,
     };
 
