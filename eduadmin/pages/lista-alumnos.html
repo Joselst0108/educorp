@@ -1,101 +1,90 @@
 <!DOCTYPE html>
 <html lang="es" data-app="eduadmin">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin | lista de estudiantess</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduAdmin | Lista alumnos</title>
 
-  <!-- ✅ RUTAS RELATIVAS DESDE /eduadmin/pages/ -->
-  <link rel="stylesheet" href="../../assets/css/variables.css">
-  <link rel="stylesheet" href="../../assets/css/main.css">
-  <link rel="stylesheet" href="../../assets/css/components.css">
-
-  <style>
-    .grid-2 { display:grid; grid-template-columns: 1fr 1.2fr; gap:16px; }
-    @media (max-width: 900px){ .grid-2 { grid-template-columns: 1fr; } }
-    .muted { opacity:.75; }
-  </style>
+<link rel="stylesheet" href="../../assets/css/variables.css">
+<link rel="stylesheet" href="../../assets/css/main.css">
+<link rel="stylesheet" href="../../assets/css/components.css">
 </head>
 
 <body>
-  <div class="app-shell">
+<div class="app-shell">
 
-    <!-- ✅ SIDEBAR DINÁMICO (DESPLEGABLE) -->
-    <aside class="sidebar">
-      <div class="brand">
-        <img id="uiAppLogo" src="../../assets/img/educorp.jpeg" alt="EduAdmin" />
-        <div class="titles">
-          <b>EduAdmin</b>
-          <span>Administración real</span>
-        </div>
-      </div>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="brand">
+    <img src="../../assets/img/educorp.jpeg">
+    <div class="titles">
+      <b>EduAdmin</b>
+      <span>Administración real</span>
+    </div>
+  </div>
+  <nav id="uiSidebarNav" class="nav"></nav>
+</aside>
 
-      <!-- 🔥 Menú dinámico -->
-      <nav id="uiSidebarNav" class="nav"></nav>
-    </aside>
+<!-- MAIN -->
+<main class="main">
 
-    <!-- ✅ MAIN -->
-    <main class="main">
-
-      <!-- ✅ TOPBAR -->
-      <div class="topbar">
-        <div class="topbar-left">
-          <img
-            id="uiSchoolLogo"
-            src="../../assets/img/eduadmin.jpeg"
-            alt="Logo"
-            class="topbar-logo"
-            onerror="this.src='../../assets/img/eduadmin.jpeg';"
-          />
-          <div class="topbar-meta">
-            <div id="uiSchoolName" class="topbar-title">Cargando colegio...</div>
-            <div id="uiYearName" class="topbar-subtitle">Año: —</div>
-          </div>
-        </div>
-
-        <div class="topbar-actions">
-          <button id="btnRefresh" class="btn btn-secondary" type="button">Actualizar</button>
-          <a href="./dashboard.html" class="btn btn-secondary">Volver</a>
-        </div>
-      </div>
-
-      <div style="overflow:auto">
-        <table>
-          <thead>
-            <tr>
-              <th>DNI</th>
-              <th>Apellidos</th>
-              <th>Nombres</th>
-              <th>Código</th>
-              <th>Creado</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyAlumnos">
-            <tr><td colspan="5" class="muted">Cargando...</td></tr>
-          </tbody>
-        </table>
-      </div>
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <img id="uiSchoolLogo" src="../../assets/img/eduadmin.jpeg" class="topbar-logo">
+    <div class="topbar-meta">
+      <div id="uiSchoolName" class="topbar-title">Cargando...</div>
+      <div id="uiYearName" class="topbar-subtitle">Año: —</div>
     </div>
   </div>
 
-  <!-- ✅ Scripts al final (mejor práctica) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../../assets/js/supabaseClient.js"></script>
-  <script src="../../assets/js/context.js"></script>
-  <script src="../../assets/js/ui.js"></script>
+  <div class="topbar-actions">
+    <button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
+  </div>
+</div>
 
-  <!-- ✅ Activa menú desplegable -->
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      if (window.renderEduAdminSidebar) {
-        window.renderEduAdminSidebar();
-      } else {
-        console.error("renderEduAdminSidebar no existe. Revisa ../../assets/js/ui.js");
-      }
-    });
-  </script>
+<div class="page-header">
+  <h1>Lista de alumnos</h1>
+  <div>Total: <b id="countInfo">0</b></div>
+</div>
 
-  <!-- ✅ Tu JS real de página -->
-  <script src="./js/alumnos-lista.js"></script>
+<div class="card">
+
+<input id="qBuscar" class="input" placeholder="Buscar..." style="margin-bottom:10px">
+
+<div style="overflow:auto">
+<table class="table">
+<thead>
+<tr>
+<th>DNI</th>
+<th>Apellidos</th>
+<th>Nombres</th>
+<th>Código</th>
+<th>Creado</th>
+</tr>
+</thead>
+<tbody id="tbodyAlumnos">
+<tr><td colspan="5">Cargando...</td></tr>
+</tbody>
+</table>
+</div>
+
+</div>
+
+</main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../../assets/js/supabaseClient.js"></script>
+<script src="../../assets/js/context.js"></script>
+<script src="../../assets/js/ui.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded",()=>{
+ if(window.renderEduAdminSidebar) window.renderEduAdminSidebar();
+});
+</script>
+
+<script src="../../eduadmin/js/lista-alumnos.js"></script>
 </body>
 </html>
