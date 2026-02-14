@@ -1,244 +1,252 @@
-// /eduadmin/js/colegio.js
-console.log("📌 colegio.js cargado");
+// ============================================
+// EDUADMIN | COLEGIO (DATOS DEL COLEGIO) - ESTABLE
+// Basado en dashboard.js (getContext true)
+// ============================================
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    wireStaticUI();
-    await initColegioPage();
-  } catch (err) {
-    console.error("❌ Error inicializando colegio:", err);
-    setStatus("❌ Error inicializando la página.");
-  }
-});
+    console.log("🚀 Iniciando colegio...");
 
-function sb() {
-  return window.supabaseClient || window.supabase || null;
-}
+    const sb = window.supabaseClient;
 
-function setStatus(msg) {
-  const el = document.getElementById("status");
-  if (el) el.textContent = msg || "";
-}
+    // ===============================
+    // 1. VERIFICAR SESIÓN REAL
+    // ===============================
+    const { data: sess } = await sb.auth.getSession();
+    const user = sess?.session?.user;
 
-function wireStaticUI() {
-  // Refresh
-  document.getElementById("btnRefresh")?.addEventListener("click", () => {
-    location.reload();
-  });
-
-  // Logout
-  document.getElementById("logoutBtn")?.addEventListener("click", async () => {
-    const client = sb();
-    try {
-      await client?.auth?.signOut();
-    } catch (e) {
-      // noop
-    }
-    // Ajusta si tu login está en otra ruta
-    location.href = "/eduadmin/login.html";
-  });
-
-  // Preview local del logo
-  document.getElementById("fileLogo")?.addEventListener("change", (e) => {
-    const f = e.target?.files?.[0];
-    if (!f) return;
-    const url = URL.createObjectURL(f);
-    const img = document.getElementById("previewLogo");
-    if (img) img.src = url;
-  });
-}
-
-async function initColegioPage() {
-  const client = sb();
-  if (!client) {
-    console.error("❌ Supabase no disponible");
-    setStatus("❌ Supabase no disponible. Revisa supabaseClient.js.");
-    return;
-  }
-
-  // Esperar a que exista contexto (o construir fallback)
-  const ctx = await getContextSafe();
-
-  // Normalizamos el ID
-  const colegioId = ctx?.school_id || ctx?.colegio_id || ctx?.colegioId || null;
-
-  if (!colegioId) {
-    console.warn("⚠ No se encontró ID de colegio en contexto/localStorage", ctx);
-    setStatus("⚠ Error: No se encontró el ID del colegio en el contexto.");
-    return;
-  }
-
-  // Cargar datos en UI
-  await cargarColegio(colegioId);
-
-  // Botones según tu HTML
-  document.getElementById("btnGuardar")?.addEventListener("click", async () => {
-    const nombre = (document.getElementById("inpNombre")?.value || "").trim();
-    if (!nombre) return alert("Ingresa el nombre del colegio");
-
-    await actualizarColegio(colegioId, { nombre });
-  });
-
-  document.getElementById("btnSubirLogo")?.addEventListener("click", async () => {
-    const file = document.getElementById("fileLogo")?.files?.[0];
-    if (!file) return alert("Selecciona una imagen primero");
-
-    setStatus("Subiendo logo...");
-    const logoUrl = await subirLogoStorage(file, colegioId);
-
-    if (!logoUrl) {
-      setStatus("❌ No se pudo subir el logo.");
+    if (!user) {
+      console.log("❌ Sin sesión → login");
+      window.location.href = "/login.html";
       return;
     }
 
-    await actualizarColegio(colegioId, { logo_url: logoUrl });
+    console.log("Usuario activo:", user.id);
 
-    // actualizar preview final
-    const img = document.getElementById("previewLogo");
-    if (img) img.src = logoUrl;
-  });
-}
+    // ===============================
+    // 2. OBTENER CONTEXTO GLOBAL (IGUAL QUE DASHBOARD)
+    // ===============================
+    if (!window.getContext) {
+      console.error("❌ window.getContext no existe. Revisa /assets/js/context.js");
+      setStatus("❌ Error: context.js no inicializó getContext().");
+      return;
+    }
 
-async function getContextSafe() {
-  // Intento 1: esperar contexto global (como dashboard)
-  const ctx = await waitForContext(25, 100);
-  if (ctx) return ctx;
+    const ctx = await window.getContext(true);
 
-  // Intento 2: fallback desde localStorage
-  const colegioId =
-    localStorage.getItem("school_id") ||
-    localStorage.getItem("colegio_id") ||
-    localStorage.getItem("colegioId") ||
-    null;
+    if (!ctx) {
+      alert("No se pudo cargar el contexto");
+      return;
+    }
 
-  const anioId =
-    localStorage.getItem("year_id") ||
-    localStorage.getItem("anio_id") ||
-    localStorage.getItem("anio_academico_id") ||
-    null;
+    console.log("CTX colegio:", ctx);
 
-  const fallback = {
-    school_id: colegioId,
-    colegio_id: colegioId,
-    year_id: anioId,
-    anio_id: anioId,
-  };
+    // Validación mínima
+    if (!ctx.school_id) {
+      setStatus("⚠ Error: No se encontró el ID del colegio en el contexto.");
+      return;
+    }
 
-  // Publicar para consistencia (opcional)
-  window.__CTX = window.__CTX || fallback;
-  window.APP_CONTEXT = window.APP_CONTEXT || window.__CTX;
+    // ===============================
+    // 3. PINTAR TOPBAR
+    // ===============================
+    setText("uiSchoolName", ctx.school_name || "Colegio");
+    setText("uiYearName", ctx.year_name || "Año académico");
 
-  return fallback;
-}
+    const topLogo = document.getElementById("uiSchoolLogo");
+    if (topLogo && ctx.school_logo_url) topLogo.src = ctx.school_logo_url;
 
-function waitForContext(maxTries = 25, intervalMs = 100) {
-  return new Promise((resolve) => {
-    let tries = 0;
-    const t = setInterval(() => {
-      // Soportar varios nombres que puedes tener en tu proyecto
-      const ctx =
-        window.__CTX ||
-        window.APP_CONTEXT ||
-        window.appContext ||
-        window.__ctx ||
-        null;
+    // ===============================
+    // 4. RENDER SIDEBAR
+    // ===============================
+    if (window.renderEduAdminSidebar) {
+      window.renderEduAdminSidebar();
+    }
 
-      if (ctx) {
-        clearInterval(t);
-        resolve(ctx);
-        return;
-      }
+    // ===============================
+    // 5. CARGAR DATOS DEL COLEGIO
+    // ===============================
+    await loadColegioForm(ctx);
 
-      tries++;
-      if (tries >= maxTries) {
-        clearInterval(t);
-        resolve(null);
-      }
-    }, intervalMs);
-  });
-}
+    // ===============================
+    // 6. BOTÓN REFRESH
+    // ===============================
+    document.getElementById("btnRefresh")?.addEventListener("click", async () => {
+      await loadColegioForm(ctx);
+    });
 
-async function cargarColegio(colegioId) {
-  const client = sb();
+    // ===============================
+    // 7. GUARDAR NOMBRE
+    // ===============================
+    document.getElementById("btnGuardar")?.addEventListener("click", async () => {
+      await saveNombre(ctx);
+    });
+
+    // ===============================
+    // 8. SUBIR LOGO
+    // ===============================
+    document.getElementById("btnSubirLogo")?.addEventListener("click", async () => {
+      await uploadLogoAndSave(ctx);
+    });
+
+    // Preview local inmediato
+    document.getElementById("fileLogo")?.addEventListener("change", (e) => {
+      const f = e.target?.files?.[0];
+      if (!f) return;
+      const url = URL.createObjectURL(f);
+      const img = document.getElementById("previewLogo");
+      if (img) img.src = url;
+    });
+
+    // ===============================
+    // 9. LOGOUT
+    // ===============================
+    document.getElementById("logoutBtn")?.addEventListener("click", async () => {
+      await sb.auth.signOut();
+      localStorage.clear();
+      window.location.href = "/login.html";
+    });
+
+  } catch (err) {
+    console.error("❌ Error colegio:", err);
+    setStatus("❌ Error inesperado en Datos del colegio.");
+  }
+});
+
+// ============================================
+// CARGAR FORM
+// ============================================
+async function loadColegioForm(ctx) {
+  const sb = window.supabaseClient;
+
   setStatus("Cargando...");
 
-  const { data, error } = await client
+  const { data, error } = await sb
     .from("colegios")
     .select("id,nombre,logo_url")
-    .eq("id", colegioId)
+    .eq("id", ctx.school_id)
     .single();
 
   if (error) {
     console.error("❌ Error cargando colegio:", error);
-    setStatus("❌ Error cargando colegio.");
+    setStatus("❌ Error cargando datos del colegio.");
     return;
   }
 
-  // Pintar nombre
+  // Nombre
   const inp = document.getElementById("inpNombre");
   if (inp) inp.value = data?.nombre || "";
 
-  // Pintar logo
-  const img = document.getElementById("previewLogo");
-  if (img && data?.logo_url) img.src = data.logo_url;
+  // Preview del logo (card)
+  const prev = document.getElementById("previewLogo");
+  if (prev && data?.logo_url) prev.src = data.logo_url;
+
+  // También topbar
+  const topLogo = document.getElementById("uiSchoolLogo");
+  if (topLogo && data?.logo_url) topLogo.src = data.logo_url;
+
+  // Si quieres actualizar nombre arriba también:
+  setText("uiSchoolName", data?.nombre || ctx.school_name || "Colegio");
 
   setStatus("");
-
-  // (Opcional) si tienes topbar IDs (no rompe si no existen)
-  const uiSchoolName = document.getElementById("uiSchoolName");
-  if (uiSchoolName) uiSchoolName.textContent = data?.nombre || "Colegio";
-
-  const uiSchoolLogo = document.getElementById("uiSchoolLogo");
-  if (uiSchoolLogo && data?.logo_url) uiSchoolLogo.src = data.logo_url;
 }
 
-async function subirLogoStorage(file, colegioId) {
-  const client = sb();
+// ============================================
+// GUARDAR NOMBRE
+// ============================================
+async function saveNombre(ctx) {
+  const sb = window.supabaseClient;
 
-  // Mantener extensión real
-  const ext = (file.name.split(".").pop() || "png").toLowerCase();
-  const safeExt = ext.match(/^(png|jpg|jpeg|webp)$/) ? ext : "png";
-
-  const filePath = `logos/${colegioId}_${Date.now()}.${safeExt}`;
-
-  const { error } = await client.storage
-    .from("logos")
-    .upload(filePath, file, {
-      upsert: true,
-      contentType: file.type || undefined,
-    });
-
-  if (error) {
-    console.error("❌ Error subiendo logo:", error);
-    return null;
-  }
-
-  // v2: getPublicUrl
-  const { data } = client.storage.from("logos").getPublicUrl(filePath);
-  return data?.publicUrl || null;
-}
-
-async function actualizarColegio(colegioId, patch) {
-  const client = sb();
-
-  if (!patch || Object.keys(patch).length === 0) {
-    setStatus("Nada que guardar.");
-    return;
-  }
+  const nombre = (document.getElementById("inpNombre")?.value || "").trim();
+  if (!nombre) return alert("Ingresa el nombre del colegio");
 
   setStatus("Guardando...");
 
-  const { error } = await client
+  const { error } = await sb
     .from("colegios")
-    .update(patch)
-    .eq("id", colegioId);
+    .update({ nombre })
+    .eq("id", ctx.school_id);
 
   if (error) {
-    console.error("❌ Error guardando:", error);
+    console.error("❌ Error guardando nombre:", error);
     setStatus("❌ Error guardando.");
     alert("Error guardando");
     return;
   }
 
   setStatus("✅ Guardado correctamente");
+  setText("uiSchoolName", nombre);
+}
+
+// ============================================
+// SUBIR LOGO + GUARDAR EN BD
+// ============================================
+async function uploadLogoAndSave(ctx) {
+  const sb = window.supabaseClient;
+
+  const file = document.getElementById("fileLogo")?.files?.[0];
+  if (!file) return alert("Selecciona una imagen primero");
+
+  setStatus("Subiendo logo...");
+
+  // extensión segura
+  const ext = (file.name.split(".").pop() || "png").toLowerCase();
+  const safeExt = /^(png|jpg|jpeg|webp)$/.test(ext) ? ext : "png";
+
+  // Ruta en bucket
+  const filePath = `logos/${ctx.school_id}_${Date.now()}.${safeExt}`;
+
+  const { error: upErr } = await sb.storage
+    .from("logos")
+    .upload(filePath, file, { upsert: true, contentType: file.type });
+
+  if (upErr) {
+    console.error("❌ Error subiendo logo:", upErr);
+    setStatus("❌ Error subiendo logo.");
+    return;
+  }
+
+  const { data: pub } = sb.storage.from("logos").getPublicUrl(filePath);
+  const publicUrl = pub?.publicUrl;
+
+  if (!publicUrl) {
+    setStatus("❌ No se pudo obtener URL pública del logo.");
+    return;
+  }
+
+  // Guardar en tabla colegios
+  setStatus("Guardando logo...");
+
+  const { error: dbErr } = await sb
+    .from("colegios")
+    .update({ logo_url: publicUrl })
+    .eq("id", ctx.school_id);
+
+  if (dbErr) {
+    console.error("❌ Error guardando logo en BD:", dbErr);
+    setStatus("❌ Error guardando logo.");
+    return;
+  }
+
+  // Pintar en UI
+  const prev = document.getElementById("previewLogo");
+  if (prev) prev.src = publicUrl;
+
+  const topLogo = document.getElementById("uiSchoolLogo");
+  if (topLogo) topLogo.src = publicUrl;
+
+  setStatus("✅ Logo actualizado");
+}
+
+// ============================================
+// HELPERS
+// ============================================
+function setText(id, v) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = v ?? "";
+}
+
+function setStatus(msg) {
+  const el = document.getElementById("status");
+  if (el) el.textContent = msg || "";
 }
