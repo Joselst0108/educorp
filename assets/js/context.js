@@ -128,3 +128,4 @@
   window.requireYearOrRedirect = requireYearOrRedirect;
 
   log("cargado ✅");
+})();
