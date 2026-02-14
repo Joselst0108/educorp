@@ -1,4 +1,3 @@
-<!-- /eduadmin/pages/matriculas.html -->
 <!DOCTYPE html>
 <html lang="es" data-app="eduadmin">
 <head>
@@ -11,7 +10,6 @@
   <link rel="stylesheet" href="../../assets/css/main.css">
   <link rel="stylesheet" href="../../assets/css/components.css">
 
-  <!-- ===== CSS SOLO DE ESTA PÁGINA (opcional) ===== -->
   <style>
     .grid-2 { display:grid; grid-template-columns: 1fr 1.2fr; gap:16px; }
     @media (max-width: 900px){ .grid-2 { grid-template-columns: 1fr; } }
@@ -21,8 +19,6 @@
     .actions { display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
     .pill { padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.06); display:inline-block; }
     .hint { font-size:12px; opacity:.8; margin-top:6px; }
-    .table-wrap { overflow:auto; }
-    .status { margin-top:6px; }
   </style>
 </head>
 
@@ -38,8 +34,6 @@
           <span>Administración real</span>
         </div>
       </div>
-
-      <!-- Menú dinámico -->
       <nav id="uiSidebarNav" class="nav"></nav>
     </aside>
 
@@ -68,7 +62,6 @@
         </div>
       </div>
 
-      <!-- ===== HEADER ===== -->
       <div class="page-header">
         <h1>Matrículas</h1>
         <div id="status" class="status muted">Cargando…</div>
@@ -79,10 +72,9 @@
         <!-- ===== CREAR MATRÍCULA ===== -->
         <div class="card">
           <h2 class="card-title">Registrar matrícula</h2>
-          <p class="muted">Vincula un alumno al año, nivel, grado y sección del contexto.</p>
+          <p class="muted">Vincula un alumno al año, nivel, grado y sección del contexto. (Opcional) asigna apoderado.</p>
 
           <form id="formMatricula" class="form">
-            <!-- Para edición -->
             <input type="hidden" id="matricula_id" value="">
 
             <div class="form-group">
@@ -91,6 +83,15 @@
                 <option value="">Cargando alumnos…</option>
               </select>
               <div class="hint">* Si no aparece, primero crea alumnos.</div>
+            </div>
+
+            <!-- ✅ APODERADO (NUEVO) -->
+            <div class="form-group">
+              <label for="apoderado_id">Apoderado (opcional)</label>
+              <select id="apoderado_id">
+                <option value="">Cargando apoderados…</option>
+              </select>
+              <div class="hint">* Puedes asignarlo aquí o después.</div>
             </div>
 
             <div class="row-3">
@@ -127,8 +128,8 @@
               </div>
 
               <div class="form-group">
-                <label for="fecha">Fecha</label>
-                <input id="fecha" type="date" />
+                <label for="fecha_matricula">Fecha matrícula</label>
+                <input id="fecha_matricula" type="date" />
               </div>
 
               <div class="form-group">
@@ -171,6 +172,7 @@
               <thead>
                 <tr>
                   <th>Alumno</th>
+                  <th>Apoderado</th>
                   <th>Nivel</th>
                   <th>Grado</th>
                   <th>Sección</th>
@@ -180,7 +182,7 @@
                 </tr>
               </thead>
               <tbody id="tbodyMatriculas">
-                <tr><td colspan="7" class="muted">Cargando…</td></tr>
+                <tr><td colspan="8" class="muted">Cargando…</td></tr>
               </tbody>
             </table>
           </div>
@@ -201,7 +203,6 @@
   <script src="../../assets/js/context.js"></script>
   <script src="../../assets/js/ui.js"></script>
 
-  <!-- ACTIVA SIDEBAR -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
@@ -209,8 +210,7 @@
   </script>
 
   <!-- ===== JS SOLO DE ESTA PÁGINA ===== -->
-  <!-- OJO: esta ruta es correcta si tu archivo está en /eduadmin/pages/js/matriculas.js -->
-  <script src="./js/matriculas.js"></script>
+  <script src="../js/matriculas.js"></script>
 
 </body>
 </html>
