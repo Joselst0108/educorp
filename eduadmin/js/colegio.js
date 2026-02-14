@@ -150,3 +150,7 @@ async function waitContext() {
         }, 100);
     });
 }
+
+window.__CTX = window.__CTX || ctx;
+window.APP_CONTEXT = window.__CTX;
+console.log("[context] construido", window.__CTX);
