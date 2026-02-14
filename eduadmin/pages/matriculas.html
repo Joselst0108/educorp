@@ -1,217 +1,150 @@
 <!DOCTYPE html>
 <html lang="es" data-app="eduadmin">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin | Matrículas</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduAdmin | Matrículas</title>
 
-  <!-- ===== CSS GENERAL (NO TOCAR) ===== -->
-  <link rel="stylesheet" href="../../assets/css/variables.css">
-  <link rel="stylesheet" href="../../assets/css/main.css">
-  <link rel="stylesheet" href="../../assets/css/components.css">
+<link rel="stylesheet" href="../../assets/css/variables.css">
+<link rel="stylesheet" href="../../assets/css/main.css">
+<link rel="stylesheet" href="../../assets/css/components.css">
 
-  <!-- ===== CSS SOLO DE ESTA PÁGINA (opcional) ===== -->
-  <style>
-    .grid-2 { display:grid; grid-template-columns: 1fr 1.2fr; gap:16px; }
-    @media (max-width: 900px){ .grid-2 { grid-template-columns: 1fr; } }
-    .muted { opacity:.75; }
-    .row-3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; }
-    @media (max-width: 900px){ .row-3 { grid-template-columns: 1fr; } }
-    .actions { display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
-    .pill { padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.06); display:inline-block; }
-    .hint { font-size:12px; opacity:.8; margin-top:6px; }
-  </style>
+<style>
+.grid-2{display:grid;grid-template-columns:1fr 1.2fr;gap:16px}
+@media(max-width:900px){.grid-2{grid-template-columns:1fr}}
+</style>
 </head>
 
 <body>
-  <div class="app-shell">
+<div class="app-shell">
 
-    <!-- ===== SIDEBAR (GENERAL) ===== -->
-    <aside class="sidebar">
-      <div class="brand">
-        <img id="uiAppLogo" src="../../assets/img/educorp.jpeg" alt="EduAdmin" />
-        <div class="titles">
-          <b>EduAdmin</b>
-          <span>Administración real</span>
-        </div>
-      </div>
-      <nav id="uiSidebarNav" class="nav"></nav>
-    </aside>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+<div class="brand">
+<img src="../../assets/img/educorp.jpeg">
+<div class="titles">
+<b>EduAdmin</b>
+<span>Administración real</span>
+</div>
+</div>
+<nav id="uiSidebarNav" class="nav"></nav>
+</aside>
 
-    <!-- ===== MAIN ===== -->
-    <main class="main">
+<main class="main">
 
-      <!-- ===== TOPBAR GENERAL ===== -->
-      <div class="topbar">
-        <div class="topbar-left">
-          <img
-            id="uiSchoolLogo"
-            src="../../assets/img/eduadmin.jpeg"
-            alt="Logo"
-            class="topbar-logo"
-            onerror="this.src='../../assets/img/eduadmin.jpeg';"
-          />
-          <div class="topbar-meta">
-            <div id="uiSchoolName" class="topbar-title">Cargando colegio...</div>
-            <div id="uiYearName" class="topbar-subtitle">Año: —</div>
-          </div>
-        </div>
+<div class="topbar">
+<div class="topbar-left">
+<img id="uiSchoolLogo" src="../../assets/img/eduadmin.jpeg" class="topbar-logo">
+<div class="topbar-meta">
+<div id="uiSchoolName">Cargando...</div>
+<div id="uiYearName">Año: —</div>
+</div>
+</div>
 
-        <div class="topbar-actions">
-          <button id="btnRefresh" class="btn btn-secondary" type="button">Actualizar</button>
-          <a href="./dashboard.html" class="btn btn-secondary">Volver</a>
-        </div>
-      </div>
+<div class="topbar-actions">
+<button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
+<a href="./dashboard.html" class="btn btn-secondary">Volver</a>
+</div>
+</div>
 
-      <!-- ===================================================== -->
-      <!-- 🔴🔴🔴 DESDE AQUÍ EDITAS CADA PÁGINA 🔴🔴🔴 -->
-      <!-- ===================================================== -->
+<div class="page-header">
+<h1>Matrículas</h1>
+<div id="status">Cargando...</div>
+</div>
 
-      <div class="page-header">
-        <h1>Matrículas</h1>
-        <div id="status" class="status muted">Cargando…</div>
-      </div>
+<div class="grid-2">
 
-      <div class="grid-2">
+<!-- FORM -->
+<div class="card">
+<h2>Registrar matrícula</h2>
 
-        <!-- ===== CREAR MATRÍCULA ===== -->
-        <div class="card">
-          <h2 class="card-title">Registrar matrícula</h2>
-          <p class="muted">Vincula un alumno al año, nivel, grado y sección del contexto.</p>
+<form id="formMatricula">
+<input type="hidden" id="matricula_id">
 
-          <form id="formMatricula" class="form">
-            <!-- Para edición -->
-            <input type="hidden" id="matricula_id" value="">
+<label>Alumno</label>
+<select id="alumno_id"></select>
 
-            <div class="form-group">
-              <label for="alumno_id">Alumno</label>
-              <select id="alumno_id" required>
-                <option value="">Cargando alumnos…</option>
-              </select>
-              <div class="hint">* Si no aparece, primero crea alumnos.</div>
-            </div>
+<label>Nivel</label>
+<select id="nivel_id"></select>
 
-            <div class="row-3">
-              <div class="form-group">
-                <label for="nivel_id">Nivel</label>
-                <select id="nivel_id" required>
-                  <option value="">Selecciona</option>
-                </select>
-              </div>
+<label>Grado</label>
+<select id="grado_id"></select>
 
-              <div class="form-group">
-                <label for="grado_id">Grado</label>
-                <select id="grado_id" required>
-                  <option value="">Selecciona</option>
-                </select>
-              </div>
+<label>Sección</label>
+<select id="seccion_id"></select>
 
-              <div class="form-group">
-                <label for="seccion_id">Sección</label>
-                <select id="seccion_id" required>
-                  <option value="">Selecciona</option>
-                </select>
-              </div>
-            </div>
+<label>Estado</label>
+<select id="estado">
+<option value="matriculado">Matriculado</option>
+<option value="reservado">Reservado</option>
+<option value="retirado">Retirado</option>
+</select>
 
-            <div class="row-3">
-              <div class="form-group">
-                <label for="estado">Estado</label>
-                <select id="estado" required>
-                  <option value="matriculado">Matriculado</option>
-                  <option value="reservado">Reservado</option>
-                  <option value="retirado">Retirado</option>
-                </select>
-              </div>
+<label>Fecha</label>
+<input type="date" id="fecha">
 
-              <div class="form-group">
-                <label for="fecha">Fecha</label>
-                <input id="fecha" type="date" />
-              </div>
+<label>Observación</label>
+<input id="observacion">
 
-              <div class="form-group">
-                <label for="observacion">Observación</label>
-                <input id="observacion" placeholder="Opcional" />
-              </div>
-            </div>
+<label>
+<input type="checkbox" id="activo" checked>
+Activo
+</label>
 
-            <div class="form-group" style="display:flex; gap:10px; align-items:center;">
-              <input id="activo" type="checkbox" checked />
-              <label for="activo" style="margin:0;">Activo</label>
-            </div>
+<div style="margin-top:10px">
+<button class="btn btn-primary">Guardar</button>
+<button type="button" id="btnLimpiar" class="btn btn-secondary">Limpiar</button>
+</div>
 
-            <div class="actions">
-              <button id="btnLimpiar" class="btn btn-secondary" type="button">Limpiar</button>
-              <button id="btnGuardar" class="btn btn-primary" type="submit">Guardar matrícula</button>
-            </div>
+<div id="msg"></div>
+</form>
+</div>
 
-            <div id="msg" class="muted" style="margin-top:10px;"></div>
-          </form>
-        </div>
+<!-- LISTA -->
+<div class="card">
+<h2>Lista</h2>
 
-        <!-- ===== LISTADO ===== -->
-        <div class="card">
-          <h2 class="card-title">Matrículas registradas</h2>
+<input id="buscar" placeholder="Buscar...">
+<select id="filtroEstado">
+<option value="">Todos</option>
+<option value="matriculado">Matriculado</option>
+<option value="reservado">Reservado</option>
+<option value="retirado">Retirado</option>
+</select>
 
-          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
-            <input id="buscar" placeholder="Buscar por DNI / nombre…" style="flex:1; min-width:220px;">
-            <select id="filtroEstado" style="min-width:160px;">
-              <option value="">Todos</option>
-              <option value="matriculado">Matriculado</option>
-              <option value="reservado">Reservado</option>
-              <option value="retirado">Retirado</option>
-            </select>
-            <span class="pill">Total: <b id="count">0</b></span>
-          </div>
+<div>Total: <b id="count">0</b></div>
 
-          <div class="table-wrap">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Alumno</th>
-                  <th>Nivel</th>
-                  <th>Grado</th>
-                  <th>Sección</th>
-                  <th>Estado</th>
-                  <th>Activo</th>
-                  <th style="text-align:right;">Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="tbodyMatriculas">
-                <tr><td colspan="7" class="muted">Cargando…</td></tr>
-              </tbody>
-            </table>
-          </div>
+<table class="table">
+<thead>
+<tr>
+<th>Alumno</th>
+<th>Nivel</th>
+<th>Grado</th>
+<th>Sección</th>
+<th>Estado</th>
+<th>Activo</th>
+<th></th>
+</tr>
+</thead>
+<tbody id="tbodyMatriculas"></tbody>
+</table>
+</div>
 
-          <div class="muted" style="margin-top:10px;">
-            * Debe filtrar por <b>colegio</b> y <b>año</b> del contexto.
-          </div>
-        </div>
+</div>
+</main>
+</div>
 
-      </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../../assets/js/supabaseClient.js"></script>
+<script src="../../assets/js/context.js"></script>
+<script src="../../assets/js/ui.js"></script>
 
-      <!-- ===================================================== -->
-      <!-- 🔴🔴🔴 HASTA AQUÍ EDITAS 🔴🔴🔴 -->
-      <!-- ===================================================== -->
+<script>
+document.addEventListener("DOMContentLoaded",()=>{
+if(window.renderEduAdminSidebar) window.renderEduAdminSidebar();
+});
+</script>
 
-    </main>
-  </div>
-
-  <!-- ===== SCRIPTS GENERALES (NO TOCAR) ===== -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../../assets/js/supabaseClient.js"></script>
-  <script src="../../assets/js/context.js"></script>
-  <script src="../../assets/js/ui.js"></script>
-
-  <!-- ACTIVA SIDEBAR -->
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
-    });
-  </script>
-
-  <!-- ===== JS SOLO DE ESTA PÁGINA ===== -->
-  <script src="../js/matriculas.js"></script>
-
+<script src="../js/matriculas.js"></script>
 </body>
 </html>
