@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Usuarios / Roles</title>
 
-  <!-- CSS -->
+  <!-- ✅ RUTAS RELATIVAS DESDE /eduadmin/pages/ -->
   <link rel="stylesheet" href="../../assets/css/variables.css">
   <link rel="stylesheet" href="../../assets/css/main.css">
   <link rel="stylesheet" href="../../assets/css/components.css">
@@ -13,143 +13,186 @@
   <style>
     .grid-2 { display:grid; grid-template-columns: 1fr 1.4fr; gap:16px; }
     @media (max-width: 1000px){ .grid-2 { grid-template-columns: 1fr; } }
+    .muted { opacity:.75; }
     .pill-row { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
     .pill { padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); }
+    .table-actions { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+    .hint { font-size:.9rem; opacity:.75; margin-top:6px; }
     .warn { display:none; margin-top:10px; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); }
   </style>
 </head>
 
 <body>
-<div class="app-shell">
+  <div class="app-shell">
 
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="brand">
-      <img id="uiAppLogo" src="../../assets/img/educorp.jpeg" alt="EduAdmin">
-      <div class="titles">
-        <b>EduAdmin</b>
-        <span>Administración real</span>
-      </div>
-    </div>
-
-    <nav id="uiSidebarNav" class="nav"></nav>
-  </aside>
-
-  <!-- MAIN -->
-  <main class="main">
-
-    <!-- TOPBAR -->
-    <div class="topbar">
-      <div class="topbar-left">
-        <img id="uiSchoolLogo" src="../../assets/img/eduadmin.jpeg" class="topbar-logo">
-        <div class="topbar-meta">
-          <div id="uiSchoolName" class="topbar-title">Cargando colegio…</div>
-          <div id="uiYearName" class="topbar-subtitle">Año: —</div>
+    <!-- ✅ SIDEBAR DINÁMICO -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="../../assets/img/educorp.jpeg" alt="EduAdmin" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
         </div>
       </div>
 
-      <div class="topbar-actions">
-        <button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
-        <a href="./dashboard.html" class="btn btn-secondary">Volver</a>
-      </div>
-    </div>
+      <nav id="uiSidebarNav" class="nav"></nav>
+    </aside>
 
-    <!-- HEADER -->
-    <div class="page-header">
-      <h1>Usuarios / Roles</h1>
-      <div id="status" class="status muted">Cargando…</div>
+    <!-- ✅ MAIN -->
+    <main class="main">
 
-      <div class="pill-row">
-        <span id="pillContext" class="pill">Contexto: —</span>
-        <span id="pillRole" class="pill">Rol: —</span>
-        <span id="permMsg" class="warn"></span>
-      </div>
-    </div>
-
-    <div class="grid-2">
-
-      <!-- FORM -->
-      <div class="card">
-        <h2>Crear usuario</h2>
-
-        <form id="formUser">
-
-          <label>DNI</label>
-          <input id="inpDni" maxlength="8" required>
-
-          <label>Nombres</label>
-          <input id="inpNombres" required>
-
-          <label>Apellidos</label>
-          <input id="inpApellidos" required>
-
-          <label>Rol</label>
-          <select id="selRole" required>
-            <option value="">Seleccionar</option>
-            <option value="director">Director</option>
-            <option value="docente">Docente</option>
-            <option value="secretaria">Secretaria</option>
-            <option value="alumno">Alumno</option>
-            <option value="apoderado">Apoderado</option>
-          </select>
-
-          <button id="btnCreate" class="btn btn-primary" type="submit">
-            Crear usuario
-          </button>
-        </form>
-      </div>
-
-      <!-- TABLE -->
-      <div class="card">
-        <h2>Usuarios registrados</h2>
-
-        <div style="display:flex; gap:10px; margin:10px 0;">
-          <input id="inpBuscar" placeholder="Buscar...">
-          <select id="selFiltroRol">
-            <option value="">Todos</option>
-            <option value="director">Director</option>
-            <option value="docente">Docente</option>
-            <option value="secretaria">Secretaria</option>
-            <option value="alumno">Alumno</option>
-            <option value="apoderado">Apoderado</option>
-          </select>
+      <!-- ✅ TOPBAR -->
+      <div class="topbar">
+        <div class="topbar-left">
+          <img
+            id="uiSchoolLogo"
+            src="../../assets/img/eduadmin.jpeg"
+            alt="Logo"
+            class="topbar-logo"
+            onerror="this.src='../../assets/img/eduadmin.jpeg';"
+          />
+          <div class="topbar-meta">
+            <div id="uiSchoolName" class="topbar-title">Cargando colegio...</div>
+            <div id="uiYearName" class="topbar-subtitle">Año: —</div>
+          </div>
         </div>
 
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Email</th>
-              <th>Nombre</th>
-              <th>DNI</th>
-              <th>Rol</th>
-              <th>Estado</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="tbodyUsers">
-            <tr><td colspan="6">Cargando…</td></tr>
-          </tbody>
-        </table>
+        <div class="topbar-actions">
+          <button id="btnRefresh" class="btn btn-secondary" type="button">Actualizar</button>
+          <a href="./dashboard.html" class="btn btn-secondary">Volver</a>
+        </div>
       </div>
 
-    </div>
+      <!-- ✅ HEADER -->
+      <div class="page-header">
+        <h1>Usuarios / Roles</h1>
+        <div id="status" class="status muted">Cargando…</div>
+        <div class="pill-row">
+          <span id="pillContext" class="pill">Contexto: —</span>
+          <span id="pillRole" class="pill">Rol: —</span>
+          <span id="permMsg" class="warn"></span>
+        </div>
+      </div>
 
-  </main>
-</div>
+      <div class="grid-2">
 
-<!-- SCRIPTS (orden obligatorio) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../../assets/js/supabaseClient.js"></script>
-<script src="../../assets/js/context.js"></script>
-<script src="../../assets/js/ui.js"></script>
+        <!-- ✅ FORM -->
+        <div class="card">
+          <h2 class="card-title">Crear usuario</h2>
 
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
-});
-</script>
+          <form id="formUser" class="form">
+            <div class="form-group">
+              <label for="inpDni">DNI</label>
+              <input id="inpDni" type="text" inputmode="numeric" maxlength="8" placeholder="8 dígitos" required />
+            </div>
 
-<script src="../js/usuarios.js"></script>
+            <div class="form-group">
+              <label for="inpNombres">Nombres</label>
+              <input id="inpNombres" type="text" placeholder="Ej: Juan Carlos" required />
+            </div>
 
+            <div class="form-group">
+              <label for="inpApellidos">Apellidos</label>
+              <input id="inpApellidos" type="text" placeholder="Ej: Pérez Gómez" required />
+            </div>
+
+            <div class="form-group">
+              <label for="selRole">Rol</label>
+              <select id="selRole" required>
+                <option value="">Selecciona un rol</option>
+                <option value="director">Director</option>
+                <option value="docente">Docente</option>
+                <option value="alumno">Alumno</option>
+                <option value="apoderado">Apoderado</option>
+                <option value="secretaria">Secretaria</option>
+              </select>
+              <div class="hint">* Contraseña inicial será el DNI.</div>
+            </div>
+
+            <!-- ✅ NUEVO: Selector de colegio (solo superadmin) -->
+            <div class="form-group">
+              <label for="selColegio">Colegio</label>
+              <select id="selColegio">
+                <option value="">Cargando colegios…</option>
+              </select>
+              <div class="hint" id="hintColegio">
+                * Si no eres SuperAdmin, se usará tu colegio automáticamente.
+              </div>
+            </div>
+
+            <button id="btnCreate" type="submit" class="btn btn-primary" style="width:100%;">Crear usuario</button>
+
+            <div class="muted" style="margin-top:10px;">
+              * Director y Secretaria pueden crear docentes/alumnos si el rol lo permite en tu backend.
+            </div>
+          </form>
+        </div>
+
+        <!-- ✅ TABLE -->
+        <div class="card">
+          <h2 class="card-title">Usuarios registrados</h2>
+
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0;">
+            <div class="form-group" style="margin:0; min-width:220px; flex:1;">
+              <label for="inpBuscar">Buscar (email / nombre / DNI)</label>
+              <input id="inpBuscar" type="text" placeholder="Escribe para filtrar…" />
+            </div>
+
+            <div class="form-group" style="margin:0; min-width:220px;">
+              <label for="selFiltroRol">Filtrar por rol</label>
+              <select id="selFiltroRol">
+                <option value="">Todos</option>
+                <option value="superadmin">SuperAdmin</option>
+                <option value="director">Director</option>
+                <option value="docente">Docente</option>
+                <option value="secretaria">Secretaria</option>
+                <option value="alumno">Alumno</option>
+                <option value="apoderado">Apoderado</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Nombre</th>
+                  <th>DNI</th>
+                  <th>Rol</th>
+                  <th>Estado</th>
+                  <th style="text-align:right;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyUsers">
+                <tr><td colspan="6" class="muted">Cargando…</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="muted" style="margin-top:10px;">
+            * Reset solo funciona si el usuario tiene DNI guardado en <b>profiles.dni</b>.
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ✅ Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabaseClient.js"></script>
+  <script src="../../assets/js/context.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
+    });
+  </script>
+
+  <!-- ✅ JS de esta página -->
+  <script src="../js/usuarios.js"></script>
 </body>
 </html>
