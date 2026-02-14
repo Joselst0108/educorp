@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin | Apoderados</title>
+  <title>EduAdmin | Matrículas</title>
 
-  <!-- ✅ CSS GENERAL -->
+  <!-- ===== CSS GENERAL (NO TOCAR) ===== -->
   <link rel="stylesheet" href="../../assets/css/variables.css">
   <link rel="stylesheet" href="../../assets/css/main.css">
   <link rel="stylesheet" href="../../assets/css/components.css">
@@ -14,16 +14,50 @@
     .grid-2 { display:grid; grid-template-columns: 1fr 1.2fr; gap:16px; }
     @media (max-width: 900px){ .grid-2 { grid-template-columns: 1fr; } }
     .muted { opacity:.75; }
-    .row-4 { display:grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap:12px; }
-    @media (max-width: 900px){ .row-4 { grid-template-columns: 1fr; } }
-    .actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .row-3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; }
+    @media (max-width: 900px){ .row-3 { grid-template-columns: 1fr; } }
+    .actions { display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
+    .pill { padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.06); display:inline-block; }
+    .hint { font-size:12px; opacity:.8; margin-top:6px; }
+    .btn-sm { padding:8px 10px; font-size:13px; }
+    .modal-backdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,.55);
+      display:none; align-items:center; justify-content:center;
+      z-index:9999;
+    }
+    .modal{
+      width:min(760px, 95vw);
+      background:#0b1220;
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:16px;
+      box-shadow:0 16px 40px rgba(0,0,0,.45);
+      overflow:hidden;
+    }
+    .modal-head{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 16px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+    }
+    .modal-body{ padding:14px 16px; }
+    .modal-foot{
+      padding:14px 16px;
+      border-top:1px solid rgba(255,255,255,.08);
+      display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;
+    }
+    .table-mini{ width:100%; border-collapse:collapse; }
+    .table-mini th, .table-mini td{
+      padding:10px 10px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      text-align:left;
+    }
+    .table-mini th{ opacity:.85; font-weight:600; }
   </style>
 </head>
 
 <body>
   <div class="app-shell">
 
-    <!-- ✅ SIDEBAR -->
+    <!-- ===== SIDEBAR (GENERAL) ===== -->
     <aside class="sidebar">
       <div class="brand">
         <img id="uiAppLogo" src="../../assets/img/educorp.jpeg" alt="EduAdmin" />
@@ -35,10 +69,10 @@
       <nav id="uiSidebarNav" class="nav"></nav>
     </aside>
 
-    <!-- ✅ MAIN -->
+    <!-- ===== MAIN ===== -->
     <main class="main">
 
-      <!-- ✅ TOPBAR -->
+      <!-- ===== TOPBAR GENERAL ===== -->
       <div class="topbar">
         <div class="topbar-left">
           <img
@@ -60,108 +94,184 @@
         </div>
       </div>
 
-      <!-- ✅ HEADER -->
       <div class="page-header">
-        <h1>Apoderados</h1>
-        <div id="saveStatus" class="status muted"></div>
-      </div>
-
-      <!-- ✅ Pills -->
-      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
-        <span id="pillContext" class="badge">Contexto: ...</span>
-        <span id="pillRole" class="badge">Rol: ...</span>
-        <span id="permMsg" class="badge" style="display:none;"></span>
+        <h1>Matrículas</h1>
+        <div id="status" class="status muted">Cargando…</div>
       </div>
 
       <div class="grid-2">
 
-        <!-- ✅ FORM -->
-        <section class="card">
-          <h2 class="card-title">Registrar apoderado</h2>
-          <p class="muted">Aquí solo se registra el apoderado. La asignación al alumno se hará en Matrículas.</p>
+        <!-- ===== CREAR MATRÍCULA ===== -->
+        <div class="card">
+          <h2 class="card-title">Registrar matrícula</h2>
+          <p class="muted">Vincula un alumno al año, nivel, grado y sección del contexto. (Apoderado se asigna aquí con modal)</p>
 
-          <div class="row-4" style="margin-top:12px;">
-            <div>
-              <label style="display:block; margin-bottom:6px;">DNI</label>
-              <input id="inpDni" class="input" maxlength="12" placeholder="Ej: 12345678" />
-            </div>
+          <form id="formMatricula" class="form">
+            <input type="hidden" id="matricula_id" value="">
 
-            <div>
-              <label style="display:block; margin-bottom:6px;">Nombres</label>
-              <input id="inpNombres" class="input" placeholder="Ej: María Rosa" />
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:6px;">Apellidos</label>
-              <input id="inpApellidos" class="input" placeholder="Ej: Gómez Ruiz" />
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:6px;">Teléfono</label>
-              <input id="inpTelefono" class="input" placeholder="Ej: 999888777" />
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:6px;">Correo</label>
-              <input id="inpCorreo" class="input" type="email" placeholder="Ej: apoderado@mail.com" />
-            </div>
-
-            <div style="grid-column: 1 / -1;">
-              <label style="display:block; margin-bottom:6px;">Dirección</label>
-              <input id="inpDireccion" class="input" placeholder="Ej: Av. Siempre Viva 123" />
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:6px;">Estado</label>
-              <select id="selEstado" class="input">
-                <option value="activo">Activo</option>
-                <option value="inactivo">Inactivo</option>
+            <div class="form-group">
+              <label for="alumno_id">Alumno</label>
+              <select id="alumno_id" required>
+                <option value="">Cargando alumnos…</option>
               </select>
+              <div class="hint">* Si no aparece, primero crea alumnos.</div>
             </div>
+
+            <!-- ✅ APODERADO (MODAL) -->
+            <div class="form-group">
+              <label>Apoderado</label>
+              <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                <input id="apoderado_id" type="hidden" value="">
+                <div id="apoderadoLabel" class="pill" style="flex:1; min-width:240px;">Sin apoderado asignado</div>
+                <button id="btnPickApoderado" class="btn btn-secondary btn-sm" type="button">Asignar apoderado</button>
+                <button id="btnClearApoderado" class="btn btn-secondary btn-sm" type="button">Quitar</button>
+              </div>
+              <div id="apoderadoHint" class="hint">* Si tu tabla matrículas no tiene apoderado_id, esta función se desactiva sola.</div>
+            </div>
+
+            <div class="row-3">
+              <div class="form-group">
+                <label for="nivel_id">Nivel</label>
+                <select id="nivel_id" required>
+                  <option value="">Selecciona</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="grado_id">Grado</label>
+                <select id="grado_id" required>
+                  <option value="">Selecciona</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="seccion_id">Sección</label>
+                <select id="seccion_id" required>
+                  <option value="">Selecciona</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row-3">
+              <div class="form-group">
+                <label for="estado">Estado</label>
+                <select id="estado" required>
+                  <option value="matriculado">Matriculado</option>
+                  <option value="reservado">Reservado</option>
+                  <option value="retirado">Retirado</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="fecha">Fecha</label>
+                <input id="fecha" type="date" />
+              </div>
+
+              <div class="form-group">
+                <label for="observacion">Observación</label>
+                <input id="observacion" placeholder="Opcional" />
+              </div>
+            </div>
+
+            <div class="form-group" style="display:flex; gap:10px; align-items:center;">
+              <input id="activo" type="checkbox" checked />
+              <label for="activo" style="margin:0;">Activo</label>
+            </div>
+
+            <div class="actions">
+              <button id="btnLimpiar" class="btn btn-secondary" type="button">Limpiar</button>
+              <button id="btnGuardar" class="btn btn-primary" type="submit">Guardar matrícula</button>
+            </div>
+
+            <div id="msg" class="muted" style="margin-top:10px;"></div>
+          </form>
+        </div>
+
+        <!-- ===== LISTADO ===== -->
+        <div class="card">
+          <h2 class="card-title">Matrículas registradas</h2>
+
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
+            <input id="buscar" placeholder="Buscar por DNI / nombre…" style="flex:1; min-width:220px;">
+            <select id="filtroEstado" style="min-width:160px;">
+              <option value="">Todos</option>
+              <option value="matriculado">Matriculado</option>
+              <option value="reservado">Reservado</option>
+              <option value="retirado">Retirado</option>
+            </select>
+            <span class="pill">Total: <b id="count">0</b></span>
           </div>
 
-          <div class="actions" style="margin-top:12px;">
-            <button id="btnGuardar" class="btn btn-primary" type="button">Guardar apoderado</button>
-            <button id="btnLimpiar" class="btn btn-secondary" type="button">Limpiar</button>
-          </div>
-        </section>
-
-        <!-- ✅ LISTA -->
-        <section class="card">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-            <h2 class="card-title" style="margin:0;">Listado</h2>
-            <input id="inpBuscar" class="input" style="max-width:320px;" placeholder="Buscar DNI / nombres / apellidos" />
-          </div>
-
-          <div class="table-wrap" style="margin-top:12px;">
+          <div class="table-wrap">
             <table class="table">
               <thead>
                 <tr>
-                  <th>DNI</th>
-                  <th>Apellidos</th>
-                  <th>Nombres</th>
-                  <th>Teléfono</th>
+                  <th>Alumno</th>
+                  <th>Nivel</th>
+                  <th>Grado</th>
+                  <th>Sección</th>
+                  <th>Apoderado</th>
                   <th>Estado</th>
-                  <th>Creado</th>
+                  <th>Activo</th>
+                  <th style="text-align:right;">Acciones</th>
                 </tr>
               </thead>
-              <tbody id="apoderadosTbody">
-                <tr><td colspan="6" class="muted">Cargando...</td></tr>
+              <tbody id="tbodyMatriculas">
+                <tr><td colspan="8" class="muted">Cargando…</td></tr>
               </tbody>
             </table>
           </div>
 
-          <p class="muted" style="margin-top:10px; font-size:13px;">
-            • La asignación Apoderado ↔ Alumno se realizará en Matrículas (por año).
-          </p>
-        </section>
+          <div class="muted" style="margin-top:10px;">
+            * Filtra por <b>colegio</b> y <b>año</b> del contexto.
+          </div>
+        </div>
 
       </div>
 
     </main>
   </div>
 
-  <!-- ✅ Scripts al final -->
+  <!-- ===== MODAL APODERADO ===== -->
+  <div id="modalBackdrop" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head">
+        <div>
+          <div id="modalTitle" style="font-weight:700; font-size:16px;">Asignar apoderado</div>
+          <div class="muted" style="font-size:12px;">Busca por DNI / apellidos / nombres</div>
+        </div>
+        <button id="btnCloseModal" class="btn btn-secondary btn-sm" type="button">Cerrar</button>
+      </div>
+
+      <div class="modal-body">
+        <input id="qApoderado" class="input" placeholder="Ej: 12345678 / Pérez / Juan" />
+        <div class="hint" style="margin:8px 0 12px;">* Se listan solo apoderados del colegio del contexto.</div>
+
+        <div style="overflow:auto; max-height: 45vh;">
+          <table class="table-mini">
+            <thead>
+              <tr>
+                <th>DNI</th>
+                <th>Apellidos y nombres</th>
+                <th>Teléfono</th>
+                <th style="width:120px;">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyApoderados">
+              <tr><td colspan="4" class="muted">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button id="btnModalClear" class="btn btn-secondary" type="button">Quitar apoderado</button>
+        <button id="btnModalOk" class="btn btn-primary" type="button">Listo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCRIPTS GENERALES (NO TOCAR) ===== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../../assets/js/supabaseClient.js"></script>
   <script src="../../assets/js/context.js"></script>
@@ -173,7 +283,7 @@
     });
   </script>
 
-  <!-- ✅ JS de esta página -->
-  <script src="../js/apoderados.js"></script>
+  <!-- ===== JS SOLO DE ESTA PÁGINA ===== -->
+  <script src="../js/matriculas.js"></script>
 </body>
 </html>
