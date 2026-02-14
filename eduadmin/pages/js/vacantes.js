@@ -10,6 +10,32 @@ function getSB() {
   return window.supabaseClient || window.supabase;
 }
 
+function normRole(v) {
+  return String(v || "").trim().toLowerCase();
+}
+
+function canWrite(role) {
+  const r = normRole(role);
+  return r === "superadmin" || r === "director";
+}
+
+function showPerm(msg) {
+  const box = document.getElementById("permMsg");
+  if (!box) return;
+  box.style.display = "block";
+  box.textContent = msg;
+}
+
+function setSaveStatus(t) {
+  const el = document.getElementById("saveStatus");
+  if (el) el.textContent = t || "";
+}
+
+let __CTX = null;
+let __ROLE = "";
+let __VAC_CACHE = [];
+let __MAT_BY_SECCION = new Map();
+
 async function initVacantes() {
   const sb = getSB();
   if (!sb) {
@@ -17,66 +43,88 @@ async function initVacantes() {
     return;
   }
 
-  // ✅ 1) CARGAR CONTEXTO PRIMERO (antes de usar ctx)
-  const ctx =
-    (window.getContext ? await window.getContext() : null) ||
-    window.__CTX ||
-    window.appContext ||
-    null;
-
-  if (!ctx) {
-    console.error("No hay contexto (ctx).");
+  if (!window.getContext) {
+    alert("No cargó context.js");
     return;
   }
 
-  // ✅ IDs desde contexto (tú dijiste: school_id / year_id)
+  const ctx = await window.getContext(false);
+  __CTX = ctx;
+
   const colegioId = ctx.school_id || ctx.colegio_id || ctx.colegioId;
   const anioId = ctx.year_id || ctx.anio_academico_id || ctx.anioId;
 
-  // ✅ 2) PINTAR TOPBAR (colegio / año)
-  const uiSchoolName = document.getElementById("uiSchoolName");
-  const uiYearName = document.getElementById("uiYearName");
-
   const schoolName =
-    ctx.school_name ||
-    ctx.school?.nombre ||
-    ctx.school?.name ||
-    ctx.colegio_nombre ||
-    "—";
+    ctx.school_name || ctx.school?.nombre || ctx.school?.name || ctx.colegio_nombre || "—";
 
   const yearName =
     ctx.year_name || ctx.year?.nombre || ctx.year?.name || ctx.anio_nombre || "—";
 
-  if (uiSchoolName) uiSchoolName.textContent = schoolName;
-  if (uiYearName) uiYearName.textContent = `Año: ${yearName}`;
+  __ROLE = normRole(ctx.user_role || ctx.role || ctx.rol || ctx.profile?.role || "");
 
-  // ✅ Pills
+  // topbar
+  const uiSchoolName = document.getElementById("uiSchoolName");
+  const uiYearName = document.getElementById("uiYearName");
+  const uiSchoolLogo = document.getElementById("uiSchoolLogo");
+  if (uiSchoolName) uiSchoolName.textContent = schoolName;
+  if (uiYearName) uiYearName.textContent = `Año: ${yearName || "—"}`;
+  if (uiSchoolLogo && ctx.school_logo_url) uiSchoolLogo.src = ctx.school_logo_url;
+
+  // pills
   const pillContext = document.getElementById("pillContext");
   const pillRole = document.getElementById("pillRole");
+  if (pillContext) pillContext.textContent = `Contexto: ${schoolName} / ${yearName || "—"}`;
+  if (pillRole) pillRole.textContent = `Rol: ${__ROLE || "—"}`;
 
-  const role = ctx.role || ctx.user_role || ctx.rol || ctx.profile?.role || "—";
-
-  if (pillContext) pillContext.textContent = `Contexto: ${schoolName} / ${yearName}`;
-  if (pillRole) pillRole.textContent = `Rol: ${role}`;
-
-  if (!colegioId || !anioId) {
-    console.error("Contexto incompleto. colegioId/anioId:", { colegioId, anioId, ctx });
+  if (!colegioId) {
+    alert("No hay colegio en el contexto.");
+    location.href = "/login.html";
     return;
   }
 
-  // ✅ Botones (tienes btnRefresh duplicado en HTML, por eso uso querySelectorAll)
-  document.querySelectorAll("#btnRefresh").forEach((btn) => {
-    btn.addEventListener("click", () => recargarTabla(colegioId, anioId));
+  if (!anioId) {
+    alert("No hay año académico activo. Activa uno primero.");
+    location.href = "/eduadmin/pages/anio.html";
+    return;
+  }
+
+  // permisos
+  const btnGuardar = document.getElementById("btnGuardar");
+  if (!canWrite(__ROLE)) {
+    if (btnGuardar) btnGuardar.disabled = true;
+    showPerm("🔒 Solo lectura: tu rol no permite registrar/editar cupos.");
+  }
+
+  // eventos
+  document.getElementById("btnRefresh")?.addEventListener("click", async () => {
+    await recargarTodo(colegioId, anioId);
   });
 
-  const btnGuardar = document.getElementById("btnGuardar");
-  const btnLimpiar = document.getElementById("btnLimpiar");
+  document.getElementById("btnGuardar")?.addEventListener("click", async () => {
+    await guardarVacante(colegioId, anioId);
+  });
 
-  if (btnGuardar) btnGuardar.addEventListener("click", () => guardarVacante(colegioId, anioId));
-  if (btnLimpiar) btnLimpiar.addEventListener("click", limpiarFormulario);
+  document.getElementById("btnLimpiar")?.addEventListener("click", () => limpiarFormulario());
 
-  // ✅ Carga inicial
+  // delegación editar
+  document.getElementById("vacantesTbody")?.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-edit]");
+    if (!btn) return;
+
+    const id = btn.dataset.edit;
+    const row = __VAC_CACHE.find((x) => String(x.id) === String(id));
+    if (!row) return;
+
+    await prefillFromRow(row, colegioId, anioId);
+  });
+
   await cargarNiveles(colegioId, anioId);
+  await recargarTodo(colegioId, anioId);
+}
+
+async function recargarTodo(colegioId, anioId) {
+  setSaveStatus("");
+  await cargarMatriculasBySeccion(colegioId, anioId);
   await recargarTabla(colegioId, anioId);
 }
 
@@ -102,7 +150,7 @@ async function cargarNiveles(colegioId, anioId) {
     .select("id, nombre")
     .eq("colegio_id", colegioId)
     .eq("anio_academico_id", anioId)
-    .order("nombre");
+    .order("nombre", { ascending: true });
 
   if (error) {
     console.error("Error cargando niveles:", error);
@@ -140,7 +188,6 @@ async function cargarGrados(nivelId) {
   selSeccion.innerHTML = `<option value="">Seleccione grado</option>`;
   selSeccion.disabled = true;
 
-  // ✅ OJO: según tus capturas, grados NO tiene colegio_id/anio_academico_id
   const { data, error } = await sb
     .from("grados")
     .select("id, nombre, orden")
@@ -166,15 +213,8 @@ async function cargarGrados(nivelId) {
 
     if (!gradoId) return;
 
-    // Para secciones sí filtramos por grado_id y colegio/año vienen desde contexto
-    const ctx =
-      (window.getContext ? await window.getContext() : null) ||
-      window.__CTX ||
-      window.appContext ||
-      null;
-
-    const colegioId = ctx?.school_id || ctx?.colegio_id || ctx?.colegioId;
-    const anioId = ctx?.year_id || ctx?.anio_academico_id || ctx?.anioId;
+    const colegioId = __CTX?.school_id || __CTX?.colegio_id || __CTX?.colegioId;
+    const anioId = __CTX?.year_id || __CTX?.anio_academico_id || __CTX?.anioId;
 
     await cargarSecciones(gradoId, colegioId, anioId);
   };
@@ -194,7 +234,7 @@ async function cargarSecciones(gradoId, colegioId, anioId) {
     .eq("colegio_id", colegioId)
     .eq("anio_academico_id", anioId)
     .eq("grado_id", gradoId)
-    .order("nombre");
+    .order("nombre", { ascending: true });
 
   if (error) {
     console.error("Error cargando secciones:", error);
@@ -209,16 +249,50 @@ async function cargarSecciones(gradoId, colegioId, anioId) {
 }
 
 /* ============================
+   MATRICULADOS POR SECCIÓN
+============================ */
+async function cargarMatriculasBySeccion(colegioId, anioId) {
+  const sb = getSB();
+  __MAT_BY_SECCION = new Map();
+
+  const { data, error } = await sb
+    .from("matriculas")
+    .select("seccion_id")
+    .eq("colegio_id", colegioId)
+    .eq("anio_academico_id", anioId);
+
+  if (error) {
+    console.warn("No se pudo cargar matriculas (conteo):", error);
+    return;
+  }
+
+  let total = 0;
+  (data || []).forEach((r) => {
+    const sid = r.seccion_id;
+    if (!sid) return;
+    total += 1;
+    __MAT_BY_SECCION.set(sid, (__MAT_BY_SECCION.get(sid) || 0) + 1);
+  });
+
+  const elTotal = document.getElementById("countMatriculados");
+  if (elTotal) elTotal.textContent = String(total);
+}
+
+/* ============================
    GUARDAR EN TABLA VACANTES
 ============================ */
 async function guardarVacante(colegioId, anioId) {
+  if (!canWrite(__ROLE)) {
+    alert("No tienes permisos para guardar cupos.");
+    return;
+  }
+
   const sb = getSB();
 
   const selNivel = document.getElementById("selNivel");
   const selGrado = document.getElementById("selGrado");
   const selSeccion = document.getElementById("selSeccion");
   const inpCupo = document.getElementById("inpCupo");
-  const saveStatus = document.getElementById("saveStatus");
 
   const nivelId = selNivel?.value;
   const gradoId = selGrado?.value;
@@ -235,7 +309,7 @@ async function guardarVacante(colegioId, anioId) {
     return;
   }
 
-  if (saveStatus) saveStatus.textContent = "Guardando...";
+  setSaveStatus("Guardando...");
 
   const payload = {
     colegio_id: colegioId,
@@ -252,18 +326,27 @@ async function guardarVacante(colegioId, anioId) {
 
   if (error) {
     console.error("Error guardando vacante:", error);
-    alert("Error guardando. Revisa consola.");
-    if (saveStatus) saveStatus.textContent = "Error";
+    alert(error.message || "Error guardando. Revisa consola.");
+    setSaveStatus("Error");
     return;
   }
 
-  if (saveStatus) saveStatus.textContent = "Guardado ✅";
-  await recargarTabla(colegioId, anioId);
+  setSaveStatus("Guardado ✅");
+  await recargarTodo(colegioId, anioId);
 }
 
 /* ============================
    TABLA (LISTAR)
 ============================ */
+function esc(v) {
+  return String(v ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 async function recargarTabla(colegioId, anioId) {
   const sb = getSB();
   const tbody = document.getElementById("vacantesTbody");
@@ -279,13 +362,14 @@ async function recargarTabla(colegioId, anioId) {
       cupo_total,
       vacantes_disponibles,
       reservadas,
+      seccion_id,
       nivel:niveles ( nombre ),
       grado:grados ( nombre ),
       seccion:secciones ( nombre )
     `)
     .eq("colegio_id", colegioId)
     .eq("anio_academico_id", anioId)
-    .order("id", { ascending: false }); // ✅ para evitar error si no hay created_at
+    .order("id", { ascending: false });
 
   if (error) {
     console.error("Error cargando tabla vacantes:", error);
@@ -293,38 +377,68 @@ async function recargarTabla(colegioId, anioId) {
     return;
   }
 
-  if (!data || data.length === 0) {
+  __VAC_CACHE = data || [];
+
+  if (!__VAC_CACHE.length) {
     tbody.innerHTML = `<tr><td colspan="7">No hay registros</td></tr>`;
     if (countSecciones) countSecciones.textContent = "0";
     return;
   }
 
-  if (countSecciones) countSecciones.textContent = String(data.length);
+  if (countSecciones) countSecciones.textContent = String(__VAC_CACHE.length);
 
-  tbody.innerHTML = data
+  tbody.innerHTML = __VAC_CACHE
     .map((row) => {
       const nivel = row.nivel?.nombre || "—";
       const grado = row.grado?.nombre || "—";
       const seccion = row.seccion?.nombre || "—";
       const cupo = row.cupo_total ?? 0;
-      const disp = row.vacantes_disponibles ?? null;
       const reserv = row.reservadas ?? 0;
+      const disp = row.vacantes_disponibles ?? null;
 
-      const vac = disp !== null ? disp : Math.max(0, cupo - reserv);
+      const matric = __MAT_BY_SECCION.get(row.seccion_id) || 0;
+      const vac = disp !== null ? disp : Math.max(0, cupo - matric);
+
+      const btnEdit = canWrite(__ROLE)
+        ? `<button class="btn btn-secondary btn-sm" data-edit="${esc(row.id)}">Editar</button>`
+        : `<span class="muted">—</span>`;
 
       return `
         <tr>
-          <td>${nivel}</td>
-          <td>${grado}</td>
-          <td>${seccion}</td>
-          <td style="text-align:center;">—</td>
+          <td>${esc(nivel)}</td>
+          <td>${esc(grado)}</td>
+          <td>${esc(seccion)}</td>
+          <td style="text-align:center;">${matric}</td>
           <td style="text-align:center;">${cupo}</td>
           <td style="text-align:center;">${vac}</td>
-          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">${btnEdit}</td>
         </tr>
       `;
     })
     .join("");
+}
+
+async function prefillFromRow(row, colegioId, anioId) {
+  const selNivel = document.getElementById("selNivel");
+  const selGrado = document.getElementById("selGrado");
+  const selSeccion = document.getElementById("selSeccion");
+  const inpCupo = document.getElementById("inpCupo");
+
+  if (!selNivel || !selGrado || !selSeccion || !inpCupo) return;
+
+  // Necesitamos que existan las opciones. Re-cargamos dependencias.
+  selNivel.value = row.nivel_id || "";
+  if (selNivel.value) {
+    await cargarGrados(selNivel.value);
+    selGrado.value = row.grado_id || "";
+    if (selGrado.value) {
+      await cargarSecciones(selGrado.value, colegioId, anioId);
+      selSeccion.value = row.seccion_id || "";
+    }
+  }
+
+  inpCupo.value = String(row.cupo_total ?? "");
+  setSaveStatus("Editando… (ajusta cupo y guarda)");
 }
 
 function limpiarFormulario() {
@@ -332,7 +446,6 @@ function limpiarFormulario() {
   const selGrado = document.getElementById("selGrado");
   const selSeccion = document.getElementById("selSeccion");
   const inpCupo = document.getElementById("inpCupo");
-  const saveStatus = document.getElementById("saveStatus");
 
   if (selNivel) selNivel.value = "";
   if (selGrado) {
@@ -344,5 +457,5 @@ function limpiarFormulario() {
     selSeccion.disabled = true;
   }
   if (inpCupo) inpCupo.value = "";
-  if (saveStatus) saveStatus.textContent = "";
+  setSaveStatus("");
 }
