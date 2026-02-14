@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Colegios</title>
 
-  <!-- CSS GENERAL -->
+  <!-- CSS -->
   <link rel="stylesheet" href="../../assets/css/variables.css">
   <link rel="stylesheet" href="../../assets/css/main.css">
   <link rel="stylesheet" href="../../assets/css/components.css">
@@ -23,12 +23,14 @@
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="brand">
-      <img src="../../assets/img/educorp.jpeg">
+      <img id="uiAppLogo" src="../../assets/img/educorp.jpeg">
       <div class="titles">
         <b>EduAdmin</b>
         <span>Administración real</span>
       </div>
     </div>
+
+    <!-- menú dinámico -->
     <nav id="uiSidebarNav" class="nav"></nav>
   </aside>
 
@@ -59,7 +61,7 @@
 
     <div class="grid-2">
 
-      <!-- CREAR -->
+      <!-- CREAR COLEGIO -->
       <div class="card">
         <h2 class="card-title">Crear colegio</h2>
 
@@ -102,7 +104,7 @@
                 <th>Nombre</th>
                 <th>Dirección</th>
                 <th>Teléfono</th>
-                <th>Acciones</th>
+                <th style="text-align:right;">Acciones</th>
               </tr>
             </thead>
             <tbody id="tbody">
@@ -117,19 +119,20 @@
   </main>
 </div>
 
-<!-- SCRIPTS GENERALES -->
+<!-- SCRIPTS (orden obligatorio) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../../assets/js/supabaseClient.js"></script>
 <script src="../../assets/js/context.js"></script>
 <script src="../../assets/js/ui.js"></script>
 
+<!-- activar sidebar -->
 <script>
-document.addEventListener("DOMContentLoaded",()=>{
-  if(window.renderEduAdminSidebar) window.renderEduAdminSidebar();
+document.addEventListener("DOMContentLoaded", () => {
+  if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
 });
 </script>
 
-<!-- JS DE LA PÁGINA -->
+<!-- JS página -->
 <script src="../js/colegios.js"></script>
 
 </body>
