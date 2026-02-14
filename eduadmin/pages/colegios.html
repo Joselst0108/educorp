@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Colegios</title>
 
-  <!-- CSS -->
+  <!-- CSS GENERAL -->
   <link rel="stylesheet" href="../../assets/css/variables.css">
   <link rel="stylesheet" href="../../assets/css/main.css">
   <link rel="stylesheet" href="../../assets/css/components.css">
@@ -23,14 +23,12 @@
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="brand">
-      <img id="uiAppLogo" src="../../assets/img/educorp.jpeg">
+      <img src="../../assets/img/educorp.jpeg" alt="EduCorp">
       <div class="titles">
         <b>EduAdmin</b>
         <span>Administración real</span>
       </div>
     </div>
-
-    <!-- menú dinámico -->
     <nav id="uiSidebarNav" class="nav"></nav>
   </aside>
 
@@ -40,7 +38,7 @@
     <!-- TOPBAR -->
     <div class="topbar">
       <div class="topbar-left">
-        <img id="uiSchoolLogo" src="../../assets/img/eduadmin.jpeg" class="topbar-logo">
+        <img id="uiSchoolLogo" src="../../assets/img/eduadmin.jpeg" class="topbar-logo" alt="Logo">
         <div class="topbar-meta">
           <div id="uiSchoolName" class="topbar-title">SuperAdmin</div>
           <div id="uiYearName" class="topbar-subtitle">Panel general</div>
@@ -48,7 +46,7 @@
       </div>
 
       <div class="topbar-actions">
-        <button id="btnRefresh" class="btn btn-secondary">Actualizar</button>
+        <button id="btnRefresh" class="btn btn-secondary" type="button">Actualizar</button>
         <a href="./dashboard.html" class="btn btn-secondary">Volver</a>
       </div>
     </div>
@@ -61,7 +59,7 @@
 
     <div class="grid-2">
 
-      <!-- CREAR COLEGIO -->
+      <!-- CREAR -->
       <div class="card">
         <h2 class="card-title">Crear colegio</h2>
 
@@ -87,7 +85,7 @@
           </div>
 
           <button class="btn btn-primary" style="width:100%">Guardar colegio</button>
-          <div id="msg" class="muted"></div>
+          <div id="msg" class="muted" style="margin-top:10px;"></div>
         </form>
       </div>
 
@@ -95,7 +93,7 @@
       <div class="card">
         <h2 class="card-title">Colegios registrados</h2>
 
-        <input id="buscar" placeholder="Buscar colegio..." style="margin-bottom:10px">
+        <input id="buscar" placeholder="Buscar colegio..." style="margin-bottom:10px;width:100%;">
 
         <div class="table-wrap">
           <table class="table">
@@ -119,21 +117,20 @@
   </main>
 </div>
 
-<!-- SCRIPTS (orden obligatorio) -->
+<!-- SCRIPTS GENERALES -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../../assets/js/supabaseClient.js"></script>
 <script src="../../assets/js/context.js"></script>
 <script src="../../assets/js/ui.js"></script>
 
-<!-- activar sidebar -->
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-  if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
+document.addEventListener("DOMContentLoaded",()=>{
+  if(window.renderEduAdminSidebar) window.renderEduAdminSidebar();
 });
 </script>
 
-<!-- JS página -->
-<script src="../pages/js/colegios.js"></script>
+<!-- JS DE LA PÁGINA -->
+<script src="./js/colegios.js"></script>
 
 </body>
 </html>
