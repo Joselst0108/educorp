@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es" data-app="eduadmin">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduAdmin | Colegios</title>
+
+<link rel="stylesheet" href="../../assets/css/variables.css">
+<link rel="stylesheet" href="../../assets/css/main.css">
+<link rel="stylesheet" href="../../assets/css/components.css">
+
+<style>
+.grid-2{display:grid;grid-template-columns:1fr 1.2fr;gap:16px}
+@media(max-width:900px){.grid-2{grid-template-columns:1fr}}
+</style>
+</head>
+
+<body>
+<div class="app-shell">
+
+<aside class="sidebar">
+  <div class="brand">
+    <img src="../../assets/img/educorp.jpeg">
+    <div class="titles">
+      <b>EduAdmin</b>
+      <span>SuperAdmin</span>
+    </div>
+  </div>
+  <nav id="uiSidebarNav" class="nav"></nav>
+</aside>
+
+<main class="main">
+
+<div class="topbar">
+  <div class="topbar-left">
+    <img src="../../assets/img/eduadmin.jpeg" class="topbar-logo">
+    <div class="topbar-meta">
+      <div class="topbar-title">SuperAdmin</div>
+      <div class="topbar-subtitle">Selecciona un colegio</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-header">
+  <h1>Colegios</h1>
+  <div id="status" class="status">Cargando…</div>
+</div>
+
+<div class="grid-2">
+
+<!-- CREAR -->
+<div class="card">
+<h2>Crear colegio</h2>
+
+<form id="formColegio">
+<input id="nombre" placeholder="Nombre" required>
+<input id="direccion" placeholder="Dirección">
+<input id="telefono" placeholder="Teléfono">
+<input id="logo" placeholder="Logo URL">
+
+<button class="btn btn-primary">Guardar</button>
+<div id="msg"></div>
+</form>
+</div>
+
+<!-- LISTA -->
+<div class="card">
+<h2>Lista</h2>
+
+<table class="table">
+<thead>
+<tr>
+<th>Nombre</th>
+<th>Acciones</th>
+</tr>
+</thead>
+
+<tbody id="tbody"></tbody>
+</table>
+
+</div>
+
+</div>
+
+</main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../../assets/js/supabaseClient.js"></script>
+<script src="../../assets/js/context.js"></script>
+<script src="../../assets/js/ui.js"></script>
+
+<script src="../js/colegios.js"></script>
+</body>
+</html>
