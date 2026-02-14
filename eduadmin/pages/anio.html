@@ -3,23 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EduAdmin | Año académico</title>
+<title>Año académico</title>
 
 <link rel="stylesheet" href="../../assets/css/variables.css">
 <link rel="stylesheet" href="../../assets/css/main.css">
 <link rel="stylesheet" href="../../assets/css/components.css">
-
-<style>
-.grid-2{display:grid;grid-template-columns:1fr 1.2fr;gap:16px}
-@media(max-width:900px){.grid-2{grid-template-columns:1fr}}
-.muted{opacity:.7}
-</style>
 </head>
 
 <body>
 <div class="app-shell">
 
-<!-- SIDEBAR -->
 <aside class="sidebar">
   <div class="brand">
     <img src="../../assets/img/educorp.jpeg">
@@ -31,10 +24,8 @@
   <nav id="uiSidebarNav" class="nav"></nav>
 </aside>
 
-<!-- MAIN -->
 <main class="main">
 
-<!-- TOPBAR -->
 <div class="topbar">
   <div class="topbar-left">
     <img id="uiSchoolLogo" src="../../assets/img/eduadmin.jpeg" class="topbar-logo">
@@ -50,56 +41,37 @@
   </div>
 </div>
 
-<!-- HEADER -->
 <div class="page-header">
   <h1>Año académico</h1>
   <div id="status" class="status muted">Cargando…</div>
 </div>
 
-<div class="grid-2">
-
-<!-- CREAR -->
 <div class="card">
-  <h2 class="card-title">Crear año</h2>
-
-  <form id="formAnio" class="form">
-    <div class="form-group">
-      <label>Año</label>
-      <input id="anio" required placeholder="2026">
-    </div>
-
-    <div class="form-group">
-      <label>Nombre</label>
-      <input id="nombre" placeholder="Año escolar 2026">
-    </div>
-
-    <button class="btn btn-primary" style="width:100%">Guardar</button>
-    <div id="msg" class="muted"></div>
+  <form id="formAnio">
+    <input id="anio" placeholder="2026" required>
+    <input id="nombre" placeholder="Año escolar 2026">
+    <button class="btn btn-primary">Crear</button>
+    <div id="msg"></div>
   </form>
 </div>
 
-<!-- LISTA -->
 <div class="card">
-  <h2 class="card-title">Años creados</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Año</th>
+        <th>Nombre</th>
+        <th>Activo</th>
+        <th></th>
+      </tr>
+    </thead>
 
-  <div class="table-wrap">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Año</th>
-          <th>Nombre</th>
-          <th>Activo</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="tbody">
-        <tr><td colspan="4">Cargando…</td></tr>
-      </tbody>
-    </table>
-  </div>
+    <!-- 🔥 ESTE ID DEBE SER EXACTO -->
+    <tbody id="tbody"></tbody>
+
+  </table>
 </div>
 
-</div>
 </main>
 </div>
 
