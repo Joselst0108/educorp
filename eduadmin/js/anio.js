@@ -1,213 +1,133 @@
-
 document.addEventListener("DOMContentLoaded", async () => {
-  const supabase = window.supabaseClient;
 
-  const statusEl = document.getElementById("status");
-  const tbody = document.getElementById("tbodyAnios");
-  const form = document.getElementById("formAnio");
-  const btnRefresh = document.getElementById("btnRefresh");
-  const logoutBtn = document.getElementById("logoutBtn");
+const supabase = window.supabaseClient;
+let ctx = await window.getContext(true);
 
-  const uiSchoolName = document.getElementById("uiSchoolName");
-  const uiYearName = document.getElementById("uiYearName");
-  const uiSchoolLogo = document.getElementById("uiSchoolLogo");
+if(!ctx) return alert("No hay contexto");
 
-  const setStatus = (t) => { if (statusEl) statusEl.textContent = t; };
+const colegioId = ctx.school_id;
+const userRole = ctx.user_role || "";
 
-  if (!supabase) return alert("Supabase no cargó. Revisa /assets/js/supabaseClient.js");
-  if (!window.getContext) return alert("Contexto no cargó. Revisa /assets/js/context.js");
+// UI
+document.getElementById("uiSchoolName").textContent = ctx.school_name;
+document.getElementById("uiYearName").textContent = ctx.year_name || "Sin año activo";
 
-  // En año académico NO obligamos a tener year activo
-  const ctx = await getContext(true);
+const setStatus = (t)=> document.getElementById("status").textContent=t;
+const setMsg = (t)=> document.getElementById("msg").textContent=t;
 
-  if (uiSchoolName) uiSchoolName.textContent = ctx.school_name || "Colegio";
-  if (uiYearName) uiYearName.textContent = ctx.year_id ? `Año: ${ctx.year_name || ctx.year_anio}` : "Año: —";
+const tbody = document.getElementById("tbody");
 
-  // Logo del colegio (si existe)
-  if (uiSchoolLogo) uiSchoolLogo.src = "/assets/img/eduadmin.jpeg";
-  try {
-    const { data: col } = await supabase
-      .from("colegios")
-      .select("logo_url")
-      .eq("id", ctx.school_id)
-      .single();
-    if (col?.logo_url && uiSchoolLogo) uiSchoolLogo.src = col.logo_url;
-  } catch {}
+// ==============================
+async function load(){
 
-  async function listar() {
-    setStatus("Cargando años…");
-    tbody.innerHTML = `<tr><td colspan="4" class="muted">Cargando…</td></tr>`;
+setStatus("Cargando...");
 
-    const { data, error } = await supabase
-      .from("anios_academicos")
-      .select("id, anio, nombre, activo")
-      .eq("colegio_id", ctx.school_id)
-      .order("anio", { ascending: false });
+const {data,error} = await supabase
+.from("anios_academicos")
+.select("*")
+.eq("colegio_id",colegioId)
+.order("anio",{ascending:false});
 
-    if (error) {
-      console.error(error);
-      setStatus("Error cargando años ❌");
-      tbody.innerHTML = `<tr><td colspan="4">Error</td></tr>`;
-      return;
-    }
+if(error){
+console.error(error);
+setStatus("Error");
+return;
+}
 
-    if (!data?.length) {
-      setStatus("Sin años aún. Crea uno ✅");
-      tbody.innerHTML = `<tr><td colspan="4" class="muted">No hay registros</td></tr>`;
-      return;
-    }
+render(data||[]);
+setStatus("Listo");
+}
 
-    setStatus("Listo ✅");
-    tbody.innerHTML = "";
+function render(list){
 
-    data.forEach(row => {
-      tbody.innerHTML += `
-        <tr>
-          <td>${row.anio ?? ""}</td>
-          <td>${row.nombre ?? ""}</td>
-          <td>${row.activo ? "✅" : "—"}</td>
-          <td>
-            <button class="btn btn-secondary btn-sm" data-act="${row.id}">
-              Activar
-            </button>
-            <button class="btn btn-danger btn-sm" data-del="${row.id}">
-              Eliminar
-            </button>
-          </td>
-        </tr>
-      `;
-    });
+if(!list.length){
+tbody.innerHTML=`<tr><td colspan="4">Sin años</td></tr>`;
+return;
+}
 
-    // events activar / eliminar
-    tbody.querySelectorAll("[data-act]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const id = btn.getAttribute("data-act");
-        await activar(id);
-      });
-    });
+tbody.innerHTML=list.map(a=>`
+<tr>
+<td>${a.anio}</td>
+<td>${a.nombre||""}</td>
+<td>${a.activo ? "Activo":"—"}</td>
+<td style="text-align:right">
+<button class="btn btn-secondary btn-act" data-id="${a.id}">
+Activar
+</button>
+</td>
+</tr>
+`).join("");
 
-    tbody.querySelectorAll("[data-del]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const id = btn.getAttribute("data-del");
-        if (!confirm("¿Eliminar este año?")) return;
-        await eliminar(id);
-      });
-    });
-  }
+}
 
-  async function activar(anioId) {
-    setStatus("Activando año…");
+// ==============================
+async function crear(){
 
-    // 1) desactivar todos del colegio
-    const { error: e1 } = await supabase
-      .from("anios_academicos")
-      .update({ activo: false })
-      .eq("colegio_id", ctx.school_id);
+const anio=document.getElementById("anio").value.trim();
+const nombre=document.getElementById("nombre").value.trim();
 
-    if (e1) {
-      console.error(e1);
-      alert("No se pudo desactivar los años.");
-      return;
-    }
+if(!anio) return setMsg("Falta año");
 
-    // 2) activar este
-    const { error: e2 } = await supabase
-      .from("anios_academicos")
-      .update({ activo: true })
-      .eq("id", anioId);
+setStatus("Guardando...");
 
-    if (e2) {
-      console.error(e2);
-      alert("No se pudo activar el año.");
-      return;
-    }
+const {error}=await supabase
+.from("anios_academicos")
+.insert({
+colegio_id:colegioId,
+anio:anio,
+nombre:nombre||anio,
+activo:false
+});
 
-    // refrescar contexto global
-    await getContext(true);
+if(error){
+console.error(error);
+setStatus("Error");
+return;
+}
 
-    setStatus("Año activado ✅");
-    await listar();
-  }
+setMsg("Creado");
+await load();
+setStatus("Listo");
+}
 
-  async function eliminar(anioId) {
-    setStatus("Eliminando…");
+// ==============================
+async function activar(id){
 
-    const { error } = await supabase
-      .from("anios_academicos")
-      .delete()
-      .eq("id", anioId);
+setStatus("Activando...");
 
-    if (error) {
-      console.error(error);
-      alert("No se pudo eliminar.");
-      return;
-    }
+// quitar activos
+await supabase
+.from("anios_academicos")
+.update({activo:false})
+.eq("colegio_id",colegioId);
 
-    await getContext(true);
-    setStatus("Eliminado ✅");
-    await listar();
-  }
+// activar
+await supabase
+.from("anios_academicos")
+.update({activo:true})
+.eq("id",id);
 
-  form?.addEventListener("submit", async (e) => {
-    e.preventDefault();
+await load();
+setStatus("Activo cambiado");
+}
 
-    const anio = Number(document.getElementById("anio").value);
-    const nombre = document.getElementById("nombre").value.trim();
-    const activo = document.getElementById("activo").checked;
+// ==============================
+document.getElementById("formAnio")
+.addEventListener("submit",async e=>{
+e.preventDefault();
+await crear();
+});
 
-    if (!anio) return alert("Ingresa un año válido");
+tbody.addEventListener("click",async e=>{
+const btn=e.target.closest(".btn-act");
+if(!btn) return;
+await activar(btn.dataset.id);
+});
 
-    setStatus("Guardando…");
+document.getElementById("btnRefresh")
+.addEventListener("click",load);
 
-    // si se activa al crear, primero desactivar todos
-    if (activo) {
-      const { error: e1 } = await supabase
-        .from("anios_academicos")
-        .update({ activo: false })
-        .eq("colegio_id", ctx.school_id);
-      if (e1) {
-        console.error(e1);
-        alert("No se pudo preparar activación.");
-        return;
-      }
-    }
+// INIT
+await load();
 
-    const payload = {
-      colegio_id: ctx.school_id,
-      anio,
-      nombre: nombre || `Año ${anio}`,
-      activo
-    };
-
-    const { error } = await supabase.from("anios_academicos").insert([payload]);
-
-    if (error) {
-      console.error(error);
-      alert("Error al guardar (revisa si el año ya existe).");
-      setStatus("Error ❌");
-      return;
-    }
-
-    await getContext(true);
-    form.reset();
-    document.getElementById("activo").checked = true;
-    setStatus("Guardado ✅");
-    await listar();
-  });
-
-  btnRefresh?.addEventListener("click", listar);
-
-  logoutBtn?.addEventListener("click", async (e) => {
-    e.preventDefault();
-    try {
-      window.clearContext?.();
-      await supabase.auth.signOut();
-      location.href = "/login.html";
-    } catch (err) {
-      console.error(err);
-      alert("No se pudo cerrar sesión.");
-    }
-  });
-
-  await listar();
 });
