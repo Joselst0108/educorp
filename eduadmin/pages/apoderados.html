@@ -5,80 +5,87 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Apoderados</title>
 
-  <link rel="stylesheet" href="/assets/css/variables.css">
-  <link rel="stylesheet" href="/assets/css/main.css">
-  <link rel="stylesheet" href="/assets/css/components.css">
-
-  <style>
-    .grid-2{display:grid;grid-template-columns:1fr 1.2fr;gap:16px}
-    @media(max-width:900px){.grid-2{grid-template-columns:1fr}}
-    .muted{opacity:.75}
-  </style>
+  <link rel="stylesheet" href="../../assets/css/variables.css">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/components.css">
 </head>
 
 <body>
-<div class="app-shell">
+  <div class="app-shell">
 
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="brand">
-      <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin" />
-      <div class="titles">
-        <b>EduAdmin</b>
-        <span>Administración real</span>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="../../assets/img/educorp.jpeg" alt="EduAdmin" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
+        </div>
       </div>
-    </div>
-    <nav id="uiSidebarNav" class="nav"></nav>
-  </aside>
+      <nav id="uiSidebarNav" class="nav"></nav>
+    </aside>
 
-  <!-- MAIN -->
-  <main class="main">
+    <!-- MAIN -->
+    <main class="main">
 
-    <!-- TOPBAR -->
-    <div class="topbar">
-      <div class="left">
-        <div class="school-chip">
-          <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio" />
-          <div class="meta">
-            <b id="uiSchoolName">Cargando colegio…</b>
-            <span id="uiYearName">Año: —</span>
+      <!-- TOPBAR -->
+      <div class="topbar">
+        <div class="topbar-left">
+          <img
+            id="uiSchoolLogo"
+            src="../../assets/img/eduadmin.jpeg"
+            alt="Logo"
+            class="topbar-logo"
+            onerror="this.src='../../assets/img/eduadmin.jpeg';"
+          />
+          <div class="topbar-meta">
+            <div id="uiSchoolName" class="topbar-title">Cargando colegio...</div>
+            <div id="uiYearName" class="topbar-subtitle">Año: —</div>
           </div>
         </div>
-      </div>
 
-      <div style="display:flex; gap:10px;">
-        <button class="btn btn-secondary" id="btnRefresh" type="button">Actualizar</button>
-      </div>
-    </div>
-
-    <section class="card">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-        <div>
-          <h2 style="margin:0;">Apoderados</h2>
-          <p style="margin:6px 0 0; opacity:.85;">
-            Crea apoderado y asígnalo a un alumno filtrando por Nivel → Grado → Sección.
-          </p>
-        </div>
-
-        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-          <span id="pillContext" class="badge">Contexto: ...</span>
-          <span id="pillRole" class="badge">Rol: ...</span>
+        <div class="topbar-actions">
+          <button id="btnRefresh" class="btn btn-secondary" type="button">Actualizar</button>
+          <a href="./dashboard.html" class="btn btn-secondary">Volver</a>
         </div>
       </div>
 
-      <div id="permMsg" class="badge" style="margin-top:12px; display:none;"></div>
-      <div id="status" class="muted" style="margin-top:10px;">Cargando…</div>
+      <!-- CONTENIDO -->
+      <section class="card">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <div>
+            <h2 style="margin:0;">Registrar apoderado</h2>
+            <p style="margin:6px 0 0; opacity:.85;">
+              Aquí solo se registra el apoderado. La asignación al alumno se hará desde Matrículas.
+            </p>
+          </div>
 
-      <div class="grid-2" style="margin-top:14px;">
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span id="pillContext" class="badge">Contexto: ...</span>
+            <span id="pillRole" class="badge">Rol: ...</span>
+          </div>
+        </div>
 
-        <!-- Crear apoderado -->
-        <div class="card">
-          <h3 style="margin:0 0 10px;">Crear apoderado</h3>
+        <div id="permMsg" class="badge" style="margin-top:12px; display:none;"></div>
 
-          <div style="display:grid; grid-template-columns: repeat(2, minmax(160px, 1fr)); gap:12px;">
+        <!-- FORM -->
+        <div class="card" style="margin-top:14px;">
+          <h3 style="margin:0 0 10px;">Datos del apoderado</h3>
+
+          <div style="display:grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap:12px;">
             <div>
               <label style="display:block; margin-bottom:6px;">DNI</label>
               <input id="inpDni" class="input" maxlength="12" placeholder="Ej: 12345678" />
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:6px;">Nombres</label>
+              <input id="inpNombres" class="input" placeholder="Ej: Juan Carlos" />
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:6px;">Apellidos</label>
+              <input id="inpApellidos" class="input" placeholder="Ej: Pérez López" />
             </div>
 
             <div>
@@ -87,84 +94,49 @@
             </div>
 
             <div>
-              <label style="display:block; margin-bottom:6px;">Nombres</label>
-              <input id="inpNombres" class="input" placeholder="Ej: María" />
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:6px;">Apellidos</label>
-              <input id="inpApellidos" class="input" placeholder="Ej: Pérez Soto" />
-            </div>
-
-            <div style="grid-column:1/-1;">
               <label style="display:block; margin-bottom:6px;">Correo</label>
               <input id="inpCorreo" class="input" type="email" placeholder="Ej: apoderado@mail.com" />
             </div>
 
-            <div style="grid-column:1/-1;">
+            <div style="grid-column: 1 / -1;">
               <label style="display:block; margin-bottom:6px;">Dirección</label>
-              <input id="inpDireccion" class="input" placeholder="Ej: Av. ... 123" />
+              <input id="inpDireccion" class="input" placeholder="Ej: Av. Siempre Viva 123" />
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:6px;">Distrito</label>
+              <input id="inpDistrito" class="input" placeholder="Ej: Ventanilla" />
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:6px;">Parentesco</label>
+              <select id="selParentesco" class="input">
+                <option value="">Seleccione</option>
+                <option value="padre">Padre</option>
+                <option value="madre">Madre</option>
+                <option value="tutor">Tutor</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:6px;">Estado</label>
+              <select id="selEstado" class="input">
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
+              </select>
             </div>
           </div>
 
           <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-            <button id="btnCrear" class="btn btn-primary" type="button">Guardar apoderado</button>
+            <button id="btnGuardar" class="btn btn-primary" type="button">Guardar apoderado</button>
             <button id="btnLimpiar" class="btn btn-secondary" type="button">Limpiar</button>
             <span id="saveStatus" class="badge" style="opacity:.85;"></span>
           </div>
-
-          <hr style="margin:14px 0; opacity:.15">
-
-          <h3 style="margin:0 0 10px;">Asignar alumno</h3>
-
-          <div style="display:grid; grid-template-columns: repeat(3, minmax(160px, 1fr)); gap:12px;">
-            <div>
-              <label style="display:block; margin-bottom:6px;">Nivel</label>
-              <select id="selNivel" class="input">
-                <option value="">Cargando...</option>
-              </select>
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:6px;">Grado</label>
-              <select id="selGrado" class="input" disabled>
-                <option value="">Seleccione nivel</option>
-              </select>
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:6px;">Sección</label>
-              <select id="selSeccion" class="input" disabled>
-                <option value="">Seleccione grado</option>
-              </select>
-            </div>
-
-            <div style="grid-column:1/-1;">
-              <label style="display:block; margin-bottom:6px;">Alumno</label>
-              <select id="selAlumno" class="input" disabled>
-                <option value="">Seleccione sección</option>
-              </select>
-              <div class="muted" style="margin-top:6px; font-size:12px;">
-                * Se listan alumnos del colegio. Si luego quieres “solo matriculados del año”, lo conectamos a tabla matriculas.
-              </div>
-            </div>
-
-            <div style="grid-column:1/-1;">
-              <label style="display:block; margin-bottom:6px;">Apoderado a asignar</label>
-              <select id="selApoderado" class="input">
-                <option value="">Seleccione un apoderado…</option>
-              </select>
-            </div>
-          </div>
-
-          <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-            <button id="btnAsignar" class="btn btn-primary" type="button">Asignar apoderado</button>
-            <span id="assignStatus" class="badge" style="opacity:.85;"></span>
-          </div>
         </div>
 
-        <!-- Lista apoderados -->
-        <div class="card">
+        <!-- LISTADO -->
+        <div class="card" style="margin-top:14px;">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
             <h3 style="margin:0;">Listado</h3>
             <input id="inpBuscar" class="input" style="max-width:320px;" placeholder="Buscar DNI / Nombres / Apellidos" />
@@ -178,11 +150,12 @@
                   <th>Apellidos y nombres</th>
                   <th>Teléfono</th>
                   <th>Correo</th>
-                  <th style="text-align:center;">Acción</th>
+                  <th>Parentesco</th>
+                  <th>Estado</th>
                 </tr>
               </thead>
-              <tbody id="tbodyApoderados">
-                <tr><td colspan="5">Cargando...</td></tr>
+              <tbody id="apoderadosTbody">
+                <tr><td colspan="6">Cargando...</td></tr>
               </tbody>
             </table>
           </div>
@@ -191,24 +164,24 @@
             • Director y Secretaría pueden registrar. • Superadmin también.
           </p>
         </div>
+      </section>
 
-      </div>
-    </section>
+    </main>
+  </div>
 
-  </main>
-</div>
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabaseClient.js"></script>
+  <script src="../../assets/js/context.js"></script>
+  <script src="../../assets/js/ui.js"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/assets/js/supabaseClient.js"></script>
-<script src="/assets/js/context.js"></script>
-<script src="/assets/js/ui.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
+    });
+  </script>
 
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
-  });
-</script>
-
-<script src="/eduadmin/pages/js/apoderados.js"></script>
+  <!-- Tu JS real -->
+  <script src="./js/apoderados.js"></script>
 </body>
 </html>
