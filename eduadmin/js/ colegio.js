@@ -1,172 +1,152 @@
 console.log("📌 colegio.js cargado");
 
 document.addEventListener("DOMContentLoaded", async () => {
-  await initColegio();
+    // 1. Verificar que los botones existan antes de asignar eventos
+    const btnRefresh = document.getElementById("btnRefresh");
+    const logoutBtn = document.getElementById("logoutBtn");
 
-  // Botones (según tu HTML)
-  document.getElementById("btnRefresh")?.addEventListener("click", () => location.reload());
-  document.getElementById("logoutBtn")?.addEventListener("click", async () => {
-    const sb = window.supabaseClient || window.supabase;
-    try { await sb?.auth?.signOut(); } catch (e) {}
-    location.href = "/eduadmin/login.html";
-  });
+    if (btnRefresh) btnRefresh.onclick = () => location.reload();
+    if (logoutBtn) {
+        logoutBtn.onclick = async () => {
+            const sb = window.supabaseClient;
+            await sb.auth.signOut();
+            location.href = "/eduadmin/login.html";
+        };
+    }
+
+    await initColegio();
 });
 
 async function initColegio() {
-  const sb = window.supabaseClient || window.supabase;
-  if (!sb) {
-    console.error("❌ Supabase no disponible");
-    setStatus("❌ Supabase no disponible");
-    return;
-  }
-
-  // Esperar contexto
-  const ctx = await waitContext();
-
-  if (!ctx || !ctx.school_id) {
-    console.warn("⚠ No hay colegio en contexto");
-    setStatus("⚠ No hay colegio seleccionado en el contexto.");
-    return;
-  }
-
-  console.log("CTX colegio:", ctx);
-
-  await cargarDatos(ctx.school_id);
-
-  // Eventos de botones según tu HTML
-  document.getElementById("btnGuardar")?.addEventListener("click", async () => {
-    const nombre = (document.getElementById("inpNombre")?.value || "").trim();
-    if (!nombre) return alert("Ingresa el nombre del colegio");
-    await guardar(ctx.school_id, nombre, null);
-  });
-
-  document.getElementById("btnSubirLogo")?.addEventListener("click", async () => {
-    const file = document.getElementById("fileLogo")?.files?.[0];
-    if (!file) return alert("Selecciona una imagen primero");
-    setStatus("Subiendo logo...");
-    const logoUrl = await subirLogo(file, ctx.school_id);
-    if (logoUrl) {
-      await guardar(ctx.school_id, null, logoUrl);
-      // actualizar preview
-      const img = document.getElementById("previewLogo");
-      if (img) img.src = logoUrl;
-    }
-  });
-
-  // Preview local (sin subir)
-  document.getElementById("fileLogo")?.addEventListener("change", (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const url = URL.createObjectURL(f);
-    const img = document.getElementById("previewLogo");
-    if (img) img.src = url;
-  });
-}
-
-function setStatus(msg) {
-  const el = document.getElementById("status");
-  if (el) el.textContent = msg || "";
-}
-
-async function waitContext() {
-  return new Promise((resolve) => {
-    let tries = 0;
-    const i = setInterval(() => {
-      const ctx = window.__CTX || window.APP_CONTEXT || window.appContext || null;
-      if (ctx) {
-        clearInterval(i);
-        resolve(ctx);
+    // Intentar obtener el cliente de varias fuentes posibles
+    const sb = window.supabaseClient || window.supabase;
+    
+    if (!sb) {
+        setStatus("❌ Error: No se pudo conectar con Supabase. Revisa supabaseClient.js");
         return;
-      }
-      tries++;
-      if (tries > 50) {
-        clearInterval(i);
-        resolve(null);
-      }
-    }, 100);
-  });
+    }
+
+    setStatus("⏳ Esperando contexto del colegio...");
+    const ctx = await waitContext();
+
+    if (!ctx || !ctx.school_id) {
+        setStatus("⚠ Error: No se encontró el ID del colegio en el contexto.");
+        return;
+    }
+
+    // Cargar la información inicial
+    await cargarDatos(ctx.school_id);
+
+    // Configurar el botón Guardar
+    const btnGuardar = document.getElementById("btnGuardar");
+    if (btnGuardar) {
+        btnGuardar.onclick = async () => {
+            const nombre = document.getElementById("inpNombre").value.trim();
+            if (!nombre) return alert("El nombre no puede estar vacío");
+            await guardar(ctx.school_id, nombre, null);
+        };
+    }
+
+    // Configurar Subida de Logo
+    const btnSubirLogo = document.getElementById("btnSubirLogo");
+    const fileInput = document.getElementById("fileLogo");
+    if (btnSubirLogo && fileInput) {
+        btnSubirLogo.onclick = async () => {
+            const file = fileInput.files[0];
+            if (!file) return alert("Selecciona una imagen primero");
+            
+            setStatus("🚀 Subiendo imagen...");
+            const url = await subirLogo(file, ctx.school_id);
+            if (url) {
+                await guardar(ctx.school_id, null, url);
+                const preview = document.getElementById("previewLogo");
+                if (preview) preview.src = url;
+            }
+        };
+    }
 }
 
 async function cargarDatos(colegioId) {
-  const sb = window.supabaseClient || window.supabase;
+    const sb = window.supabaseClient;
+    const { data, error } = await sb
+        .from("colegios")
+        .select("*")
+        .eq("id", colegioId)
+        .single();
 
-  setStatus("Cargando datos del colegio...");
+    if (error) {
+        console.error("Error Supabase:", error);
+        setStatus("❌ Error al leer la base de datos");
+        return;
+    }
 
-  const { data, error } = await sb
-    .from("colegios")
-    .select("id,nombre,logo_url")
-    .eq("id", colegioId)
-    .single();
-
-  if (error) {
-    console.error("Error cargando colegio", error);
-    setStatus("❌ Error cargando colegio");
-    return;
-  }
-
-  console.log("Colegio:", data);
-
-  const inpNombre = document.getElementById("inpNombre");
-  if (inpNombre) inpNombre.value = data?.nombre || "";
-
-  // OJO: en tu HTML es previewLogo
-  if (data?.logo_url) {
-    const img = document.getElementById("previewLogo");
-    if (img) img.src = data.logo_url;
-  }
-
-  setStatus("");
+    if (data) {
+        if (document.getElementById("inpNombre")) document.getElementById("inpNombre").value = data.nombre || "";
+        if (data.logo_url && document.getElementById("previewLogo")) {
+            document.getElementById("previewLogo").src = data.logo_url;
+        }
+        setStatus("✅ Datos cargados");
+    }
 }
 
 async function subirLogo(file, colegioId) {
-  const sb = window.supabaseClient || window.supabase;
+    const sb = window.supabaseClient;
+    const ext = file.name.split('.').pop();
+    const filePath = `logos/${colegioId}_${Date.now()}.${ext}`;
 
-  // Mantener extensión real
-  const ext = (file.name.split(".").pop() || "png").toLowerCase();
-  const filePath = `logos/${colegioId}_${Date.now()}.${ext}`;
+    // IMPORTANTE: El bucket 'logos' debe existir en Supabase y ser PÚBLICO
+    const { data, error } = await sb.storage
+        .from("logos")
+        .upload(filePath, file);
 
-  const { error } = await sb.storage
-    .from("logos")
-    .upload(filePath, file, { upsert: true, contentType: file.type });
+    if (error) {
+        console.error("Error Storage:", error);
+        setStatus("❌ Error al subir: " + error.message);
+        return null;
+    }
 
-  if (error) {
-    console.error("Error subiendo logo", error);
-    setStatus("❌ Error subiendo logo");
-    return null;
-  }
-
-  const { data } = sb.storage.from("logos").getPublicUrl(filePath);
-  const url = data?.publicUrl || null;
-
-  console.log("Logo URL:", url);
-  return url;
+    const { data: urlData } = sb.storage.from("logos").getPublicUrl(filePath);
+    return urlData.publicUrl;
 }
 
 async function guardar(colegioId, nombre, logoUrl) {
-  const sb = window.supabaseClient || window.supabase;
+    const sb = window.supabaseClient;
+    let updateData = {};
+    if (nombre) updateData.nombre = nombre;
+    if (logoUrl) updateData.logo_url = logoUrl;
 
-  const updateData = {};
-  if (nombre !== null && nombre !== undefined) updateData.nombre = nombre;
-  if (logoUrl) updateData.logo_url = logoUrl;
+    const { error } = await sb
+        .from("colegios")
+        .update(updateData)
+        .eq("id", colegioId);
 
-  if (Object.keys(updateData).length === 0) {
-    setStatus("Nada que guardar.");
-    return;
-  }
+    if (error) {
+        alert("Error al guardar cambios");
+        setStatus("❌ Error: " + error.message);
+    } else {
+        setStatus("✅ Guardado correctamente");
+    }
+}
 
-  setStatus("Guardando...");
+function setStatus(text) {
+    const el = document.getElementById("status");
+    if (el) el.innerText = text;
+}
 
-  const { error } = await sb
-    .from("colegios")
-    .update(updateData)
-    .eq("id", colegioId);
-
-  if (error) {
-    console.error(error);
-    setStatus("❌ Error guardando");
-    alert("Error guardando");
-    return;
-  }
-
-  setStatus("✅ Guardado correctamente");
+async function waitContext() {
+    return new Promise(resolve => {
+        let count = 0;
+        const interval = setInterval(() => {
+            const ctx = window.__CTX || window.APP_CONTEXT;
+            if (ctx) {
+                clearInterval(interval);
+                resolve(ctx);
+            }
+            if (count > 40) { // 4 segundos de espera
+                clearInterval(interval);
+                resolve(null);
+            }
+            count++;
+        }, 100);
+    });
 }
