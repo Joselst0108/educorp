@@ -1,296 +1,235 @@
-<!DOCTYPE html>
-<html lang="es">
+<!doctype html>
+<html lang="es" data-app="eduadmin">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Pagos</title>
-</head>
-<body>
 
-  <h1>Pagos (MVP)</h1>
-  <p>Roles permitidos: superadmin / director / secretaria</p>
-
-  <div id="estado">Cargando sesión...</div>
-  <button id="btnLogout" type="button">Cerrar sesión</button>
-  <p><a href="../dashboard.html">⬅ Volver al Dashboard</a></p>
-
-  <hr />
-
-  <h2>1) Buscar alumno por DNI</h2>
-  <input id="dniAlumno" type="text" placeholder="DNI del alumno" />
-  <button id="btnBuscar" type="button">Buscar</button>
-
-  <div id="infoAlumno" style="margin-top:10px;"></div>
-
-  <hr />
-
-  <h2>2) Estado de cuenta (básico)</h2>
-  <p>Selecciona año y mes para ver: Pensión definida vs Pagos registrados.</p>
-
-  <label>Año:</label><br />
-  <input id="anio" type="number" /><br /><br />
-
-  <label>Mes:</label><br />
-  <select id="mes">
-    <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
-    <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
-    <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
-    <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
-  </select>
-  <br /><br />
-
-  <button id="btnVerEstado" type="button">Ver estado</button>
-
-  <div id="estadoCuenta" style="margin-top:10px;"></div>
-
-  <hr />
-
-  <h2>3) Registrar pago</h2>
-  <label>Monto pagado:</label><br />
-  <input id="montoPago" type="number" step="0.01" placeholder="Ej: 200" /><br /><br />
-
-  <label>Método:</label><br />
-  <select id="metodo">
-    <option value="efectivo">Efectivo</option>
-    <option value="yape">Yape/Plin</option>
-    <option value="transferencia">Transferencia</option>
-    <option value="tarjeta">Tarjeta</option>
-  </select>
-  <br /><br />
-
-  <label>Concepto en caja:</label><br />
-  <input id="concepto" type="text" placeholder="Ej: Pensión Marzo" />
-  <br /><br />
-
-  <button id="btnPagar" type="button">Registrar pago</button>
-
-  <div id="msg" style="margin-top:12px;"></div>
+  <link rel="stylesheet" href="/assets/css/variables.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../../assets/js/supabaseClient.js"></script>
+  <script src="/assets/js/supabaseClient.js"></script>
+  <script src="/assets/js/context.js"></script>
+  <script src="/assets/js/ui.js"></script>
+</head>
 
-  <script>
-    let COLEGIO_ID = null;
-    let USER_ID = null;
-    let USER_ROLE = null;
+<body>
+  <div class="app-shell">
 
-    let ALUMNO = null; // alumno actual seleccionado
+    <!-- SIDEBAR (UI) -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img id="uiAppLogo" src="/assets/img/eduadmin.jpeg" alt="EduAdmin" />
+        <div class="titles">
+          <b>EduAdmin</b>
+          <span>Administración real</span>
+        </div>
+      </div>
 
-    function setEstado(txt){ document.getElementById('estado').textContent = txt; }
-    function setMsg(txt){ document.getElementById('msg').textContent = txt; }
+      <!-- tu ui.js normalmente rellena/activa menú; si ya tienes nav fijo, déjalo como lo vienes usando -->
+      <nav class="nav" id="uiSidebarNav">
+        <!-- opcional: si tu ui.js lo inyecta, esto puede quedar vacío -->
+        <a href="/eduadmin/pages/dashboard.html"><div class="nav-item">Dashboard</div></a>
+        <a href="/eduadmin/pages/concepto-pago.html"><div class="nav-item">Conceptos de pago</div></a>
+        <a class="active" href="/eduadmin/pages/pagos.html"><div class="nav-item">Pagos</div></a>
+      </nav>
 
-    function hoyAnio(){ return new Date().getFullYear(); }
-    function hoyMes(){ return new Date().getMonth() + 1; }
+      <div class="sidebar-footer">
+        <div class="muted" style="padding:10px 12px;font-size:12px;">
+          <div><b id="uiSchoolName">—</b></div>
+          <div id="uiYearName">—</div>
+        </div>
+      </div>
+    </aside>
 
-    async function requireSessionAndRole() {
-      const { data } = await window.supabase.auth.getSession();
-      if (!data.session) {
-        window.location.href = '../../login.html';
-        return false;
-      }
+    <!-- MAIN -->
+    <main class="main">
 
-      USER_ID = data.session.user.id;
+      <!-- TOPBAR (UI) -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 style="margin:0;font-size:18px;">Pagos</h1>
+          <div class="muted" style="font-size:12px;">Registra y controla pagos por concepto</div>
+        </div>
 
-      const { data: profile, error } = await window.supabase
-        .from('profiles')
-        .select('role, is_active, colegio_id')
-        .eq('id', USER_ID)
-        .single();
+        <div class="topbar-right" style="display:flex;gap:10px;align-items:center;">
+          <div class="pill">
+            <span class="muted">Usuario:</span>
+            <b id="uiUserName">—</b>
+          </div>
+          <button class="btn btn-outline" id="btnRefresh" type="button">Actualizar</button>
+          <button class="btn" id="btnNuevoPago" type="button">+ Nuevo pago</button>
+        </div>
+      </header>
 
-      if (error || !profile || !profile.is_active) {
-        await window.supabase.auth.signOut();
-        window.location.href = '../../login.html';
-        return false;
-      }
+      <!-- STATUS -->
+      <div id="status" class="muted" style="margin:10px 2px 0;"></div>
 
-      USER_ROLE = profile.role;
-      COLEGIO_ID = profile.colegio_id;
+      <!-- FILTROS -->
+      <section class="card" style="margin-top:12px;">
+        <div class="card-header">
+          <b>Filtros</b>
+          <span class="muted" style="font-size:12px;">(colegio + año académico se toman del contexto)</span>
+        </div>
 
-      const allowed = ['superadmin','director','secretaria'];
-      if (!allowed.includes(USER_ROLE)) {
-        alert('⛔ No tienes permisos para Pagos');
-        window.location.href = '../dashboard.html';
-        return false;
-      }
+        <div class="card-content">
+          <div class="grid" style="grid-template-columns: repeat(6, minmax(0, 1fr)); gap:10px;">
+            <div>
+              <label class="label">Alumno</label>
+              <select id="fAlumno" class="select">
+                <option value="">Todos</option>
+              </select>
+            </div>
 
-      if (!COLEGIO_ID) {
-        alert('⛔ No tienes colegio asignado.');
-        window.location.href = '../dashboard.html';
-        return false;
-      }
+            <div>
+              <label class="label">Concepto</label>
+              <select id="fConcepto" class="select">
+                <option value="">Todos</option>
+              </select>
+            </div>
 
-      setEstado(`✅ Sesión activa (${USER_ROLE}) | colegio_id: ${COLEGIO_ID}`);
-      return true;
-    }
+            <div>
+              <label class="label">Periodo</label>
+              <input id="fPeriodo" class="input" placeholder="Ej: Marzo, 2026-03, B1" />
+            </div>
 
-    async function buscarAlumno() {
-      setMsg('');
-      document.getElementById('infoAlumno').textContent = '';
-      document.getElementById('estadoCuenta').textContent = '';
-      ALUMNO = null;
+            <div>
+              <label class="label">Estado</label>
+              <select id="fEstado" class="select">
+                <option value="">Todos</option>
+                <option value="PAGADO">PAGADO</option>
+                <option value="PENDIENTE">PENDIENTE</option>
+                <option value="ANULADO">ANULADO</option>
+              </select>
+            </div>
 
-      const dni = document.getElementById('dniAlumno').value.trim();
-      if (!dni) return;
+            <div>
+              <label class="label">Buscar</label>
+              <input id="fBuscar" class="input" placeholder="Nombre / DNI / referencia..." />
+            </div>
 
-      const { data: alumno, error } = await window.supabase
-        .from('alumnos')
-        .select('id, dni, codigo_alumno, nombres, apellidos, nivel, grado, seccion, estado')
-        .eq('colegio_id', COLEGIO_ID)
-        .eq('dni', dni)
-        .maybeSingle();
+            <div style="display:flex;gap:8px;align-items:flex-end;">
+              <button class="btn btn-outline" id="btnLimpiar" type="button">Limpiar</button>
+              <button class="btn" id="btnFiltrar" type="button">Aplicar</button>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      if (error) {
-        document.getElementById('infoAlumno').textContent = '❌ Error: ' + error.message;
-        return;
-      }
+      <!-- TABLA -->
+      <section class="card" style="margin-top:12px;">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <b>Registro de pagos</b>
+          <div class="muted" style="font-size:12px;">
+            Total: <b id="kpiTotal">0</b> | Pagado: <b id="kpiPagado">0</b> | Pendiente: <b id="kpiPendiente">0</b>
+          </div>
+        </div>
 
-      if (!alumno) {
-        document.getElementById('infoAlumno').textContent = '❌ No existe ese alumno en este colegio.';
-        return;
-      }
+        <div class="card-content" style="overflow:auto;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Alumno</th>
+                <th>Concepto</th>
+                <th>Periodo</th>
+                <th>Monto</th>
+                <th>Método</th>
+                <th>Estado</th>
+                <th>Ref.</th>
+                <th style="width:160px;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyPagos">
+              <tr><td colspan="9" class="muted">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-      ALUMNO = alumno;
+      <!-- MODAL NUEVO/EDITAR PAGO -->
+      <div class="modal" id="modalPago" style="display:none;">
+        <div class="modal-backdrop" data-close="1"></div>
+        <div class="modal-dialog" role="dialog" aria-modal="true">
+          <div class="modal-header">
+            <b id="modalTitle">Nuevo pago</b>
+            <button class="icon-btn" id="btnCerrarModal" type="button">✕</button>
+          </div>
 
-      document.getElementById('infoAlumno').innerHTML =
-        `<b>${alumno.nombres} ${alumno.apellidos}</b> | ${alumno.nivel} ${alumno.grado}${alumno.seccion} | DNI: ${alumno.dni} | Código: ${alumno.codigo_alumno}`;
-    }
+          <div class="modal-body">
+            <div class="grid" style="grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px;">
+              <div>
+                <label class="label">Alumno *</label>
+                <select id="pAlumno" class="select"></select>
+              </div>
 
-    async function verEstadoCuenta() {
-      setMsg('');
-      const out = document.getElementById('estadoCuenta');
-      out.textContent = '';
+              <div>
+                <label class="label">Concepto *</label>
+                <select id="pConcepto" class="select"></select>
+              </div>
 
-      if (!ALUMNO) {
-        out.textContent = '⚠️ Primero busca un alumno.';
-        return;
-      }
+              <div>
+                <label class="label">Periodo</label>
+                <input id="pPeriodo" class="input" placeholder="Ej: Marzo / 2026-03 / B1" />
+              </div>
 
-      const anio = parseInt(document.getElementById('anio').value, 10);
-      const mes = parseInt(document.getElementById('mes').value, 10);
+              <div>
+                <label class="label">Fecha de pago *</label>
+                <input id="pFecha" type="date" class="input" />
+              </div>
 
-      if (!anio || !mes) {
-        out.textContent = '⚠️ Año o mes inválido.';
-        return;
-      }
+              <div>
+                <label class="label">Monto *</label>
+                <input id="pMonto" type="number" step="0.01" class="input" placeholder="0.00" />
+              </div>
 
-      // 1) Leer pensión del mes (si existe)
-      const { data: pen, error: penErr } = await window.supabase
-        .from('pensiones_config')
-        .select('monto')
-        .eq('colegio_id', COLEGIO_ID)
-        .eq('anio', anio)
-        .eq('mes', mes)
-        .maybeSingle();
+              <div>
+                <label class="label">Método</label>
+                <select id="pMetodo" class="select">
+                  <option value="">—</option>
+                  <option value="EFECTIVO">EFECTIVO</option>
+                  <option value="YAPE">YAPE</option>
+                  <option value="PLIN">PLIN</option>
+                  <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                  <option value="TARJETA">TARJETA</option>
+                </select>
+              </div>
 
-      if (penErr) {
-        out.textContent = '❌ Error leyendo pensión: ' + penErr.message;
-        return;
-      }
+              <div>
+                <label class="label">Estado</label>
+                <select id="pEstado" class="select">
+                  <option value="PAGADO">PAGADO</option>
+                  <option value="PENDIENTE">PENDIENTE</option>
+                  <option value="ANULADO">ANULADO</option>
+                </select>
+              </div>
 
-      const pension = pen ? Number(pen.monto) : 0;
+              <div>
+                <label class="label">Referencia</label>
+                <input id="pRef" class="input" placeholder="Operación / voucher / nota" />
+              </div>
+            </div>
 
-      // 2) Sumar pagos del alumno para ese mes
-      const { data: pagos, error: pagosErr } = await window.supabase
-        .from('pagos')
-        .select('monto, fecha_pago, metodo')
-        .eq('colegio_id', COLEGIO_ID)
-        .eq('alumno_id', ALUMNO.id)
-        .eq('anio', anio)
-        .eq('mes', mes);
+            <div style="margin-top:10px;">
+              <label class="label">Observación</label>
+              <textarea id="pObs" class="input" rows="3" placeholder="Opcional..."></textarea>
+            </div>
 
-      if (pagosErr) {
-        out.textContent = '❌ Error leyendo pagos: ' + pagosErr.message;
-        return;
-      }
+            <div id="modalMsg" class="muted" style="margin-top:10px;"></div>
+          </div>
 
-      const totalPagado = (pagos || []).reduce((acc, p) => acc + Number(p.monto), 0);
-      const saldo = pension - totalPagado;
+          <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
+            <button class="btn btn-outline" id="btnCancelarPago" type="button">Cancelar</button>
+            <button class="btn" id="btnGuardarPago" type="button">Guardar</button>
+          </div>
+        </div>
+      </div>
 
-      let html = `<p><b>Pensión definida:</b> S/ ${pension.toFixed(2)}</p>`;
-      html += `<p><b>Total pagado:</b> S/ ${totalPagado.toFixed(2)}</p>`;
-      html += `<p><b>Saldo:</b> S/ ${saldo.toFixed(2)} ${saldo <= 0 ? '✅ (al día)' : '⚠️ (debe)'}</p>`;
+    </main>
+  </div>
 
-      if (pagos.length > 0) {
-        html += `<h4>Pagos registrados:</h4><ul>`;
-        pagos.forEach(p => {
-          html += `<li>S/ ${Number(p.monto).toFixed(2)} - ${p.metodo} - ${p.fecha_pago}</li>`;
-        });
-        html += `</ul>`;
-      } else {
-        html += `<p>No hay pagos registrados en ese mes.</p>`;
-      }
-
-      out.innerHTML = html;
-
-      // autocompletar concepto sugerido
-      const meses = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-      document.getElementById('concepto').value = `Pensión ${meses[mes]} ${anio}`;
-    }
-
-    async function registrarPago() {
-      setMsg('');
-      if (!ALUMNO) return setMsg('⚠️ Primero busca un alumno.');
-
-      const anio = parseInt(document.getElementById('anio').value, 10);
-      const mes = parseInt(document.getElementById('mes').value, 10);
-      const monto = parseFloat(document.getElementById('montoPago').value);
-      const metodo = document.getElementById('metodo').value;
-      const concepto = document.getElementById('concepto').value.trim() || 'Pago';
-
-      if (!anio || !mes) return setMsg('⚠️ Año o mes inválido.');
-      if (!monto || monto <= 0) return setMsg('⚠️ Monto inválido.');
-
-      // 1) Insertar pago
-      const { error: payErr } = await window.supabase
-        .from('pagos')
-        .insert([{
-          colegio_id: COLEGIO_ID,
-          alumno_id: ALUMNO.id,
-          anio,
-          mes,
-          monto,
-          metodo,
-          usuario_cobra: USER_ID
-        }]);
-
-      if (payErr) return setMsg('❌ Error registrando pago: ' + payErr.message);
-
-      // 2) Insertar en caja
-      const { error: cajaErr } = await window.supabase
-        .from('caja')
-        .insert([{
-          colegio_id: COLEGIO_ID,
-          monto,
-          concepto,
-          usuario_id: USER_ID
-        }]);
-
-      if (cajaErr) return setMsg('⚠️ Pago OK, pero caja falló: ' + cajaErr.message);
-
-      setMsg('✅ Pago registrado y caja actualizada.');
-
-      // refrescar estado de cuenta
-      await verEstadoCuenta();
-      document.getElementById('montoPago').value = '';
-    }
-
-    // Eventos
-    document.getElementById('btnBuscar').addEventListener('click', buscarAlumno);
-    document.getElementById('btnVerEstado').addEventListener('click', verEstadoCuenta);
-    document.getElementById('btnPagar').addEventListener('click', registrarPago);
-
-    document.getElementById('btnLogout').addEventListener('click', async () => {
-      await window.supabase.auth.signOut();
-      window.location.href = '../../login.html';
-    });
-
-    (async () => {
-      const ok = await requireSessionAndRole();
-      if (!ok) return;
-      document.getElementById('anio').value = hoyAnio();
-      document.getElementById('mes').value = String(hoyMes());
-    })();
-  </script>
-
+  <script src="/eduadmin/js/pagos.js"></script>
 </body>
 </html>
