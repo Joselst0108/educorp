@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduAdmin | Matrículas</title>
+  <title>EduAdmin | Apoderados</title>
 
+  <!-- ✅ CSS GENERAL -->
   <link rel="stylesheet" href="../../assets/css/variables.css">
   <link rel="stylesheet" href="../../assets/css/main.css">
   <link rel="stylesheet" href="../../assets/css/components.css">
@@ -13,17 +14,16 @@
     .grid-2 { display:grid; grid-template-columns: 1fr 1.2fr; gap:16px; }
     @media (max-width: 900px){ .grid-2 { grid-template-columns: 1fr; } }
     .muted { opacity:.75; }
-    .row-3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; }
-    @media (max-width: 900px){ .row-3 { grid-template-columns: 1fr; } }
-    .actions { display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
-    .pill { padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.06); display:inline-block; }
-    .hint { font-size:12px; opacity:.8; margin-top:6px; }
+    .row-4 { display:grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap:12px; }
+    @media (max-width: 900px){ .row-4 { grid-template-columns: 1fr; } }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
   </style>
 </head>
 
 <body>
   <div class="app-shell">
 
+    <!-- ✅ SIDEBAR -->
     <aside class="sidebar">
       <div class="brand">
         <img id="uiAppLogo" src="../../assets/img/educorp.jpeg" alt="EduAdmin" />
@@ -35,8 +35,10 @@
       <nav id="uiSidebarNav" class="nav"></nav>
     </aside>
 
+    <!-- ✅ MAIN -->
     <main class="main">
 
+      <!-- ✅ TOPBAR -->
       <div class="topbar">
         <div class="topbar-left">
           <img
@@ -58,140 +60,108 @@
         </div>
       </div>
 
+      <!-- ✅ HEADER -->
       <div class="page-header">
-        <h1>Matrículas</h1>
-        <div id="status" class="status muted">Cargando…</div>
+        <h1>Apoderados</h1>
+        <div id="saveStatus" class="status muted"></div>
+      </div>
+
+      <!-- ✅ Pills -->
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+        <span id="pillContext" class="badge">Contexto: ...</span>
+        <span id="pillRole" class="badge">Rol: ...</span>
+        <span id="permMsg" class="badge" style="display:none;"></span>
       </div>
 
       <div class="grid-2">
 
-        <!-- REGISTRAR -->
-        <div class="card">
-          <h2 class="card-title">Registrar matrícula</h2>
-          <p class="muted">Vincula alumno + apoderado + nivel/grado/sección del contexto.</p>
+        <!-- ✅ FORM -->
+        <section class="card">
+          <h2 class="card-title">Registrar apoderado</h2>
+          <p class="muted">Aquí solo se registra el apoderado. La asignación al alumno se hará en Matrículas.</p>
 
-          <form id="formMatricula" class="form">
-            <input type="hidden" id="matricula_id" value="">
+          <div class="row-4" style="margin-top:12px;">
+            <div>
+              <label style="display:block; margin-bottom:6px;">DNI</label>
+              <input id="inpDni" class="input" maxlength="12" placeholder="Ej: 12345678" />
+            </div>
 
-            <div class="form-group">
-              <label for="alumno_id">Alumno</label>
-              <select id="alumno_id" required>
-                <option value="">Cargando alumnos…</option>
+            <div>
+              <label style="display:block; margin-bottom:6px;">Nombres</label>
+              <input id="inpNombres" class="input" placeholder="Ej: María Rosa" />
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:6px;">Apellidos</label>
+              <input id="inpApellidos" class="input" placeholder="Ej: Gómez Ruiz" />
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:6px;">Teléfono</label>
+              <input id="inpTelefono" class="input" placeholder="Ej: 999888777" />
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:6px;">Correo</label>
+              <input id="inpCorreo" class="input" type="email" placeholder="Ej: apoderado@mail.com" />
+            </div>
+
+            <div style="grid-column: 1 / -1;">
+              <label style="display:block; margin-bottom:6px;">Dirección</label>
+              <input id="inpDireccion" class="input" placeholder="Ej: Av. Siempre Viva 123" />
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:6px;">Estado</label>
+              <select id="selEstado" class="input">
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
               </select>
-              <div class="hint">* Si no aparece, primero crea alumnos.</div>
             </div>
-
-            <div class="form-group">
-              <label for="apoderado_id">Apoderado</label>
-              <select id="apoderado_id">
-                <option value="">(Opcional) Selecciona apoderado…</option>
-              </select>
-              <div class="hint">* Recomendado: asignar apoderado para reportes y contacto.</div>
-            </div>
-
-            <div class="row-3">
-              <div class="form-group">
-                <label for="nivel_id">Nivel</label>
-                <select id="nivel_id" required>
-                  <option value="">Selecciona</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="grado_id">Grado</label>
-                <select id="grado_id" required>
-                  <option value="">Selecciona</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="seccion_id">Sección</label>
-                <select id="seccion_id" required>
-                  <option value="">Selecciona</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="row-3">
-              <div class="form-group">
-                <label for="estado">Estado</label>
-                <select id="estado" required>
-                  <option value="matriculado">Matriculado</option>
-                  <option value="reservado">Reservado</option>
-                  <option value="retirado">Retirado</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="fecha">Fecha</label>
-                <input id="fecha" type="date" />
-              </div>
-
-              <div class="form-group">
-                <label for="observacion">Observación</label>
-                <input id="observacion" placeholder="Opcional" />
-              </div>
-            </div>
-
-            <div class="form-group" style="display:flex; gap:10px; align-items:center;">
-              <input id="activo" type="checkbox" checked />
-              <label for="activo" style="margin:0;">Activo</label>
-            </div>
-
-            <div class="actions">
-              <button id="btnLimpiar" class="btn btn-secondary" type="button">Limpiar</button>
-              <button id="btnGuardar" class="btn btn-primary" type="submit">Guardar matrícula</button>
-            </div>
-
-            <div id="msg" class="muted" style="margin-top:10px;"></div>
-          </form>
-        </div>
-
-        <!-- LISTADO -->
-        <div class="card">
-          <h2 class="card-title">Matrículas registradas</h2>
-
-          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
-            <input id="buscar" placeholder="Buscar por DNI / nombre…" style="flex:1; min-width:220px;">
-            <select id="filtroEstado" style="min-width:160px;">
-              <option value="">Todos</option>
-              <option value="matriculado">Matriculado</option>
-              <option value="reservado">Reservado</option>
-              <option value="retirado">Retirado</option>
-            </select>
-            <span class="pill">Total: <b id="count">0</b></span>
           </div>
 
-          <div class="table-wrap">
+          <div class="actions" style="margin-top:12px;">
+            <button id="btnGuardar" class="btn btn-primary" type="button">Guardar apoderado</button>
+            <button id="btnLimpiar" class="btn btn-secondary" type="button">Limpiar</button>
+          </div>
+        </section>
+
+        <!-- ✅ LISTA -->
+        <section class="card">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <h2 class="card-title" style="margin:0;">Listado</h2>
+            <input id="inpBuscar" class="input" style="max-width:320px;" placeholder="Buscar DNI / nombres / apellidos" />
+          </div>
+
+          <div class="table-wrap" style="margin-top:12px;">
             <table class="table">
               <thead>
                 <tr>
-                  <th>Alumno</th>
-                  <th>Apoderado</th>
-                  <th>Nivel</th>
-                  <th>Grado</th>
-                  <th>Sección</th>
+                  <th>DNI</th>
+                  <th>Apellidos</th>
+                  <th>Nombres</th>
+                  <th>Teléfono</th>
                   <th>Estado</th>
-                  <th>Activo</th>
-                  <th style="text-align:right;">Acciones</th>
+                  <th>Creado</th>
                 </tr>
               </thead>
-              <tbody id="tbodyMatriculas">
-                <tr><td colspan="8" class="muted">Cargando…</td></tr>
+              <tbody id="apoderadosTbody">
+                <tr><td colspan="6" class="muted">Cargando...</td></tr>
               </tbody>
             </table>
           </div>
 
-          <div class="muted" style="margin-top:10px;">
-            * Filtra por <b>colegio</b> y <b>año</b> del contexto.
-          </div>
-        </div>
+          <p class="muted" style="margin-top:10px; font-size:13px;">
+            • La asignación Apoderado ↔ Alumno se realizará en Matrículas (por año).
+          </p>
+        </section>
 
       </div>
 
     </main>
   </div>
 
+  <!-- ✅ Scripts al final -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../../assets/js/supabaseClient.js"></script>
   <script src="../../assets/js/context.js"></script>
@@ -203,7 +173,7 @@
     });
   </script>
 
-  <!-- ✅ OJO: tu ruta original era ../js/matriculas.js -->
-  <script src="../js/matriculas.js"></script>
+  <!-- ✅ JS de esta página -->
+  <script src="../js/apoderados.js"></script>
 </body>
 </html>
