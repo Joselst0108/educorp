@@ -1,449 +1,662 @@
-// ================================
-// MATRICULA - EduAdmin
-// Ruta: eduadmin/js/matricula.js
-// - Crea Alumno/Apoderado/Matricula (DB)
-// - Crea Auth users (email interno DNI@educorp.local) con password = DNI
-// - No rompe la sesión del admin (cliente aislado)
-// ================================
+document.addEventListener("DOMContentLoaded", async () => {
+  const supabase = window.supabaseClient;
 
-document.addEventListener("DOMContentLoaded", () => {
-  const sb = window.supabaseClient || window.supabase;
-  if (!sb) {
-    alert("❌ Supabase no inicializado. Revisa supabaseClient.js y el CDN.");
+  if (!supabase) {
+    alert("Supabase no cargó");
     return;
   }
 
-  // =========================
-  // CONFIG
-  // =========================
-  const colegioId =
-    window.COLEGIO_ID ||
-    window.COLEgio_ID ||
-    localStorage.getItem("colegio_id") ||
-    "";
-
-  const anioAcademicoId = localStorage.getItem("anio_academico_id") || "";
-  const AUTO_CREATE_AUTH = true;
-
-  // =========================
-  // ELEMENTOS (IDs esperados)
-  // =========================
-  const formBuscar = document.getElementById("formBuscarDni");
-  const inputDniBuscar = document.getElementById("dniBuscar");
-  const btnBuscar = document.getElementById("btnBuscar");
-
-  const boxNuevo = document.getElementById("boxNuevo");
-  const formNuevo = document.getElementById("formNuevo");
-
-  const boxExistente = document.getElementById("boxExistente");
-  const txtExistente = document.getElementById("txtExistente");
-
-  const modal = document.getElementById("modalExistente");
-  const modalBody = document.getElementById("modalBody");
-  const btnConfirmarMatricula = document.getElementById("btnConfirmarMatricula");
-  const btnReingreso = document.getElementById("btnReingreso");
-  const btnTraslado = document.getElementById("btnTraslado");
-  const btnRetiro = document.getElementById("btnRetiro");
-  const btnCerrarModal = document.getElementById("btnCerrarModal");
-
-  // (Opcional) panel debug en HTML
-  const debugBox = document.getElementById("debugBox");
-
-  let alumnoEncontrado = null;
-  let apoderadoEncontrado = null;
-
-  // =========================
-  // UI helpers
-  // =========================
-  const show = (el) => el && (el.style.display = "block");
-  const hide = (el) => el && (el.style.display = "none");
-  const openModal = () => modal && (modal.style.display = "block");
-  const closeModal = () => modal && (modal.style.display = "none");
-
-  function logDebug(msg, obj = null) {
-    console.log("[MATRICULA]", msg, obj || "");
-    if (debugBox) {
-      const line = document.createElement("div");
-      line.textContent = obj ? `${msg} ${JSON.stringify(obj)}` : msg;
-      debugBox.appendChild(line);
-    }
+  // ===============================
+  // CONTEXTO
+  // ===============================
+  let ctx = null;
+  try {
+    ctx = await window.getContext();
+  } catch (e) {
+    console.error("Error context:", e);
   }
 
-  hide(boxNuevo);
-  hide(boxExistente);
-  closeModal();
-  if (btnCerrarModal) btnCerrarModal.addEventListener("click", closeModal);
+  const colegioId = ctx?.school_id || ctx?.colegio_id;
+  const anioId = ctx?.year_id || ctx?.anio_academico_id || null;
+  const userRole = String(ctx?.user_role || ctx?.role || "").toLowerCase();
 
-  // =========================
-  // Normalización
-  // =========================
-  const onlyDigits = (str) => String(str || "").replace(/\D/g, "");
-  const isValidDni = (dni) => onlyDigits(dni).length === 8;
-  const toInternalEmailByDni = (dni) => `${onlyDigits(dni)}@educorp.local`;
+  if (!colegioId) {
+    alert("No hay colegio seleccionado");
+    window.location.href = "./dashboard.html";
+    return;
+  }
 
-  // =========================
-  // Cliente aislado para Auth (NO rompe sesión admin)
-  // =========================
-  function getProvisionClient() {
-    const url = window.SUPABASE_URL;
-    const key = window.SUPABASE_ANON_KEY;
+  // ===============================
+  // TOPBAR
+  // ===============================
+  const elSchoolName = document.getElementById("uiSchoolName");
+  const elYearName = document.getElementById("uiYearName");
+  if (elSchoolName) elSchoolName.textContent = ctx?.school_name || "Colegio";
+  if (elYearName) elYearName.textContent = "Año: " + (ctx?.year_name || "—");
 
-    if (!url || !key) {
-      throw new Error(
-        "Falta SUPABASE_URL o SUPABASE_ANON_KEY en window. Reemplaza assets/js/supabaseClient.js por la versión corregida."
-      );
-    }
+  const status = document.getElementById("status");
+  const setStatus = (t) => status && (status.textContent = t);
 
-    return supabase.createClient(url, key, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-      },
+  // ===============================
+  // PERMISOS
+  // ===============================
+  const canWrite =
+    userRole === "superadmin" ||
+    userRole === "director" ||
+    userRole === "secretaria";
+
+  // ===============================
+  // DOM
+  // ===============================
+  const els = {
+    form: () => document.getElementById("formMatricula"),
+    matricula_id: () => document.getElementById("matricula_id"),
+    alumno_id: () => document.getElementById("alumno_id"),
+    apoderado_id: () => document.getElementById("apoderado_id"),
+    nivel_id: () => document.getElementById("nivel_id"),
+    grado_id: () => document.getElementById("grado_id"),
+    seccion_id: () => document.getElementById("seccion_id"),
+    estado: () => document.getElementById("estado"),
+    fecha: () => document.getElementById("fecha"),
+    observacion: () => document.getElementById("observacion"),
+    activo: () => document.getElementById("activo"),
+    btnLimpiar: () => document.getElementById("btnLimpiar"),
+    btnRefresh: () => document.getElementById("btnRefresh"),
+    msg: () => document.getElementById("msg"),
+    buscar: () => document.getElementById("buscar"),
+    filtroEstado: () => document.getElementById("filtroEstado"),
+    tbody: () => document.getElementById("tbodyMatriculas"),
+    count: () => document.getElementById("count"),
+  };
+
+  // ===============================
+  // TABLAS
+  // ===============================
+  const T = {
+    alumnos: "alumnos",
+    apoderados: "apoderados",
+    niveles: "niveles",
+    grados: "grados",
+    secciones: "secciones",
+    matriculas: "matriculas",
+  };
+
+  const setMsg = (t = "", type = "info") => {
+    const box = els.msg();
+    if (!box) return;
+    box.textContent = t || "";
+    box.style.marginTop = "10px";
+    box.style.color =
+      type === "error" ? "#ff8b8b" : type === "ok" ? "#86efac" : "#cbd5e1";
+  };
+
+  const esc = (s) =>
+    String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+
+  function fillSelect(selectEl, rows, placeholder = "Selecciona") {
+    if (!selectEl) return;
+    selectEl.innerHTML = `<option value="">${placeholder}</option>`;
+    (rows || []).forEach((r) => {
+      const opt = document.createElement("option");
+      opt.value = r.id;
+      opt.textContent = r.label;
+      selectEl.appendChild(opt);
     });
   }
 
-  // =========================
-  // Auth + profiles (si user id viene)
-  // =========================
-  async function ensureAuthAndProfile({ dni, role, colegio_id, alumno_id = null, apoderado_id = null }) {
-    if (!AUTO_CREATE_AUTH) return { ok: true, skipped: true };
+  // ===============================
+  // CACHE / MAP
+  // ===============================
+  let CACHE = [];
+  let MAP = {
+    alumnos: new Map(),
+    apoderados: new Map(),
+    niveles: new Map(),
+    grados: new Map(),
+    secciones: new Map(),
+  };
 
-    const dniClean = onlyDigits(dni);
-    if (!isValidDni(dniClean)) return { ok: false, error: `DNI inválido: ${dni}` };
+  function clearForm() {
+    if (els.matricula_id()) els.matricula_id().value = "";
+    if (els.alumno_id()) els.alumno_id().value = "";
+    if (els.apoderado_id()) els.apoderado_id().value = "";
+    if (els.nivel_id()) els.nivel_id().value = "";
+    if (els.grado_id()) els.grado_id().value = "";
+    if (els.seccion_id()) els.seccion_id().value = "";
+    if (els.estado()) els.estado().value = "matriculado";
+    if (els.fecha()) els.fecha().value = "";
+    if (els.observacion()) els.observacion().value = "";
+    if (els.activo()) els.activo().checked = true;
 
-    const email = toInternalEmailByDni(dniClean);
-    const password = dniClean; // ✅ password = DNI
-
-    const pClient = getProvisionClient();
-
-    logDebug(`Auth signUp (${role}) -> ${email}`);
-
-    const { data, error } = await pClient.auth.signUp({ email, password });
-
-    // Si ya existe, Supabase puede tirar error "already registered"
-    const already = String(error?.message || "").toLowerCase().includes("already");
-    if (error && !already) {
-      return { ok: false, error: `signUp (${role}): ${error.message}` };
-    }
-
-    // Si se creó, aquí viene user.id
-    const userId = data?.user?.id || null;
-
-    // Si NO hay userId, no reventamos. Solo avisamos.
-    if (!userId) {
-      return {
-        ok: true,
-        email,
-        password,
-        user_id: null,
-        warning:
-          "Auth pudo estar bloqueado por políticas o ya existía. No se pudo obtener user.id desde frontend.",
-      };
-    }
-
-    // Upsert profile (si tu tabla tiene estas columnas)
-    const { error: profErr } = await sb
-      .from("profiles")
-      .upsert(
-        {
-          id: userId,
-          role,
-          colegio_id,
-          is_active: true,
-          must_change_password: true,
-          alumno_id,
-          apoderado_id,
-        },
-        { onConflict: "id" }
-      );
-
-    if (profErr) {
-      return { ok: false, error: `profiles upsert (${role}): ${profErr.message}` };
-    }
-
-    return { ok: true, email, password, user_id: userId, existed: already };
+    fillSelect(els.grado_id(), [], "Selecciona");
+    fillSelect(els.seccion_id(), [], "Selecciona");
+    setMsg("");
   }
 
-  // =========================
-  // DB helpers
-  // =========================
-  async function buscarAlumnoPorDni(dni) {
-    if (!colegioId) throw new Error("Falta colegio_id (localStorage/colegio_id).");
-    const dniClean = onlyDigits(dni);
-
-    const { data, error } = await sb
-      .from("alumnos")
-      .select("id, dni, nombres, apellidos, colegio_id, estado, apoderado_id")
+  // ===============================
+  // CARGAR COMBOS
+  // ===============================
+  async function loadAlumnos() {
+    let baseQ = supabase
+      .from(T.alumnos)
+      .select("id,dni,apellidos,nombres,colegio_id,anio_academico_id,created_at")
       .eq("colegio_id", colegioId)
-      .eq("dni", dniClean)
-      .maybeSingle();
+      .order("apellidos", { ascending: true })
+      .limit(2000);
 
-    if (error) throw error;
-    return data || null;
-  }
-
-  async function buscarApoderadoPorId(apoderadoId) {
-    if (!apoderadoId) return null;
-    const { data, error } = await sb
-      .from("apoderados")
-      .select("id, dni, nombres, apellidos, colegio_id")
-      .eq("id", apoderadoId)
-      .maybeSingle();
-    if (error) throw error;
-    return data || null;
-  }
-
-  async function buscarApoderadoPorDni(dni) {
-    if (!colegioId) return null;
-    const dniClean = onlyDigits(dni);
-
-    const { data, error } = await sb
-      .from("apoderados")
-      .select("id, dni, nombres, apellidos, colegio_id")
-      .eq("colegio_id", colegioId)
-      .eq("dni", dniClean)
-      .maybeSingle();
-
-    if (error) throw error;
-    return data || null;
-  }
-
-  async function upsertApoderado(payload) {
-    const existente = await buscarApoderadoPorDni(payload.dni);
-    if (existente) return existente;
-
-    const { data, error } = await sb
-      .from("apoderados")
-      .insert(payload)
-      .select("id, dni, nombres, apellidos, colegio_id")
-      .single();
-
-    if (error) throw error;
-    return data;
-  }
-
-  async function upsertAlumno(payload) {
-    const existente = await buscarAlumnoPorDni(payload.dni);
-    if (existente) return existente;
-
-    const { data, error } = await sb
-      .from("alumnos")
-      .insert(payload)
-      .select("id, dni, nombres, apellidos, colegio_id, estado, apoderado_id")
-      .single();
-
-    if (error) throw error;
-    return data;
-  }
-
-  async function crearMatricula({ alumno_id, apoderado_id, tipo }) {
-    const payload = {
-      colegio_id: colegioId,
-      alumno_id,
-      apoderado_id: apoderado_id || null,
-      tipo: tipo || "nuevo",
-      fecha: new Date().toISOString(),
-    };
-    if (anioAcademicoId) payload.anio_academico_id = anioAcademicoId;
-
-    const { data, error } = await sb.from("matriculas").insert(payload).select("id").maybeSingle();
-
-    if (error) {
-      const msg = String(error.message || "").toLowerCase();
-      if (msg.includes("duplicate") || msg.includes("unique")) return { duplicated: true };
-      throw error;
-    }
-    return { duplicated: false, id: data?.id || null };
-  }
-
-  // =========================
-  // Modal existente
-  // =========================
-  function renderModalAlumnoExistente(alumno, apoderado) {
-    const estado = alumno.estado || "activo";
-    const nombre = `${alumno.nombres || ""} ${alumno.apellidos || ""}`.trim();
-    const apNombre = apoderado ? `${apoderado.nombres || ""} ${apoderado.apellidos || ""}`.trim() : "(sin apoderado)";
-    const apDni = apoderado?.dni || "-";
-
-    if (modalBody) {
-      modalBody.innerHTML = `
-        <p><b>DNI:</b> ${alumno.dni}</p>
-        <p><b>Alumno:</b> ${nombre || "(sin nombre)"}</p>
-        <p><b>Estado:</b> ${estado}</p>
-        <hr/>
-        <p><b>Apoderado:</b> ${apNombre}</p>
-        <p><b>DNI Apoderado:</b> ${apDni}</p>
-        <p>✅ El alumno ya está registrado en este colegio. ¿Qué deseas hacer?</p>
-      `;
-    }
-    openModal();
-  }
-
-  // =========================
-  // Buscar
-  // =========================
-  async function onBuscar(e) {
-    e && e.preventDefault();
-
-    const dniClean = onlyDigits((inputDniBuscar?.value || "").trim());
-    if (!dniClean) return alert("⚠️ Ingresa DNI.");
-    if (!isValidDni(dniClean)) return alert("⚠️ DNI inválido. Debe tener 8 dígitos.");
-
-    try {
-      alumnoEncontrado = await buscarAlumnoPorDni(dniClean);
-
-      if (!alumnoEncontrado) {
-        hide(boxExistente);
-        show(boxNuevo);
-        formNuevo && formNuevo.reset();
-        const dniNuevo = document.getElementById("dniAlumno");
-        if (dniNuevo) dniNuevo.value = dniClean;
-        alert("✅ DNI no registrado. Completa datos para matricular.");
-        return;
-      }
-
-      apoderadoEncontrado = await buscarApoderadoPorId(alumnoEncontrado.apoderado_id);
-
-      hide(boxNuevo);
-      show(boxExistente);
-
-      if (txtExistente) {
-        txtExistente.textContent = `Alumno encontrado: ${alumnoEncontrado.dni} - ${(alumnoEncontrado.nombres || "")} ${(alumnoEncontrado.apellidos || "")}`;
-      }
-
-      renderModalAlumnoExistente(alumnoEncontrado, apoderadoEncontrado);
-    } catch (err) {
-      console.error(err);
-      alert("❌ Error al buscar DNI: " + (err.message || err));
-    }
-  }
-
-  formBuscar && formBuscar.addEventListener("submit", onBuscar);
-  btnBuscar && btnBuscar.addEventListener("click", onBuscar);
-
-  // =========================
-  // Confirmar existente
-  // =========================
-  async function confirmar(tipo) {
-    if (!alumnoEncontrado) return;
-
-    try {
-      const apoderadoId = apoderadoEncontrado?.id || alumnoEncontrado.apoderado_id || null;
-      const r = await crearMatricula({ alumno_id: alumnoEncontrado.id, apoderado_id: apoderadoId, tipo });
-      closeModal();
-
-      if (r.duplicated) return alert("⚠️ Ya existe matrícula para este alumno (año actual).");
-      alert(`✅ Matrícula registrada (${tipo}).`);
-    } catch (err) {
-      console.error(err);
-      alert("❌ Error registrando matrícula: " + (err.message || err));
-    }
-  }
-
-  btnConfirmarMatricula && btnConfirmarMatricula.addEventListener("click", () => confirmar("confirmacion"));
-  btnReingreso && btnReingreso.addEventListener("click", () => confirmar("reingreso"));
-  btnTraslado && btnTraslado.addEventListener("click", () => confirmar("traslado"));
-  btnRetiro && btnRetiro.addEventListener("click", () => confirmar("retiro"));
-
-  // =========================
-  // Guardar nuevo
-  // =========================
-  async function onGuardarNuevo(e) {
-    e.preventDefault();
-    if (!colegioId) return alert("⚠️ Falta colegio_id en sesión.");
-
-    try {
-      // limpiar debugBox si existe
-      if (debugBox) debugBox.innerHTML = "";
-
-      const dniAl = onlyDigits((document.getElementById("dniAlumno")?.value || "").trim());
-      const nomAl = (document.getElementById("nombresAlumno")?.value || "").trim();
-      const apeAl = (document.getElementById("apellidosAlumno")?.value || "").trim();
-
-      const dniAp = onlyDigits((document.getElementById("dniApoderado")?.value || "").trim());
-      const nomAp = (document.getElementById("nombresApoderado")?.value || "").trim();
-      const apeAp = (document.getElementById("apellidosApoderado")?.value || "").trim();
-
-      if (!dniAl || !dniAp) return alert("⚠️ DNI de alumno y apoderado son obligatorios.");
-      if (!isValidDni(dniAl) || !isValidDni(dniAp)) return alert("⚠️ DNI inválido. Debe tener 8 dígitos.");
-
-      // 1) DB apoderado
-      logDebug("DB: creando/obteniendo apoderado...");
-      const apoderado = await upsertApoderado({ colegio_id: colegioId, dni: dniAp, nombres: nomAp, apellidos: apeAp });
-      logDebug("DB apoderado OK", apoderado);
-
-      // 2) DB alumno
-      logDebug("DB: creando/obteniendo alumno...");
-      const alumno = await upsertAlumno({
-        colegio_id: colegioId,
-        dni: dniAl,
-        nombres: nomAl,
-        apellidos: apeAl,
-        estado: "activo",
-        apoderado_id: apoderado.id,
-      });
-      logDebug("DB alumno OK", alumno);
-
-      // 3) DB matrícula
-      logDebug("DB: creando matrícula...");
-      const mat = await crearMatricula({ alumno_id: alumno.id, apoderado_id: apoderado.id, tipo: "nuevo" });
-      logDebug("DB matrícula OK", mat);
-
-      if (mat.duplicated) {
-        alert("⚠️ Ya existía matrícula para este alumno (año actual).");
-        return;
-      }
-
-      // 4) Auth + profiles (cliente aislado)
-      const authAp = await ensureAuthAndProfile({
-        dni: dniAp,
-        role: "apoderado",
-        colegio_id: colegioId,
-        apoderado_id: apoderado.id,
-      });
-
-      const authAl = await ensureAuthAndProfile({
-        dni: dniAl,
-        role: "alumno",
-        colegio_id: colegioId,
-        alumno_id: alumno.id,
-      });
-
-      logDebug("Auth apoderado", authAp);
-      logDebug("Auth alumno", authAl);
-
-      // Si Auth falló de verdad
-      if (!authAp.ok || !authAl.ok) {
-        alert(
-          "✅ Matrícula creada, pero falló Auth/Profile.\n\n" +
-          `Apoderado: ${authAp.ok ? "OK" : authAp.error}\n` +
-          `Alumno: ${authAl.ok ? "OK" : authAl.error}`
+    // Intento filtrar por año si existe
+    if (anioId) {
+      const rTry = await baseQ.eq("anio_academico_id", anioId);
+      if (!rTry.error) {
+        const data = rTry.data || [];
+        MAP.alumnos = new Map(data.map((a) => [a.id, a]));
+        fillSelect(
+          els.alumno_id(),
+          data.map((a) => ({
+            id: a.id,
+            label: `${a.dni || ""} - ${(a.apellidos || "").trim()}, ${(a.nombres || "").trim()}`.trim(),
+          })),
+          "Selecciona alumno"
         );
         return;
       }
-
-      // Si Auth ok pero sin user_id (advertencia)
-      const warnings = [];
-      if (authAp.warning) warnings.push("Apoderado: " + authAp.warning);
-      if (authAl.warning) warnings.push("Alumno: " + authAl.warning);
-
-      alert(
-        "✅ Matrícula creada.\n\n" +
-        `Apoderado login: ${toInternalEmailByDni(dniAp)} (password = DNI)\n` +
-        `Alumno login: ${toInternalEmailByDni(dniAl)} (password = DNI)\n\n` +
-        (warnings.length ? "⚠️ Nota:\n" + warnings.join("\n") + "\n\n" : "") +
-        "⚠️ En el primer ingreso se les pedirá cambiar la contraseña."
-      );
-
-      formNuevo && formNuevo.reset();
-      hide(boxNuevo);
-      show(boxExistente);
-    } catch (err) {
-      console.error(err);
-      alert("❌ Error guardando matrícula: " + (err.message || err));
+      // fallback sin filtro por año
+      baseQ = supabase
+        .from(T.alumnos)
+        .select("id,dni,apellidos,nombres,colegio_id,anio_academico_id,created_at")
+        .eq("colegio_id", colegioId)
+        .order("apellidos", { ascending: true })
+        .limit(2000);
     }
+
+    const { data, error } = await baseQ;
+    if (error) {
+      console.error("alumnos:", error);
+      fillSelect(els.alumno_id(), [], "Error cargando alumnos");
+      return;
+    }
+
+    const arr = data || [];
+    MAP.alumnos = new Map(arr.map((a) => [a.id, a]));
+    fillSelect(
+      els.alumno_id(),
+      arr.map((a) => ({
+        id: a.id,
+        label: `${a.dni || ""} - ${(a.apellidos || "").trim()}, ${(a.nombres || "").trim()}`.trim(),
+      })),
+      "Selecciona alumno"
+    );
   }
 
-  formNuevo && formNuevo.addEventListener("submit", onGuardarNuevo);
+  async function loadApoderados() {
+    const sel = els.apoderado_id();
+    if (!sel) return;
+
+    // Asumo apoderados: id, dni, apellidos, nombres, telefono, correo, colegio_id
+    // Si tu tabla no tiene colegio_id, dime y lo adapto.
+    let q = supabase
+      .from(T.apoderados)
+      .select("id,dni,apellidos,nombres,colegio_id,created_at")
+      .order("apellidos", { ascending: true })
+      .limit(3000);
+
+    // Si tu apoderado está amarrado por colegio
+    // (Si no existe colegio_id te dará error; por eso lo probamos con fallback)
+    const rTry = await q.eq("colegio_id", colegioId);
+    if (!rTry.error) {
+      const data = rTry.data || [];
+      MAP.apoderados = new Map(data.map((p) => [p.id, p]));
+      fillSelect(
+        sel,
+        data.map((p) => ({
+          id: p.id,
+          label: `${p.dni || ""} - ${(p.apellidos || "").trim()}, ${(p.nombres || "").trim()}`.trim(),
+        })),
+        "(Opcional) Selecciona apoderado…"
+      );
+      return;
+    }
+
+    // fallback si no existe colegio_id en apoderados
+    const { data, error } = await supabase
+      .from(T.apoderados)
+      .select("id,dni,apellidos,nombres,created_at")
+      .order("apellidos", { ascending: true })
+      .limit(3000);
+
+    if (error) {
+      console.error("apoderados:", error);
+      fillSelect(sel, [], "Error cargando apoderados");
+      return;
+    }
+
+    const arr = data || [];
+    MAP.apoderados = new Map(arr.map((p) => [p.id, p]));
+    fillSelect(
+      sel,
+      arr.map((p) => ({
+        id: p.id,
+        label: `${p.dni || ""} - ${(p.apellidos || "").trim()}, ${(p.nombres || "").trim()}`.trim(),
+      })),
+      "(Opcional) Selecciona apoderado…"
+    );
+  }
+
+  async function loadNiveles() {
+    let q = supabase
+      .from(T.niveles)
+      .select("id,nivel,nombre,colegio_id,anio_academico_id,created_at")
+      .eq("colegio_id", colegioId)
+      .order("created_at", { ascending: true });
+
+    if (anioId) q = q.eq("anio_academico_id", anioId);
+
+    const { data, error } = await q;
+    if (error) {
+      console.error("niveles:", error);
+      fillSelect(els.nivel_id(), [], "Error cargando niveles");
+      return;
+    }
+
+    const arr = (data || []).map((n) => ({
+      ...n,
+      _label: n.nombre || n.nivel || "Nivel",
+    }));
+
+    MAP.niveles = new Map(arr.map((n) => [n.id, n]));
+    fillSelect(
+      els.nivel_id(),
+      arr.map((n) => ({ id: n.id, label: n._label })),
+      "Selecciona nivel"
+    );
+  }
+
+  async function loadGradosByNivel(nivelId) {
+    if (!nivelId) {
+      fillSelect(els.grado_id(), [], "Selecciona");
+      fillSelect(els.seccion_id(), [], "Selecciona");
+      return;
+    }
+
+    let q = supabase
+      .from(T.grados)
+      .select("id,grado,nombre,orden,nivel_id,colegio_id,anio_academico_id,created_at")
+      .eq("colegio_id", colegioId)
+      .eq("nivel_id", nivelId)
+      .order("orden", { ascending: true });
+
+    if (anioId) q = q.eq("anio_academico_id", anioId);
+
+    const { data, error } = await q;
+    if (error) {
+      console.error("grados:", error);
+      fillSelect(els.grado_id(), [], "Error cargando grados");
+      return;
+    }
+
+    const arr = (data || []).map((g) => ({
+      ...g,
+      _label: g.nombre || g.grado || "Grado",
+    }));
+
+    MAP.grados = new Map(arr.map((g) => [g.id, g]));
+    fillSelect(
+      els.grado_id(),
+      arr.map((g) => ({ id: g.id, label: g._label })),
+      "Selecciona grado"
+    );
+
+    fillSelect(els.seccion_id(), [], "Selecciona");
+  }
+
+  async function loadSeccionesByGrado(gradoId) {
+    if (!gradoId) {
+      fillSelect(els.seccion_id(), [], "Selecciona");
+      return;
+    }
+
+    let q = supabase
+      .from(T.secciones)
+      .select("id,seccion,nombre,grado_id,colegio_id,anio_academico_id,created_at")
+      .eq("colegio_id", colegioId)
+      .eq("grado_id", gradoId)
+      .order("created_at", { ascending: true });
+
+    if (anioId) q = q.eq("anio_academico_id", anioId);
+
+    const { data, error } = await q;
+    if (error) {
+      console.error("secciones:", error);
+      fillSelect(els.seccion_id(), [], "Error cargando secciones");
+      return;
+    }
+
+    const arr = (data || []).map((s) => ({
+      ...s,
+      _label: s.nombre || s.seccion || "Sección",
+    }));
+
+    MAP.secciones = new Map(arr.map((s) => [s.id, s]));
+    fillSelect(
+      els.seccion_id(),
+      arr.map((s) => ({ id: s.id, label: s._label })),
+      "Selecciona sección"
+    );
+  }
+
+  // ===============================
+  // GUARDAR MATRÍCULA (con apoderado)
+  // ===============================
+  async function saveMatricula() {
+    if (!canWrite) {
+      setMsg("No tienes permisos para registrar matrículas.", "error");
+      return;
+    }
+
+    const id = (els.matricula_id()?.value || "").trim();
+    const alumno_id = (els.alumno_id()?.value || "").trim();
+    const apoderado_id = (els.apoderado_id()?.value || "").trim(); // ✅ nuevo
+    const nivel_id = (els.nivel_id()?.value || "").trim();
+    const grado_id = (els.grado_id()?.value || "").trim();
+    const seccion_id = (els.seccion_id()?.value || "").trim();
+    const estado = (els.estado()?.value || "").trim();
+    const fecha = (els.fecha()?.value || "").trim();
+    const observacion = (els.observacion()?.value || "").trim();
+    const activo = !!els.activo()?.checked;
+
+    if (!alumno_id) return setMsg("Selecciona un alumno.", "error");
+    if (!nivel_id) return setMsg("Selecciona un nivel.", "error");
+    if (!grado_id) return setMsg("Selecciona un grado.", "error");
+    if (!seccion_id) return setMsg("Selecciona una sección.", "error");
+    if (!estado) return setMsg("Selecciona un estado.", "error");
+
+    setStatus("Guardando…");
+    setMsg("");
+
+    // Anti-duplicado: un alumno no debe tener 2 matrículas en mismo año/colegio
+    let chk = supabase
+      .from(T.matriculas)
+      .select("id")
+      .eq("colegio_id", colegioId)
+      .eq("alumno_id", alumno_id);
+
+    if (anioId) chk = chk.eq("anio_academico_id", anioId);
+
+    const { data: dup, error: dupErr } = await chk.maybeSingle();
+    if (!dupErr && dup?.id && (!id || String(dup.id) !== String(id))) {
+      setStatus("Listo");
+      return setMsg("Este alumno ya está matriculado en este año.", "error");
+    }
+
+    const payload = {
+      colegio_id: colegioId,
+      anio_academico_id: anioId,
+      alumno_id,
+      apoderado_id: apoderado_id || null, // ✅ nuevo
+      nivel_id,
+      grado_id,
+      seccion_id,
+      estado,
+      fecha: fecha || null,
+      observacion: observacion || null,
+      activo,
+    };
+
+    let resp;
+    if (id) {
+      resp = await supabase
+        .from(T.matriculas)
+        .update(payload)
+        .eq("id", id)
+        .eq("colegio_id", colegioId);
+    } else {
+      resp = await supabase.from(T.matriculas).insert(payload);
+    }
+
+    if (resp.error) {
+      console.error("save matricula:", resp.error);
+      setStatus("Error");
+      return setMsg("No se pudo guardar: " + (resp.error.message || ""), "error");
+    }
+
+    setStatus("Listo");
+    setMsg("✅ Matrícula guardada.", "ok");
+    clearForm();
+    await loadMatriculas();
+  }
+
+  // ===============================
+  // LISTAR MATRÍCULAS
+  // ===============================
+  async function loadMatriculas() {
+    setStatus("Cargando matrículas…");
+    const tbody = els.tbody();
+    if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="muted">Cargando…</td></tr>`;
+
+    let q = supabase
+      .from(T.matriculas)
+      .select("id, alumno_id, apoderado_id, nivel_id, grado_id, seccion_id, estado, activo, created_at, colegio_id, anio_academico_id")
+      .eq("colegio_id", colegioId)
+      .order("created_at", { ascending: false });
+
+    if (anioId) q = q.eq("anio_academico_id", anioId);
+
+    const { data, error } = await q;
+
+    if (error) {
+      console.error("matriculas:", error);
+      if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="muted">Error cargando (mira consola)</td></tr>`;
+      setStatus("Error");
+      return;
+    }
+
+    CACHE = data || [];
+    applyFilters();
+    setStatus("Listo");
+  }
+
+  function render(list) {
+    const tbody = els.tbody();
+    if (!tbody) return;
+
+    const count = els.count();
+    if (count) count.textContent = String((list || []).length);
+
+    if (!list || !list.length) {
+      tbody.innerHTML = `<tr><td colspan="8" class="muted">Sin matrículas</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = list
+      .map((m) => {
+        const a = MAP.alumnos.get(m.alumno_id);
+        const p = m.apoderado_id ? MAP.apoderados.get(m.apoderado_id) : null;
+        const n = MAP.niveles.get(m.nivel_id);
+        const g = MAP.grados.get(m.grado_id);
+        const s = MAP.secciones.get(m.seccion_id);
+
+        const alumnoTxt = a
+          ? `${a.dni || ""} - ${(a.apellidos || "").trim()}, ${(a.nombres || "").trim()}`.trim()
+          : m.alumno_id;
+
+        const apoderadoTxt = p
+          ? `${p.dni || ""} - ${(p.apellidos || "").trim()}, ${(p.nombres || "").trim()}`.trim()
+          : (m.apoderado_id ? m.apoderado_id : "—");
+
+        const nivelTxt = n?._label || n?.nombre || n?.nivel || "—";
+        const gradoTxt = g?._label || g?.nombre || g?.grado || "—";
+        const seccTxt = s?._label || s?.nombre || s?.seccion || "—";
+
+        return `
+          <tr>
+            <td>${esc(alumnoTxt)}</td>
+            <td>${esc(apoderadoTxt)}</td>
+            <td>${esc(nivelTxt)}</td>
+            <td>${esc(gradoTxt)}</td>
+            <td>${esc(seccTxt)}</td>
+            <td>${esc(m.estado || "")}</td>
+            <td>${m.activo ? "Sí" : "No"}</td>
+            <td style="text-align:right;">
+              <div style="display:flex; gap:8px; justify-content:flex-end;">
+                <button class="btn btn-secondary btn-edit" data-id="${esc(m.id)}" ${canWrite ? "" : "disabled"}>Editar</button>
+                <button class="btn btn-secondary btn-toggle" data-id="${esc(m.id)}" ${canWrite ? "" : "disabled"}>
+                  ${m.activo ? "Desactivar" : "Activar"}
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+  }
+
+  function applyFilters() {
+    const q = (els.buscar()?.value || "").trim().toLowerCase();
+    const est = (els.filtroEstado()?.value || "").trim().toLowerCase();
+
+    let arr = [...CACHE];
+
+    if (est) arr = arr.filter((x) => String(x.estado || "").toLowerCase() === est);
+
+    if (q) {
+      arr = arr.filter((m) => {
+        const a = MAP.alumnos.get(m.alumno_id);
+        const p = m.apoderado_id ? MAP.apoderados.get(m.apoderado_id) : null;
+        const s1 = a ? `${a.dni || ""} ${a.apellidos || ""} ${a.nombres || ""}` : "";
+        const s2 = p ? `${p.dni || ""} ${p.apellidos || ""} ${p.nombres || ""}` : "";
+        return (s1 + " " + s2).toLowerCase().includes(q);
+      });
+    }
+
+    render(arr);
+  }
+
+  function loadToForm(id) {
+    const m = CACHE.find((x) => String(x.id) === String(id));
+    if (!m) return;
+
+    if (els.matricula_id()) els.matricula_id().value = m.id;
+    if (els.alumno_id()) els.alumno_id().value = m.alumno_id || "";
+    if (els.apoderado_id()) els.apoderado_id().value = m.apoderado_id || "";
+    if (els.nivel_id()) els.nivel_id().value = m.nivel_id || "";
+
+    setStatus("Cargando dependencias…");
+
+    (async () => {
+      await loadGradosByNivel(m.nivel_id);
+      if (els.grado_id()) els.grado_id().value = m.grado_id || "";
+      await loadSeccionesByGrado(m.grado_id);
+      if (els.seccion_id()) els.seccion_id().value = m.seccion_id || "";
+
+      if (els.estado()) els.estado().value = m.estado || "matriculado";
+      if (els.fecha()) els.fecha().value = ""; // opcional: si guardas fecha, dímelo y lo pinto
+      if (els.observacion()) els.observacion().value = ""; // opcional
+      if (els.activo()) els.activo().checked = !!m.activo;
+
+      setMsg("Editando matrícula. Guarda para aplicar cambios.", "info");
+      setStatus("Listo");
+    })();
+  }
+
+  async function toggleActivo(id) {
+    if (!canWrite) return;
+
+    const m = CACHE.find((x) => x.id === id);
+    if (!m) return;
+
+    const next = !m.activo;
+    setStatus(next ? "Activando…" : "Desactivando…");
+
+    const { error } = await supabase
+      .from(T.matriculas)
+      .update({ activo: next })
+      .eq("id", id)
+      .eq("colegio_id", colegioId);
+
+    if (error) {
+      console.error("toggle:", error);
+      setStatus("Error");
+      return setMsg("No se pudo actualizar: " + (error.message || ""), "error");
+    }
+
+    setStatus("Listo");
+    await loadMatriculas();
+  }
+
+  // ===============================
+  // EVENTOS
+  // ===============================
+  els.form()?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    await saveMatricula();
+  });
+
+  els.btnLimpiar()?.addEventListener("click", () => clearForm());
+  els.btnRefresh()?.addEventListener("click", async () => {
+    await loadMatriculas();
+  });
+
+  els.buscar()?.addEventListener("input", () => applyFilters());
+  els.filtroEstado()?.addEventListener("change", () => applyFilters());
+
+  els.nivel_id()?.addEventListener("change", async () => {
+    const nivelId = els.nivel_id().value;
+    await loadGradosByNivel(nivelId);
+  });
+
+  els.grado_id()?.addEventListener("change", async () => {
+    const gradoId = els.grado_id().value;
+    await loadSeccionesByGrado(gradoId);
+  });
+
+  els.tbody()?.addEventListener("click", async (e) => {
+    const btnEdit = e.target.closest(".btn-edit");
+    const btnToggle = e.target.closest(".btn-toggle");
+
+    if (btnEdit) return loadToForm(btnEdit.dataset.id);
+    if (btnToggle) return await toggleActivo(btnToggle.dataset.id);
+  });
+
+  // Modo lectura
+  if (!canWrite) {
+    const disable = (el) => el && (el.disabled = true);
+    disable(els.alumno_id());
+    disable(els.apoderado_id());
+    disable(els.nivel_id());
+    disable(els.grado_id());
+    disable(els.seccion_id());
+    disable(els.estado());
+    disable(els.fecha());
+    disable(els.observacion());
+    disable(els.activo());
+    const btnGuardar = document.getElementById("btnGuardar");
+    if (btnGuardar) btnGuardar.disabled = true;
+    setMsg("Modo solo lectura (sin permisos).", "info");
+  }
+
+  // ===============================
+  // INIT
+  // ===============================
+  setStatus("Cargando catálogo…");
+
+  if (!anioId) {
+    setMsg("⚠️ No hay año académico activo (context.year_id = null).", "info");
+  }
+
+  clearForm();
+
+  await loadAlumnos();
+  await loadApoderados();   // ✅ NUEVO
+  await loadNiveles();
+  await loadMatriculas();
+
+  fillSelect(els.grado_id(), [], "Selecciona");
+  fillSelect(els.seccion_id(), [], "Selecciona");
+
+  setStatus("Listo");
 });
