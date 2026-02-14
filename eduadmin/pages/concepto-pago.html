@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es" data-app="eduadmin">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduAdmin | Conceptos de Pago</title>
+
+<link rel="stylesheet" href="/assets/css/variables.css">
+<link rel="stylesheet" href="/assets/css/main.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/assets/js/supabaseClient.js"></script>
+<script src="/assets/js/context.js"></script>
+<script src="/assets/js/ui.js"></script>
+</head>
+
+<body>
+<div class="app-shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="brand">
+    <img id="uiAppLogo" src="/assets/img/educorp.jpeg">
+    <div class="titles">
+      <b>EduAdmin</b>
+      <span>Administración real</span>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <a href="/eduadmin/pages/dashboard.html"><div class="nav-item">Dashboard</div></a>
+    <a href="/eduadmin/pages/alumnos.html"><div class="nav-item">Alumnos</div></a>
+    <a href="/eduadmin/pages/apoderados.html"><div class="nav-item">Apoderados</div></a>
+    <a href="/eduadmin/pages/matriculas.html"><div class="nav-item">Matrículas</div></a>
+    <a href="/eduadmin/pages/concepto-pago.html"><div class="nav-item active">Conceptos pago</div></a>
+  </nav>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+<header class="topbar">
+  <div>
+    <b id="ctxSchool">Colegio</b> |
+    <span id="ctxYear">Año</span>
+  </div>
+</header>
+
+<section class="content">
+
+<div class="card">
+  <h2>Crear concepto de pago</h2>
+
+  <form id="formConcepto">
+    <div class="grid-3">
+
+      <div>
+        <label>Nombre</label>
+        <input id="nombre" required>
+      </div>
+
+      <div>
+        <label>Monto</label>
+        <input id="monto" type="number" required>
+      </div>
+
+      <div>
+        <label>Tipo</label>
+        <select id="tipo">
+          <option value="pension">Pensión</option>
+          <option value="matricula">Matrícula</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Estado</label>
+        <select id="activo">
+          <option value="true">Activo</option>
+          <option value="false">Inactivo</option>
+        </select>
+      </div>
+
+    </div>
+
+    <br>
+    <button class="btn primary">Guardar</button>
+    <button type="button" class="btn" id="btnRefresh">Actualizar</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Lista conceptos</h2>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Monto</th>
+        <th>Tipo</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody id="tbodyConceptos"></tbody>
+  </table>
+</div>
+
+</section>
+</main>
+</div>
+
+<script src="./js/concepto-pago.js"></script>
+</body>
+</html>
