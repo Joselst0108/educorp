@@ -1,15 +1,5 @@
-// ============================================
-// EDUADMIN | USUARIOS / ROLES - ESTABLE
-// Basado en dashboard.js: getContext(true) + sesión real
-// ============================================
-
 document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    await initUsuariosPage();
-  } catch (err) {
-    console.error("❌ Error initUsuariosPage:", err);
-    setStatus("❌ Error inesperado.");
-  }
+  await initUsuariosPage();
 });
 
 /* ===============================
@@ -19,9 +9,16 @@ function getSB() {
   return window.supabaseClient || window.supabase;
 }
 
+async function getCTX() {
+  return (window.getContext ? await window.getContext(true) : null)
+    || window.__CTX
+    || window.appContext
+    || null;
+}
+
 function setText(id, v) {
   const el = document.getElementById(id);
-  if (el) el.textContent = v ?? "";
+  if (el) el.textContent = v || "";
 }
 
 function setStatus(msg) {
@@ -33,13 +30,6 @@ function showPerm(msg) {
   if (!box) return;
   box.style.display = "inline-flex";
   box.textContent = msg;
-}
-
-function hidePerm() {
-  const box = document.getElementById("permMsg");
-  if (!box) return;
-  box.style.display = "none";
-  box.textContent = "";
 }
 
 function canCreate(role) {
@@ -65,14 +55,12 @@ async function getTokenOrNull() {
 }
 
 /* ===============================
-   Rol: si ctx no lo trae, lo saco de profiles
+   Rol (si no viene en ctx)
 =============================== */
 async function resolveRole(ctx) {
   const fromCtx = String(
-    ctx?.role || ctx?.rol || ctx?.user_role || ctx?.current_role || ctx?.userRole || ""
-  )
-    .trim()
-    .toLowerCase();
+    ctx?.role || ctx?.rol || ctx?.user_role || ctx?.current_role || ""
+  ).toLowerCase();
 
   if (fromCtx) return fromCtx;
 
@@ -87,74 +75,58 @@ async function resolveRole(ctx) {
     .eq("id", uid)
     .maybeSingle();
 
-  return String(prof?.role || prof?.rol || "").trim().toLowerCase();
+  return String(prof?.role || prof?.rol || "").toLowerCase();
 }
 
 /* ===============================
-   Estado de página
+   Estado
 =============================== */
 let __CTX = null;
 let __ROLE = "";
 let __CACHE = [];
+let __COLEGIOS = [];
 
 /* ===============================
-   Init principal
+   Init
 =============================== */
 async function initUsuariosPage() {
   const sb = getSB();
-  if (!sb) {
-    console.error("❌ Supabase no inicializado");
-    setStatus("❌ Supabase no inicializado.");
-    return;
-  }
+  if (!sb) return console.error("Supabase no inicializado");
 
-  // 1) Verificar sesión real (igual que dashboard)
+  // sesión real
   const { data: sess } = await sb.auth.getSession();
   const user = sess?.session?.user;
   if (!user) {
-    console.log("❌ Sin sesión → login");
     window.location.href = "/login.html";
     return;
   }
 
-  // 2) Contexto global (IGUAL que dashboard)
-  if (!window.getContext) {
-    console.error("❌ getContext no existe. Revisa /assets/js/context.js");
-    setStatus("❌ Error: context.js no cargó (getContext undefined).");
-    return;
-  }
-
-  const ctx = await window.getContext(true);
-  if (!ctx) {
-    alert("No se pudo cargar el contexto");
-    return;
-  }
+  const ctx = await getCTX();
+  if (!ctx) return console.error("No ctx (context.js)");
 
   __CTX = ctx;
   __ROLE = await resolveRole(ctx);
 
-  // 3) Pintar topbar + pills
+  // Topbar
   setText("uiSchoolName", ctx.school_name || "Colegio");
   setText("uiYearName", "Año: " + (ctx.year_name || "—"));
   setText("pillContext", "Contexto: " + (ctx.school_name || "—"));
   setText("pillRole", "Rol: " + (__ROLE || "—"));
 
-  const uiLogo = document.getElementById("uiSchoolLogo");
-  if (uiLogo && ctx.school_logo_url) uiLogo.src = ctx.school_logo_url;
-
-  // 4) Sidebar dinámico
+  // Sidebar
   if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
 
-  // 5) Permisos
-  hidePerm();
+  // Cargar selector colegios (solo superadmin puede elegir)
+  await cargarColegiosSelector();
+
+  // Permisos
   if (!canCreate(__ROLE)) {
     showPerm("🔒 Solo lectura");
-    lockCreateForm(true);
-  } else {
-    lockCreateForm(false);
+    const btn = document.getElementById("btnCreate");
+    if (btn) btn.disabled = true;
   }
 
-  // 6) Eventos
+  // Eventos
   document.getElementById("formUser")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     await crearUsuario();
@@ -167,32 +139,56 @@ async function initUsuariosPage() {
   document.getElementById("inpBuscar")?.addEventListener("input", filtrarYRender);
   document.getElementById("selFiltroRol")?.addEventListener("change", filtrarYRender);
 
-  // ✅ Delegación de eventos: Reset
+  // Delegación reset
   document.getElementById("tbodyUsers")?.addEventListener("click", async (e) => {
     const btn = e.target.closest(".btn-reset");
     if (!btn) return;
-
-    const userId = btn.dataset.userId;
-    const dni = btn.dataset.dni;
-
-    console.log("CLICK RESET:", { userId, dni });
-    await resetPass(userId, dni);
+    await resetPass(btn.dataset.userId, btn.dataset.dni);
   });
 
-  // 7) Cargar usuarios
   await cargarUsuarios();
 }
 
-function lockCreateForm(locked) {
-  const btn = document.getElementById("btnCreate");
-  if (btn) btn.disabled = !!locked;
+/* ===============================
+   Selector colegios
+=============================== */
+async function cargarColegiosSelector() {
+  const sb = getSB();
+  const sel = document.getElementById("selColegio");
+  const hint = document.getElementById("hintColegio");
+  if (!sel) return;
 
-  // Opcional: bloquear inputs también
-  const ids = ["inpDni", "inpNombres", "inpApellidos", "selRole"];
-  ids.forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.disabled = !!locked;
-  });
+  // Si no es superadmin → bloquear selector y setear su colegio
+  const isSuper = String(__ROLE || "").toLowerCase() === "superadmin";
+
+  const { data, error } = await sb
+    .from("colegios")
+    .select("id,nombre")
+    .order("nombre", { ascending: true });
+
+  if (error) {
+    console.error(error);
+    sel.innerHTML = `<option value="">Error cargando colegios</option>`;
+    if (!isSuper) sel.disabled = true;
+    return;
+  }
+
+  __COLEGIOS = data || [];
+
+  sel.innerHTML = __COLEGIOS.map(c =>
+    `<option value="${esc(c.id)}">${esc(c.nombre)}</option>`
+  ).join("");
+
+  if (isSuper) {
+    if (hint) hint.textContent = "* SuperAdmin puede elegir el colegio para el usuario.";
+    sel.disabled = false;
+  } else {
+    // fijar al colegio del contexto
+    const colegioId = __CTX?.school_id || __CTX?.colegio_id;
+    if (colegioId) sel.value = colegioId;
+    sel.disabled = true;
+    if (hint) hint.textContent = "* Se usará tu colegio automáticamente (no eres SuperAdmin).";
+  }
 }
 
 /* ===============================
@@ -209,39 +205,42 @@ async function crearUsuario() {
   const apellidos = (document.getElementById("inpApellidos")?.value || "").trim();
   const role = (document.getElementById("selRole")?.value || "").trim();
 
-  const colegioId = __CTX?.school_id || __CTX?.colegio_id;
+  // ✅ colegio elegido si superadmin, si no → su colegio
+  const colegioSel = document.getElementById("selColegio")?.value || "";
+  const colegioCtx = __CTX?.school_id || __CTX?.colegio_id || "";
+  const colegioId = (String(__ROLE).toLowerCase() === "superadmin")
+    ? (colegioSel || colegioCtx)
+    : colegioCtx;
 
   if (!/^\d{8}$/.test(dni)) return alert("DNI inválido (8 dígitos).");
   if (!nombres || !apellidos) return alert("Faltan nombres o apellidos.");
   if (!role) return alert("Selecciona un rol.");
-  if (!colegioId) return alert("No se detectó colegio_id en el contexto.");
+  if (!colegioId) return alert("No se detectó colegio_id.");
 
   const full_name = `${nombres} ${apellidos}`.trim();
 
   setStatus("Creando usuario…");
 
-  // Token
   const token = await getTokenOrNull();
   if (!token) {
     alert("Sesión expirada. Inicia sesión otra vez.");
-    setStatus("");
+    setStatus("Listo.");
     return;
   }
 
-  // Netlify function create-user
   const res = await fetch("/.netlify/functions/create-user", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: "Bearer " + token,
+      "Authorization": "Bearer " + token
     },
     body: JSON.stringify({
       dni,
       role,
       colegio_id: colegioId,
       must_change_password: true,
-      full_name,
-    }),
+      full_name
+    })
   });
 
   const raw = await res.text();
@@ -249,26 +248,32 @@ async function crearUsuario() {
 
   if (!res.ok) {
     alert(raw);
-    setStatus("❌ Error al crear.");
+    setStatus("Error al crear.");
     return;
   }
 
-  // Intento: guardar nombre + dni en profiles si tu function no lo guardó
+  // Asegurar full_name y dni
   try {
     const parsed = JSON.parse(raw);
     const createdId = parsed?.created_user_id;
-
     if (createdId) {
       const sb = getSB();
-      await sb.from("profiles").update({ full_name, dni }).eq("id", createdId);
+      await sb.from("profiles")
+        .update({ full_name, dni, colegio_id: colegioId, role })
+        .eq("id", createdId);
     }
   } catch (_) {}
 
   alert("✅ Usuario creado (password = DNI)");
   document.getElementById("formUser")?.reset();
 
+  // si superadmin, no resetees selector
+  if (String(__ROLE).toLowerCase() !== "superadmin") {
+    const sel = document.getElementById("selColegio");
+    if (sel) sel.value = colegioId;
+  }
+
   await cargarUsuarios();
-  setStatus("Listo.");
 }
 
 /* ===============================
@@ -280,11 +285,6 @@ async function cargarUsuarios() {
   if (!tbody) return;
 
   const colegioId = __CTX?.school_id || __CTX?.colegio_id;
-  if (!colegioId) {
-    setStatus("⚠ No se detectó colegio_id en el contexto.");
-    tbody.innerHTML = `<tr><td colspan="6" class="muted">Sin contexto de colegio</td></tr>`;
-    return;
-  }
 
   setStatus("Cargando usuarios…");
   tbody.innerHTML = `<tr><td colspan="6" class="muted">Cargando…</td></tr>`;
@@ -296,9 +296,9 @@ async function cargarUsuarios() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("❌ Error cargando usuarios:", error);
+    console.error(error);
     tbody.innerHTML = `<tr><td colspan="6">Error cargando usuarios</td></tr>`;
-    setStatus("❌ Error.");
+    setStatus("Error.");
     return;
   }
 
@@ -316,12 +316,10 @@ function filtrarYRender() {
 
   let arr = [...__CACHE];
 
-  if (rol) {
-    arr = arr.filter((u) => String(u.role || u.rol || "").trim().toLowerCase() === rol);
-  }
+  if (rol) arr = arr.filter(u => String(u.role || u.rol || "").toLowerCase() === rol);
 
   if (q) {
-    arr = arr.filter((u) => {
+    arr = arr.filter(u => {
       const email = String(u.email || "").toLowerCase();
       const name = String(u.full_name || "").toLowerCase();
       const dni = String(u.dni || "").toLowerCase();
@@ -341,39 +339,32 @@ function renderUsers(list) {
     return;
   }
 
-  tbody.innerHTML = list
-    .map((u) => {
-      const role = String(u.role || u.rol || "—");
-      const dni = String(u.dni || "");
-      const canReset = /^\d{8}$/.test(dni);
+  tbody.innerHTML = list.map(u => {
+    const role = u.role || u.rol || "—";
+    const dni = u.dni || "";
+    const canReset = /^\d{8}$/.test(String(dni));
+    const active = (u.is_active === true);
 
-      const estado = u.is_active ? "Activo" : "Inactivo";
-
-      return `
-        <tr>
-          <td>${esc(u.email || "—")}</td>
-          <td>${esc(u.full_name || "—")}</td>
-          <td>${esc(dni || "—")}</td>
-          <td>${esc(role)}</td>
-          <td>${estado}</td>
-          <td style="text-align:right;">
-            <div class="table-actions">
-              <button
-                type="button"
-                class="btn btn-secondary btn-reset"
-                data-user-id="${esc(u.id)}"
-                data-dni="${esc(dni)}"
-                ${canReset ? "" : "disabled"}
-                title="${canReset ? "Resetear contraseña a DNI" : "No tiene DNI válido"}"
-              >
-                Reset a DNI
-              </button>
-            </div>
-          </td>
-        </tr>
-      `;
-    })
-    .join("");
+    return `
+      <tr>
+        <td>${esc(u.email || "—")}</td>
+        <td>${esc(u.full_name || "—")}</td>
+        <td>${esc(dni || "—")}</td>
+        <td>${esc(role)}</td>
+        <td>${active ? "Activo" : "Inactivo"}</td>
+        <td style="text-align:right;">
+          <div class="table-actions">
+            <button class="btn btn-secondary btn-reset"
+              data-user-id="${esc(u.id)}"
+              data-dni="${esc(dni)}"
+              ${canReset ? "" : "disabled"}>
+              Reset a DNI
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
 }
 
 /* ===============================
@@ -397,12 +388,12 @@ async function resetPass(userId, dni) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: "Bearer " + token,
+      "Authorization": "Bearer " + token
     },
     body: JSON.stringify({
       user_id: userId,
-      dni: dni,
-    }),
+      dni: dni
+    })
   });
 
   const raw = await res.text();
@@ -416,4 +407,5 @@ async function resetPass(userId, dni) {
   alert("✅ Password reseteado al DNI");
 }
 
-window.resetPass = resetPass; // opcional, por si lo llamas desde consola
+// export opcional
+window.resetPass = resetPass;
