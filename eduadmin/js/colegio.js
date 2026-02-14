@@ -1,16 +1,16 @@
 // ============================================
-// EDUADMIN | COLEGIO (DATOS DEL COLEGIO) - ESTABLE
-// Basado en dashboard.js (getContext true)
+// EDUADMIN | DATOS DEL COLEGIO (ESTABLE)
+// Usa window.getContext(true) como dashboard.js
 // ============================================
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    console.log("🚀 Iniciando colegio...");
+    console.log("🚀 Iniciando Datos del colegio...");
 
     const sb = window.supabaseClient;
 
     // ===============================
-    // 1. VERIFICAR SESIÓN REAL
+    // 1) VERIFICAR SESIÓN
     // ===============================
     const { data: sess } = await sb.auth.getSession();
     const user = sess?.session?.user;
@@ -24,16 +24,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log("Usuario activo:", user.id);
 
     // ===============================
-    // 2. OBTENER CONTEXTO GLOBAL (IGUAL QUE DASHBOARD)
+    // 2) CONTEXTO GLOBAL (MISMO PATRÓN QUE DASHBOARD)
     // ===============================
     if (!window.getContext) {
-      console.error("❌ window.getContext no existe. Revisa /assets/js/context.js");
-      setStatus("❌ Error: context.js no inicializó getContext().");
+      console.error("❌ getContext no existe. Revisa que /assets/js/context.js cargue antes.");
+      setStatus("❌ Error: context.js no cargó (getContext undefined).");
       return;
     }
 
-    const ctx = await window.getContext(true);
-
+    const ctx = await window.getContext(true); // fuerza reconstrucción como dashboard
     if (!ctx) {
       alert("No se pudo cargar el contexto");
       return;
@@ -41,14 +40,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     console.log("CTX colegio:", ctx);
 
-    // Validación mínima
     if (!ctx.school_id) {
-      setStatus("⚠ Error: No se encontró el ID del colegio en el contexto.");
+      setStatus("⚠ Error: No se encontró school_id en el contexto.");
       return;
     }
 
     // ===============================
-    // 3. PINTAR TOPBAR
+    // 3) PINTAR TOPBAR
     // ===============================
     setText("uiSchoolName", ctx.school_name || "Colegio");
     setText("uiYearName", ctx.year_name || "Año académico");
@@ -56,40 +54,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     const topLogo = document.getElementById("uiSchoolLogo");
     if (topLogo && ctx.school_logo_url) topLogo.src = ctx.school_logo_url;
 
-    // ===============================
-    // 4. RENDER SIDEBAR
-    // ===============================
-    if (window.renderEduAdminSidebar) {
-      window.renderEduAdminSidebar();
-    }
+    // Sidebar si lo tienes en ui.js
+    if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
 
     // ===============================
-    // 5. CARGAR DATOS DEL COLEGIO
+    // 4) CARGAR COLEGIO
     // ===============================
-    await loadColegioForm(ctx);
+    await loadColegio(ctx.school_id);
 
     // ===============================
-    // 6. BOTÓN REFRESH
+    // 5) BOTONES
     // ===============================
     document.getElementById("btnRefresh")?.addEventListener("click", async () => {
-      await loadColegioForm(ctx);
+      await loadColegio(ctx.school_id);
     });
 
-    // ===============================
-    // 7. GUARDAR NOMBRE
-    // ===============================
     document.getElementById("btnGuardar")?.addEventListener("click", async () => {
-      await saveNombre(ctx);
+      await saveNombre(ctx.school_id);
     });
 
-    // ===============================
-    // 8. SUBIR LOGO
-    // ===============================
     document.getElementById("btnSubirLogo")?.addEventListener("click", async () => {
-      await uploadLogoAndSave(ctx);
+      await uploadLogoAndSave(ctx.school_id);
     });
 
-    // Preview local inmediato
+    // Preview local
     document.getElementById("fileLogo")?.addEventListener("change", (e) => {
       const f = e.target?.files?.[0];
       if (!f) return;
@@ -98,9 +86,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (img) img.src = url;
     });
 
-    // ===============================
-    // 9. LOGOUT
-    // ===============================
+    // Logout
     document.getElementById("logoutBtn")?.addEventListener("click", async () => {
       await sb.auth.signOut();
       localStorage.clear();
@@ -108,45 +94,41 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
   } catch (err) {
-    console.error("❌ Error colegio:", err);
-    setStatus("❌ Error inesperado en Datos del colegio.");
+    console.error("❌ Error en Datos del colegio:", err);
+    setStatus("❌ Error inesperado.");
   }
 });
 
 // ============================================
-// CARGAR FORM
+// CARGA COLEGIO
 // ============================================
-async function loadColegioForm(ctx) {
+async function loadColegio(colegioId) {
   const sb = window.supabaseClient;
-
   setStatus("Cargando...");
 
   const { data, error } = await sb
     .from("colegios")
     .select("id,nombre,logo_url")
-    .eq("id", ctx.school_id)
+    .eq("id", colegioId)
     .single();
 
   if (error) {
     console.error("❌ Error cargando colegio:", error);
-    setStatus("❌ Error cargando datos del colegio.");
+    setStatus("❌ Error cargando colegio.");
     return;
   }
 
-  // Nombre
+  // Form
   const inp = document.getElementById("inpNombre");
   if (inp) inp.value = data?.nombre || "";
 
-  // Preview del logo (card)
   const prev = document.getElementById("previewLogo");
   if (prev && data?.logo_url) prev.src = data.logo_url;
 
-  // También topbar
+  // Topbar (opcional)
+  setText("uiSchoolName", data?.nombre || "");
   const topLogo = document.getElementById("uiSchoolLogo");
   if (topLogo && data?.logo_url) topLogo.src = data.logo_url;
-
-  // Si quieres actualizar nombre arriba también:
-  setText("uiSchoolName", data?.nombre || ctx.school_name || "Colegio");
 
   setStatus("");
 }
@@ -154,7 +136,7 @@ async function loadColegioForm(ctx) {
 // ============================================
 // GUARDAR NOMBRE
 // ============================================
-async function saveNombre(ctx) {
+async function saveNombre(colegioId) {
   const sb = window.supabaseClient;
 
   const nombre = (document.getElementById("inpNombre")?.value || "").trim();
@@ -165,23 +147,23 @@ async function saveNombre(ctx) {
   const { error } = await sb
     .from("colegios")
     .update({ nombre })
-    .eq("id", ctx.school_id);
+    .eq("id", colegioId);
 
   if (error) {
-    console.error("❌ Error guardando nombre:", error);
+    console.error("❌ Error guardando:", error);
     setStatus("❌ Error guardando.");
     alert("Error guardando");
     return;
   }
 
-  setStatus("✅ Guardado correctamente");
   setText("uiSchoolName", nombre);
+  setStatus("✅ Guardado correctamente");
 }
 
 // ============================================
 // SUBIR LOGO + GUARDAR EN BD
 // ============================================
-async function uploadLogoAndSave(ctx) {
+async function uploadLogoAndSave(colegioId) {
   const sb = window.supabaseClient;
 
   const file = document.getElementById("fileLogo")?.files?.[0];
@@ -189,12 +171,10 @@ async function uploadLogoAndSave(ctx) {
 
   setStatus("Subiendo logo...");
 
-  // extensión segura
   const ext = (file.name.split(".").pop() || "png").toLowerCase();
   const safeExt = /^(png|jpg|jpeg|webp)$/.test(ext) ? ext : "png";
 
-  // Ruta en bucket
-  const filePath = `logos/${ctx.school_id}_${Date.now()}.${safeExt}`;
+  const filePath = `logos/${colegioId}_${Date.now()}.${safeExt}`;
 
   const { error: upErr } = await sb.storage
     .from("logos")
@@ -210,25 +190,23 @@ async function uploadLogoAndSave(ctx) {
   const publicUrl = pub?.publicUrl;
 
   if (!publicUrl) {
-    setStatus("❌ No se pudo obtener URL pública del logo.");
+    setStatus("❌ No se pudo obtener la URL pública.");
     return;
   }
 
-  // Guardar en tabla colegios
   setStatus("Guardando logo...");
 
   const { error: dbErr } = await sb
     .from("colegios")
     .update({ logo_url: publicUrl })
-    .eq("id", ctx.school_id);
+    .eq("id", colegioId);
 
   if (dbErr) {
-    console.error("❌ Error guardando logo en BD:", dbErr);
+    console.error("❌ Error guardando logo:", dbErr);
     setStatus("❌ Error guardando logo.");
     return;
   }
 
-  // Pintar en UI
   const prev = document.getElementById("previewLogo");
   if (prev) prev.src = publicUrl;
 
