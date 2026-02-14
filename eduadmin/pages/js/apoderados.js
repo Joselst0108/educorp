@@ -4,7 +4,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     await initApoderados();
   } catch (e) {
     console.error("Apoderados init error:", e);
-    alert("Error cargando apoderados. Revisa consola.");
   }
 });
 
@@ -12,430 +11,325 @@ function getSB() {
   return window.supabaseClient || window.supabase;
 }
 
-function esc(v) {
-  return String(v ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function showPerm(msg) {
-  const box = document.getElementById("permMsg");
-  if (!box) return;
-  box.style.display = "inline-flex";
-  box.textContent = msg;
-}
-
-function setText(id, v) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = v || "";
-}
-
-function canWrite(role) {
-  const r = String(role || "").toLowerCase();
-  return r === "superadmin" || r === "director" || r === "secretaria";
+async function getCTX() {
+  return (window.getContext ? await window.getContext() : null)
+    || window.__CTX
+    || window.appContext
+    || null;
 }
 
 async function initApoderados() {
   const sb = getSB();
-  if (!sb) throw new Error("Supabase no cargó");
-
-  // ✅ Para apoderados NO obligo year_id, pero lo uso para selects (niveles/secciones suelen depender de año)
-  const ctx = (window.getContext ? await window.getContext(false) : null) || null;
-  if (!ctx?.school_id) throw new Error("No hay colegio en contexto");
-
-  const colegioId = ctx.school_id;
-  const yearId = ctx.year_id || null;
-
-  const role = String(ctx.user_role || ctx.role || "").toLowerCase();
-
-  // Topbar
-  setText("uiSchoolName", ctx.school_name || "Colegio");
-  setText("uiYearName", yearId ? `Año: ${ctx.year_name || "—"}` : "Año: —");
-  const logo = document.getElementById("uiSchoolLogo");
-  if (logo) logo.src = ctx.school_logo_url || "/assets/img/eduadmin.jpeg";
-
-  setText("pillContext", `Contexto: ${ctx.school_name || "—"} / ${ctx.year_name || "—"}`);
-  setText("pillRole", `Rol: ${role || "—"}`);
-
-  if (!canWrite(role)) {
-    showPerm("🔒 Solo lectura");
-    document.getElementById("btnCrear")?.setAttribute("disabled", "disabled");
-    document.getElementById("btnAsignar")?.setAttribute("disabled", "disabled");
+  if (!sb) {
+    alert("Supabase no cargó. Revisa supabaseClient.js");
+    return;
   }
 
-  const status = document.getElementById("status");
-  const setStatus = (t) => status && (status.textContent = t);
+  const ctx = await getCTX();
+  if (!ctx) {
+    console.error("No hay contexto (ctx).");
+    return;
+  }
 
-  const saveStatus = document.getElementById("saveStatus");
-  const setSave = (t) => saveStatus && (saveStatus.textContent = t || "");
+  // Contexto (compat)
+  const colegioId = ctx.school_id || ctx.colegio_id || ctx.colegioId || null;
+  const anioId = ctx.year_id || ctx.anio_academico_id || ctx.anioId || null;
 
-  const assignStatus = document.getElementById("assignStatus");
-  const setAssign = (t) => assignStatus && (assignStatus.textContent = t || "");
+  const schoolName =
+    ctx.school_name ||
+    ctx.school?.nombre ||
+    ctx.school?.name ||
+    ctx.colegio_nombre ||
+    "—";
+
+  const yearName =
+    ctx.year_name ||
+    ctx.year?.nombre ||
+    ctx.year?.name ||
+    ctx.anio_nombre ||
+    "—";
+
+  const role = String(ctx.role || ctx.user_role || ctx.rol || ctx.profile?.role || "").toLowerCase();
+
+  // Pintar topbar
+  const uiSchoolName = document.getElementById("uiSchoolName");
+  const uiYearName = document.getElementById("uiYearName");
+  if (uiSchoolName) uiSchoolName.textContent = schoolName;
+  if (uiYearName) uiYearName.textContent = `Año: ${yearName}`;
+
+  // Pills
+  const pillContext = document.getElementById("pillContext");
+  const pillRole = document.getElementById("pillRole");
+  if (pillContext) pillContext.textContent = `Contexto: ${schoolName} / ${yearName}`;
+  if (pillRole) pillRole.textContent = `Rol: ${role || "—"}`;
+
+  if (!colegioId) {
+    alert("No hay colegio seleccionado en el contexto.");
+    return;
+  }
+
+  // Permisos
+  const canWrite = role === "superadmin" || role === "director" || role === "secretaria";
+  const permMsg = document.getElementById("permMsg");
+  if (!canWrite && permMsg) {
+    permMsg.style.display = "inline-block";
+    permMsg.textContent = "Modo solo lectura (sin permisos para registrar).";
+  }
 
   // DOM
   const els = {
+    // inputs
     dni: () => document.getElementById("inpDni"),
-    telefono: () => document.getElementById("inpTelefono"),
     nombres: () => document.getElementById("inpNombres"),
     apellidos: () => document.getElementById("inpApellidos"),
+    telefono: () => document.getElementById("inpTelefono"),
     correo: () => document.getElementById("inpCorreo"),
     direccion: () => document.getElementById("inpDireccion"),
-    btnCrear: () => document.getElementById("btnCrear"),
+    distrito: () => document.getElementById("inpDistrito"),
+    parentesco: () => document.getElementById("selParentesco"),
+    estado: () => document.getElementById("selEstado"),
+
+    // acciones
+    btnGuardar: () => document.getElementById("btnGuardar"),
     btnLimpiar: () => document.getElementById("btnLimpiar"),
     btnRefresh: () => document.getElementById("btnRefresh"),
+    saveStatus: () => document.getElementById("saveStatus"),
 
+    // listado
     buscar: () => document.getElementById("inpBuscar"),
-    tbody: () => document.getElementById("tbodyApoderados"),
-
-    selNivel: () => document.getElementById("selNivel"),
-    selGrado: () => document.getElementById("selGrado"),
-    selSeccion: () => document.getElementById("selSeccion"),
-    selAlumno: () => document.getElementById("selAlumno"),
-    selApoderado: () => document.getElementById("selApoderado"),
-    btnAsignar: () => document.getElementById("btnAsignar"),
+    tbody: () => document.getElementById("apoderadosTbody"),
   };
 
-  let CACHE = [];
-
-  function clearForm() {
-    ["dni","telefono","nombres","apellidos","correo","direccion"].forEach(k => {
-      const m = ({
-        dni:"inpDni", telefono:"inpTelefono", nombres:"inpNombres", apellidos:"inpApellidos",
-        correo:"inpCorreo", direccion:"inpDireccion"
-      })[k];
-      const el = document.getElementById(m);
-      if (el) el.value = "";
-    });
-    setSave("");
+  function setSaveStatus(t = "") {
+    const el = els.saveStatus();
+    if (el) el.textContent = t;
   }
 
-  function render(list) {
+  function esc(str) {
+    return String(str ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  function cleanDNI(v) {
+    return String(v || "").replace(/\D/g, "").trim();
+  }
+
+  function norm(v) {
+    return String(v || "").trim();
+  }
+
+  // Cache tabla
+  let CACHE = [];
+
+  // ====== Cargar lista (a prueba de columnas faltantes) ======
+  async function cargarLista() {
     const tbody = els.tbody();
     if (!tbody) return;
 
-    if (!list?.length) {
-      tbody.innerHTML = `<tr><td colspan="5" class="muted">Sin apoderados</td></tr>`;
-      return;
-    }
+    tbody.innerHTML = `<tr><td colspan="6">Cargando...</td></tr>`;
 
-    tbody.innerHTML = list.map(a => {
-      const full = `${a.apellidos || ""} ${a.nombres || ""}`.trim();
-      return `
-        <tr>
-          <td>${esc(a.dni || "—")}</td>
-          <td>${esc(full || "—")}</td>
-          <td>${esc(a.telefono || "—")}</td>
-          <td>${esc(a.correo || "—")}</td>
-          <td style="text-align:center;">
-            <button class="btn btn-secondary btn-pick" data-id="${esc(a.id)}">Usar</button>
-          </td>
-        </tr>
-      `;
-    }).join("");
-
-    tbody.querySelectorAll(".btn-pick").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const id = btn.dataset.id;
-        const sel = els.selApoderado();
-        if (sel && id) sel.value = id;
-        setAssign("Apoderado seleccionado ✅");
-      });
-    });
-  }
-
-  function applyFilter() {
-    const q = (els.buscar()?.value || "").trim().toLowerCase();
-    if (!q) return render(CACHE);
-
-    const filtered = CACHE.filter(a => {
-      const s = `${a.dni||""} ${a.nombres||""} ${a.apellidos||""} ${a.telefono||""}`.toLowerCase();
-      return s.includes(q);
-    });
-
-    render(filtered);
-  }
-
-  async function loadApoderados() {
-    setStatus("Cargando apoderados…");
-    const tbody = els.tbody();
-    if (tbody) tbody.innerHTML = `<tr><td colspan="5">Cargando...</td></tr>`;
-
-    const { data, error } = await sb
+    // Intento 1: columnas esperadas
+    let q = sb
       .from("apoderados")
-      .select("id, dni, nombres, apellidos, telefono, correo, direccion, created_at")
-      .eq("colegio_id", colegioId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error(error);
-      setStatus("Error cargando apoderados");
-      if (tbody) tbody.innerHTML = `<tr><td colspan="5">Error</td></tr>`;
-      return;
-    }
-
-    CACHE = data || [];
-    applyFilter();
-
-    // llenar selector apoderados
-    const sel = els.selApoderado();
-    if (sel) {
-      const cur = sel.value;
-      sel.innerHTML = `<option value="">Seleccione un apoderado…</option>` + CACHE.map(a => {
-        const full = `${a.apellidos||""} ${a.nombres||""}`.trim();
-        return `<option value="${esc(a.id)}">${esc(full)}${a.dni ? " - " + esc(a.dni) : ""}</option>`;
-      }).join("");
-      if (cur) sel.value = cur;
-    }
-
-    setStatus("Listo");
-  }
-
-  async function createApoderado() {
-    if (!canWrite(role)) return alert("No tienes permisos.");
-
-    const dni = (els.dni()?.value || "").replace(/\D/g, "").trim();
-    const telefono = (els.telefono()?.value || "").trim();
-    const nombres = (els.nombres()?.value || "").trim();
-    const apellidos = (els.apellidos()?.value || "").trim();
-    const correo = (els.correo()?.value || "").trim();
-    const direccion = (els.direccion()?.value || "").trim();
-
-    if (!nombres || !apellidos) return alert("Faltan nombres o apellidos.");
-    if (dni && dni.length < 8) return alert("DNI muy corto.");
-
-    setSave("Guardando...");
-
-    // opcional: evitar DNI duplicado (si tu índice unique está activo)
-    const payload = {
-      colegio_id: colegioId,
-      dni: dni || null,
-      telefono: telefono || null,
-      nombres,
-      apellidos,
-      correo: correo || null,
-      direccion: direccion || null,
-    };
-
-    const { error } = await sb.from("apoderados").insert(payload);
-
-    if (error) {
-      console.error(error);
-      setSave("Error");
-      alert(error.message || "No se pudo guardar.");
-      return;
-    }
-
-    setSave("Guardado ✅");
-    clearForm();
-    await loadApoderados();
-  }
-
-  // ========= SELECTS (Nivel -> Grado -> Sección -> Alumno) =========
-
-  async function cargarNiveles() {
-    const selNivel = els.selNivel();
-    const selGrado = els.selGrado();
-    const selSeccion = els.selSeccion();
-    const selAlumno = els.selAlumno();
-
-    if (!selNivel || !selGrado || !selSeccion || !selAlumno) return;
-
-    selNivel.innerHTML = `<option value="">Cargando...</option>`;
-    selGrado.innerHTML = `<option value="">Seleccione nivel</option>`;
-    selGrado.disabled = true;
-    selSeccion.innerHTML = `<option value="">Seleccione grado</option>`;
-    selSeccion.disabled = true;
-    selAlumno.innerHTML = `<option value="">Seleccione sección</option>`;
-    selAlumno.disabled = true;
-
-    // ✅ niveles por colegio y (si aplica) por año
-    let q = sb.from("niveles").select("id,nombre").eq("colegio_id", colegioId).order("nombre");
-    if (yearId) q = q.eq("anio_academico_id", yearId);
-
-    const { data, error } = await q;
-    if (error) {
-      console.error(error);
-      selNivel.innerHTML = `<option value="">Error</option>`;
-      return;
-    }
-
-    selNivel.innerHTML = `<option value="">Seleccione</option>` + (data || [])
-      .map(n => `<option value="${esc(n.id)}">${esc(n.nombre)}</option>`)
-      .join("");
-
-    selNivel.onchange = async () => {
-      const nivelId = selNivel.value;
-
-      selGrado.innerHTML = `<option value="">Seleccione nivel</option>`;
-      selGrado.disabled = true;
-      selSeccion.innerHTML = `<option value="">Seleccione grado</option>`;
-      selSeccion.disabled = true;
-      selAlumno.innerHTML = `<option value="">Seleccione sección</option>`;
-      selAlumno.disabled = true;
-
-      if (!nivelId) return;
-      await cargarGrados(nivelId);
-    };
-  }
-
-  async function cargarGrados(nivelId) {
-    const selGrado = els.selGrado();
-    const selSeccion = els.selSeccion();
-    const selAlumno = els.selAlumno();
-    if (!selGrado || !selSeccion || !selAlumno) return;
-
-    selGrado.disabled = false;
-    selGrado.innerHTML = `<option value="">Cargando...</option>`;
-    selSeccion.innerHTML = `<option value="">Seleccione grado</option>`;
-    selSeccion.disabled = true;
-    selAlumno.innerHTML = `<option value="">Seleccione sección</option>`;
-    selAlumno.disabled = true;
-
-    const { data, error } = await sb
-      .from("grados")
-      .select("id,nombre,orden")
-      .eq("nivel_id", nivelId)
-      .order("orden", { ascending: true });
-
-    if (error) {
-      console.error(error);
-      selGrado.innerHTML = `<option value="">Error</option>`;
-      return;
-    }
-
-    selGrado.innerHTML = `<option value="">Seleccione</option>` + (data || [])
-      .map(g => `<option value="${esc(g.id)}">${esc(g.nombre)}</option>`)
-      .join("");
-
-    selGrado.onchange = async () => {
-      const gradoId = selGrado.value;
-
-      selSeccion.innerHTML = `<option value="">Seleccione grado</option>`;
-      selSeccion.disabled = true;
-      selAlumno.innerHTML = `<option value="">Seleccione sección</option>`;
-      selAlumno.disabled = true;
-
-      if (!gradoId) return;
-      await cargarSecciones(gradoId);
-    };
-  }
-
-  async function cargarSecciones(gradoId) {
-    const selSeccion = els.selSeccion();
-    const selAlumno = els.selAlumno();
-    if (!selSeccion || !selAlumno) return;
-
-    selSeccion.disabled = false;
-    selSeccion.innerHTML = `<option value="">Cargando...</option>`;
-    selAlumno.innerHTML = `<option value="">Seleccione sección</option>`;
-    selAlumno.disabled = true;
-
-    const { data, error } = await sb
-      .from("secciones")
-      .select("id,nombre")
-      .eq("colegio_id", colegioId)
-      .eq("anio_academico_id", yearId)   // ✅ secciones sí dependen del año
-      .eq("grado_id", gradoId)
-      .order("nombre");
-
-    if (error) {
-      console.error(error);
-      selSeccion.innerHTML = `<option value="">Error</option>`;
-      return;
-    }
-
-    selSeccion.innerHTML = `<option value="">Seleccione</option>` + (data || [])
-      .map(s => `<option value="${esc(s.id)}">${esc(s.nombre)}</option>`)
-      .join("");
-
-    selSeccion.onchange = async () => {
-      const seccionId = selSeccion.value;
-      selAlumno.innerHTML = `<option value="">Seleccione sección</option>`;
-      selAlumno.disabled = true;
-      if (!seccionId) return;
-
-      // ✅ Por ahora: alumnos del colegio (porque tu tabla alumnos NO tiene seccion_id)
-      // Si tienes tabla matriculas: aquí lo cambiamos para traer solo alumnos matriculados en esa sección.
-      await cargarAlumnosDelColegio();
-    };
-  }
-
-  async function cargarAlumnosDelColegio() {
-    const selAlumno = els.selAlumno();
-    if (!selAlumno) return;
-
-    selAlumno.disabled = false;
-    selAlumno.innerHTML = `<option value="">Cargando...</option>`;
-
-    const { data, error } = await sb
-      .from("alumnos")
-      .select("id, dni, apellidos, nombres")
+      .select("id,colegio_id,anio_academico_id,dni,nombres,apellidos,telefono,correo,parentesco,estado,created_at")
       .eq("colegio_id", colegioId)
       .order("apellidos", { ascending: true })
       .limit(2000);
 
-    if (error) {
-      console.error(error);
-      selAlumno.innerHTML = `<option value="">Error</option>`;
+    if (anioId) q = q.eq("anio_academico_id", anioId);
+
+    let r = await q;
+
+    // Fallback: si tu tabla no tiene alguna columna (evitar 400)
+    if (r.error) {
+      console.warn("Select columnas esperado falló, intento fallback con *:", r.error);
+      let q2 = sb
+        .from("apoderados")
+        .select("*")
+        .eq("colegio_id", colegioId)
+        .limit(2000);
+
+      if (anioId) q2 = q2.eq("anio_academico_id", anioId);
+      r = await q2;
+    }
+
+    if (r.error) {
+      console.error("Error cargando apoderados:", r.error);
+      tbody.innerHTML = `<tr><td colspan="6">Error cargando (revisa consola)</td></tr>`;
       return;
     }
 
-    selAlumno.innerHTML = `<option value="">Seleccione alumno</option>` + (data || []).map(a => {
-      const full = `${a.apellidos || ""} ${a.nombres || ""}`.trim();
-      const tag = `${full}${a.dni ? " - " + a.dni : ""}`;
-      return `<option value="${esc(a.id)}">${esc(tag)}</option>`;
+    CACHE = r.data || [];
+    renderTabla(CACHE);
+  }
+
+  function renderTabla(list) {
+    const tbody = els.tbody();
+    if (!tbody) return;
+
+    if (!list || list.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6">Sin apoderados</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = list.map((a) => {
+      const dni = a.dni ?? "";
+      const ap = a.apellidos ?? "";
+      const nom = a.nombres ?? "";
+      const tel = a.telefono ?? "";
+      const cor = a.correo ?? "";
+      const par = a.parentesco ?? a.relacion ?? "";
+      const est = a.estado ?? "activo";
+
+      return `
+        <tr>
+          <td>${esc(dni)}</td>
+          <td>${esc((ap + " " + nom).trim())}</td>
+          <td>${esc(tel)}</td>
+          <td>${esc(cor)}</td>
+          <td>${esc(par)}</td>
+          <td>${esc(est)}</td>
+        </tr>
+      `;
     }).join("");
   }
 
-  async function asignarApoderado() {
-    if (!canWrite(role)) return alert("No tienes permisos.");
+  // Buscar
+  els.buscar()?.addEventListener("input", () => {
+    const q = norm(els.buscar().value).toLowerCase();
+    if (!q) return renderTabla(CACHE);
 
-    const alumnoId = els.selAlumno()?.value || "";
-    const apoderadoId = els.selApoderado()?.value || "";
+    const filtered = CACHE.filter((a) => {
+      const s = `${a.dni || ""} ${a.apellidos || ""} ${a.nombres || ""} ${a.telefono || ""} ${a.correo || ""}`.toLowerCase();
+      return s.includes(q);
+    });
 
-    if (!alumnoId) return alert("Selecciona un alumno.");
-    if (!apoderadoId) return alert("Selecciona un apoderado.");
+    renderTabla(filtered);
+  });
 
-    setAssign("Asignando...");
+  // Limpiar
+  function limpiar() {
+    if (els.dni()) els.dni().value = "";
+    if (els.nombres()) els.nombres().value = "";
+    if (els.apellidos()) els.apellidos().value = "";
+    if (els.telefono()) els.telefono().value = "";
+    if (els.correo()) els.correo().value = "";
+    if (els.direccion()) els.direccion().value = "";
+    if (els.distrito()) els.distrito().value = "";
+    if (els.parentesco()) els.parentesco().value = "";
+    if (els.estado()) els.estado().value = "activo";
+    setSaveStatus("");
+    els.dni()?.focus();
+  }
 
-    // ✅ asignación simple: alumnos.apoderado_id
-    const { error } = await sb
-      .from("alumnos")
-      .update({ apoderado_id: apoderadoId })
-      .eq("id", alumnoId)
-      .eq("colegio_id", colegioId);
-
-    if (error) {
-      console.error(error);
-      setAssign("Error");
-      alert(error.message || "No se pudo asignar.");
+  // Guardar (con reintento si faltan columnas)
+  async function guardar() {
+    if (!canWrite) {
+      alert("No tienes permisos para registrar apoderados.");
       return;
     }
 
-    setAssign("Asignado ✅");
-    alert("✅ Apoderado asignado al alumno");
+    const dni = cleanDNI(els.dni()?.value);
+    const nombres = norm(els.nombres()?.value);
+    const apellidos = norm(els.apellidos()?.value);
+
+    if (!dni) return alert("Falta DNI");
+    if (dni.length < 8) return alert("DNI inválido (muy corto)");
+    if (!nombres) return alert("Faltan nombres");
+    if (!apellidos) return alert("Faltan apellidos");
+
+    setSaveStatus("Guardando...");
+
+    // Anti-duplicado por DNI en el colegio
+    const chk = await sb
+      .from("apoderados")
+      .select("id")
+      .eq("colegio_id", colegioId)
+      .eq("dni", dni)
+      .maybeSingle();
+
+    if (!chk.error && chk.data?.id) {
+      setSaveStatus("");
+      return alert("Ese DNI ya está registrado como apoderado en este colegio.");
+    }
+
+    // Payload completo (si tu tabla tiene estas columnas)
+    const payloadFull = {
+      colegio_id: colegioId,
+      anio_academico_id: anioId || null,
+      dni,
+      nombres,
+      apellidos,
+      telefono: norm(els.telefono()?.value) || null,
+      correo: norm(els.correo()?.value) || null,
+      direccion: norm(els.direccion()?.value) || null,
+      distrito: norm(els.distrito()?.value) || null,
+      parentesco: norm(els.parentesco()?.value) || null,
+      estado: norm(els.estado()?.value) || "activo",
+    };
+
+    // Payload mínimo (por si faltan columnas)
+    const payloadMin = {
+      colegio_id: colegioId,
+      dni,
+      nombres,
+      apellidos,
+    };
+
+    // Intento 1
+    let ins = await sb.from("apoderados").insert(payloadFull);
+
+    // Si falla por columnas faltantes -> reintento mínimo
+    if (ins.error) {
+      console.warn("Insert full falló, reintento mínimo:", ins.error);
+      ins = await sb.from("apoderados").insert(payloadMin);
+    }
+
+    if (ins.error) {
+      console.error("Error insert apoderados:", ins.error);
+      setSaveStatus("Error");
+      alert("No se pudo guardar. Revisa consola (probable columna faltante o RLS).");
+      return;
+    }
+
+    setSaveStatus("Guardado ✅");
+    limpiar();
+    await cargarLista();
   }
 
   // Eventos
-  els.btnCrear()?.addEventListener("click", createApoderado);
-  els.btnLimpiar()?.addEventListener("click", clearForm);
-  els.btnRefresh()?.addEventListener("click", async () => {
-    await loadApoderados();
+  els.btnGuardar()?.addEventListener("click", guardar);
+  els.btnLimpiar()?.addEventListener("click", limpiar);
+  els.btnRefresh()?.addEventListener("click", cargarLista);
+
+  // Enter para guardar
+  [els.dni(), els.nombres(), els.apellidos(), els.telefono(), els.correo()].forEach((el) => {
+    el?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") els.btnGuardar()?.click();
+    });
   });
-  els.buscar()?.addEventListener("input", applyFilter);
-  els.btnAsignar()?.addEventListener("click", asignarApoderado);
+
+  // Si no hay permisos, bloquea
+  if (!canWrite) {
+    const disable = (el) => el && (el.disabled = true);
+    disable(els.dni());
+    disable(els.nombres());
+    disable(els.apellidos());
+    disable(els.telefono());
+    disable(els.correo());
+    disable(els.direccion());
+    disable(els.distrito());
+    disable(els.parentesco());
+    disable(els.estado());
+    disable(els.btnGuardar());
+    disable(els.btnLimpiar());
+    setSaveStatus("");
+  }
 
   // Init
-  setStatus("Cargando…");
-  await loadApoderados();
-  await cargarNiveles();
-  setStatus("Listo ✅");
-
-  // Si NO hay yearId, avisa porque secciones dependen del año
-  if (!yearId) {
-    showPerm("⚠️ No hay año activo. Para filtrar por sección necesitas activar un año.");
-  }
+  await cargarLista();
 }
