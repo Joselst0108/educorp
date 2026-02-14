@@ -1,7 +1,7 @@
 // /eduadmin/js/niveles.js
-// ✅ Corregido: sin duplicados, topbar con contexto completo, year/school fallback, no rompe estructura.
+// ✅ Estable: usa context.js + requiere año activo + CRUD por colegio y año
 (() => {
-  const supabase = () => window.supabaseClient;
+  const sb = () => window.supabaseClient || window.supabase;
 
   const els = {
     status: () => document.getElementById("status"),
@@ -10,11 +10,14 @@
     nivel: () => document.getElementById("nivel"),
     activo: () => document.getElementById("activo"),
     tbody: () => document.getElementById("tbodyNiveles"),
+    uiSchoolName: () => document.getElementById("uiSchoolName"),
+    uiYearName: () => document.getElementById("uiYearName"),
+    uiSchoolLogo: () => document.getElementById("uiSchoolLogo"),
   };
 
   function setStatus(msg) {
     const el = els.status();
-    if (el) el.textContent = msg;
+    if (el) el.textContent = msg || "";
   }
 
   function esc(s) {
@@ -26,47 +29,19 @@
       .replaceAll("'", "&#039;");
   }
 
-  // ✅ Completa colegio y año activo si el context.js no los trae
-  async function fillMissingContext(ctx) {
-    const sb = supabase();
-    if (!sb) return ctx;
-
-    // Completar colegio
-    if (ctx?.school_id && (!ctx.school_name || !ctx.school_logo_url)) {
-      const { data: col } = await sb
-        .from("colegios")
-        .select("nombre, logo_url")
-        .eq("id", ctx.school_id)
-        .single();
-
-      if (col) {
-        ctx.school_name = ctx.school_name || col.nombre;
-        ctx.school_logo_url = ctx.school_logo_url || col.logo_url;
-      }
-    }
-
-    // Completar año activo
-    if (ctx?.school_id && !ctx.year_id) {
-      const { data: yr } = await sb
-        .from("anios_academicos")
-        .select("id, nombre, anio")
-        .eq("colegio_id", ctx.school_id)
-        .eq("activo", true)
-        .maybeSingle();
-
-      if (yr?.id) {
-        ctx.year_id = yr.id;
-        ctx.year_name = yr.nombre || String(yr.anio || "");
-      }
-    }
-
-    return ctx;
+  function prettyNivel(nombre) {
+    const v = String(nombre || "").toLowerCase().trim();
+    if (v === "inicial") return "Inicial";
+    if (v === "primaria") return "Primaria";
+    if (v === "secundaria") return "Secundaria";
+    // fallback: Capitalizar primera letra
+    return v ? v.charAt(0).toUpperCase() + v.slice(1) : "—";
   }
 
   function paintTopbar(ctx) {
-    const elSchool = document.getElementById("uiSchoolName");
-    const elYear = document.getElementById("uiYearName");
-    const elLogo = document.getElementById("uiSchoolLogo");
+    const elSchool = els.uiSchoolName();
+    const elYear = els.uiYearName();
+    const elLogo = els.uiSchoolLogo();
 
     if (elSchool) elSchool.textContent = ctx?.school_name || "Colegio";
     if (elYear) elYear.textContent = ctx?.year_id ? `Año: ${ctx.year_name || "—"}` : "Año: —";
@@ -77,93 +52,94 @@
     const tbody = els.tbody();
     if (!tbody) return;
 
+    setStatus("Cargando niveles…");
     tbody.innerHTML = `<tr><td colspan="3" class="muted">Cargando…</td></tr>`;
 
-    let q = supabase()
+    const client = sb();
+    if (!client) {
+      setStatus("Supabase no cargó.");
+      tbody.innerHTML = `<tr><td colspan="3">Supabase no disponible</td></tr>`;
+      return;
+    }
+
+    const { data, error } = await client
       .from("niveles")
       .select("id, nombre, activo")
       .eq("colegio_id", ctx.school_id)
+      .eq("anio_academico_id", ctx.year_id)
       .order("nombre", { ascending: true });
-
-    // ✅ Si tu DB maneja niveles por año académico, filtramos
-    if (ctx.year_id) q = q.eq("anio_academico_id", ctx.year_id);
-
-    const { data, error } = await q;
 
     if (error) {
       console.error("loadNiveles error:", error);
-      tbody.innerHTML = `<tr><td colspan="3">Error cargando niveles</td></tr>`;
       setStatus("Error al cargar niveles.");
+      tbody.innerHTML = `<tr><td colspan="3">Error cargando niveles</td></tr>`;
       return;
     }
 
-    if (!data?.length) {
-      tbody.innerHTML = `<tr><td colspan="3" class="muted">Sin niveles</td></tr>`;
+    const list = data || [];
+    if (!list.length) {
       setStatus("Sin niveles.");
+      tbody.innerHTML = `<tr><td colspan="3" class="muted">Sin niveles</td></tr>`;
       return;
     }
 
-    tbody.innerHTML = data
-      .map(
-        (n) => `
-        <tr>
-          <td>${esc(n.nombre)}</td>
-          <td>${n.activo ? "Sí" : "No"}</td>
-          <td>
-            <button class="btn btn-danger btn-sm" data-del="${n.id}">Eliminar</button>
-          </td>
-        </tr>
-      `
-      )
+    tbody.innerHTML = list
+      .map((n) => {
+        const nombrePretty = prettyNivel(n.nombre);
+        return `
+          <tr>
+            <td>${esc(nombrePretty)}</td>
+            <td>${n.activo ? "Sí" : "No"}</td>
+            <td style="width:180px;">
+              <button class="btn btn-secondary" data-del="${esc(n.id)}">Eliminar</button>
+            </td>
+          </tr>
+        `;
+      })
       .join("");
 
-    tbody.querySelectorAll("[data-del]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        await deleteNivel(ctx, btn.dataset.del);
-      });
-    });
+    // Delegación de eventos (más estable)
+    tbody.onclick = async (e) => {
+      const btn = e.target.closest("[data-del]");
+      if (!btn) return;
+      const id = btn.getAttribute("data-del");
+      if (!id) return;
+      await deleteNivel(ctx, id);
+    };
 
-    setStatus(`Niveles: ${data.length}`);
+    setStatus(`Niveles: ${list.length}`);
   }
 
   async function createNivel(ctx) {
-    // ✅ Normaliza a minúscula para el CHECK niveles_nombre_check
-    const nombre = els.nivel()?.value?.trim()?.toLowerCase();
+    const client = sb();
+    if (!client) return alert("Supabase no cargó.");
+
+    const raw = (els.nivel()?.value || "").trim();
+    const nombre = raw.toLowerCase(); // ✅ normalizado
     const activo = !!els.activo()?.checked;
 
-    if (!nombre) {
-      alert("Selecciona un nivel.");
-      return;
-    }
+    if (!nombre) return alert("Selecciona un nivel.");
 
-    // ✅ Evitar duplicado por colegio (+ año si aplica)
-    let existsQ = supabase()
+    // ✅ evitar duplicado (colegio + año + nombre)
+    const { data: exists, error: e1 } = await client
       .from("niveles")
       .select("id")
       .eq("colegio_id", ctx.school_id)
-      .eq("nombre", nombre);
+      .eq("anio_academico_id", ctx.year_id)
+      .eq("nombre", nombre)
+      .maybeSingle();
 
-    if (ctx.year_id) existsQ = existsQ.eq("anio_academico_id", ctx.year_id);
-
-    const { data: exists, error: e1 } = await existsQ.maybeSingle();
     if (e1) console.warn("exists check:", e1);
-
-    if (exists?.id) {
-      alert("Ese nivel ya está creado.");
-      return;
-    }
+    if (exists?.id) return alert("Ese nivel ya está creado.");
 
     const payload = {
       colegio_id: ctx.school_id,
+      anio_academico_id: ctx.year_id,
       nombre,
       activo,
     };
 
-    // ✅ tu tabla usa anio_academico_id
-    if (ctx.year_id) payload.anio_academico_id = ctx.year_id;
-
-    const { error } = await supabase().from("niveles").insert(payload);
-
+    const { error } = await client.from("niveles").insert(payload);
     if (error) {
       console.error("insert nivel error:", error);
       alert(error.message || "No se pudo guardar el nivel.");
@@ -177,17 +153,16 @@
   }
 
   async function deleteNivel(ctx, id) {
+    const client = sb();
+    if (!client) return alert("Supabase no cargó.");
     if (!confirm("¿Eliminar este nivel?")) return;
 
-    let delQ = supabase()
+    const { error } = await client
       .from("niveles")
       .delete()
       .eq("id", id)
-      .eq("colegio_id", ctx.school_id);
-
-    if (ctx.year_id) delQ = delQ.eq("anio_academico_id", ctx.year_id);
-
-    const { error } = await delQ;
+      .eq("colegio_id", ctx.school_id)
+      .eq("anio_academico_id", ctx.year_id);
 
     if (error) {
       console.error("delete nivel error:", error);
@@ -207,9 +182,13 @@
         return;
       }
 
-      // ✅ traer contexto y completarlo si le falta colegio/año
-      let ctx = await window.getContext(false);
-      ctx = await fillMissingContext(ctx);
+      // ✅ Este módulo DEPENDE de año activo
+      if (!window.requireYearOrRedirect) {
+        alert("Falta requireYearOrRedirect() en context.js");
+        return;
+      }
+
+      const ctx = await window.requireYearOrRedirect(); // ✅ si no hay año → redirige
       paintTopbar(ctx);
 
       if (!ctx?.school_id) {
@@ -223,13 +202,15 @@
         await createNivel(ctx);
       });
 
-      els.btnRefresh()?.addEventListener("click", () => loadNiveles(ctx));
+      els.btnRefresh()?.addEventListener("click", async () => {
+        await loadNiveles(ctx);
+      });
 
       await loadNiveles(ctx);
     } catch (err) {
       console.error("niveles init error:", err);
-      setStatus("Error cargando contexto.");
-      alert("Error cargando el contexto. Inicia sesión nuevamente.");
+      setStatus("Error cargando niveles.");
+      alert("Error cargando. Inicia sesión nuevamente.");
       location.href = "/login.html";
     }
   }
