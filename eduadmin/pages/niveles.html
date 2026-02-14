@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduAdmin | Niveles</title>
 
+  <!-- CSS (rutas absolutas para Netlify) -->
   <link rel="stylesheet" href="/assets/css/variables.css">
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/components.css">
@@ -13,7 +14,7 @@
 <body>
   <div class="app-shell">
 
-    <!-- ✅ SIDEBAR DINÁMICO (DESPLEGABLE) -->
+    <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="brand">
         <img id="uiAppLogo" src="/assets/img/educorp.jpeg" alt="EduAdmin" />
@@ -23,29 +24,36 @@
         </div>
       </div>
 
-      <!-- 🔥 Menú generado por /assets/js/ui.js -->
+      <!-- Menú dinámico -->
       <nav id="uiSidebarNav" class="nav"></nav>
     </aside>
 
     <!-- MAIN -->
     <main class="main">
 
+      <!-- TOPBAR -->
       <div class="topbar">
-        <div class="left">
-          <div class="school-chip">
-            <img id="uiSchoolLogo" src="/assets/img/eduadmin.jpeg" alt="Colegio" />
-            <div class="meta">
-              <b id="uiSchoolName">Cargando colegio…</b>
-              <span id="uiYearName">Año: —</span>
-            </div>
+        <div class="topbar-left">
+          <img
+            id="uiSchoolLogo"
+            src="/assets/img/eduadmin.jpeg"
+            alt="Colegio"
+            class="topbar-logo"
+            onerror="this.src='/assets/img/eduadmin.jpeg';"
+          />
+          <div class="topbar-meta">
+            <div id="uiSchoolName" class="topbar-title">Cargando colegio…</div>
+            <div id="uiYearName" class="topbar-subtitle">Año: —</div>
           </div>
         </div>
 
-        <div style="display:flex; gap:10px;">
+        <div class="topbar-actions">
           <button class="btn btn-secondary" id="btnRefresh" type="button">Actualizar</button>
+          <a class="btn btn-secondary" href="/eduadmin/pages/dashboard.html">Volver</a>
         </div>
       </div>
 
+      <!-- PAGE -->
       <section class="page">
         <div class="card">
           <h1 class="h1">Niveles</h1>
@@ -58,7 +66,7 @@
             <h2 class="h2">Crear nivel</h2>
 
             <form id="formNivel" class="form" style="margin-top:10px;">
-              <label class="label">Nivel</label>
+              <label class="label" for="nivel">Nivel</label>
               <select class="input" id="nivel" required>
                 <option value="">Selecciona un nivel…</option>
                 <option value="Inicial">Inicial</option>
@@ -71,11 +79,13 @@
                 <span>Activo</span>
               </label>
 
-              <button class="btn btn-primary" style="margin-top:12px;" type="submit">Guardar</button>
+              <button class="btn btn-primary" style="margin-top:12px; width:100%;" type="submit">
+                Guardar
+              </button>
             </form>
 
             <div class="muted" style="margin-top:10px; font-size:12px;">
-              * Los niveles se crean por colegio y año académico.
+              * Los niveles se crean por colegio y año académico activo.
             </div>
           </div>
 
@@ -99,7 +109,6 @@
                 </tbody>
               </table>
             </div>
-
           </div>
         </div>
       </section>
@@ -107,19 +116,20 @@
     </main>
   </div>
 
-  <!-- Scripts (orden correcto) -->
+  <!-- JS (orden correcto) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/assets/js/supabaseClient.js"></script>
   <script src="/assets/js/context.js"></script>
   <script src="/assets/js/ui.js"></script>
 
-  <!-- ✅ Activa menú desplegable -->
+  <!-- Sidebar dinámico -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       if (window.renderEduAdminSidebar) window.renderEduAdminSidebar();
     });
   </script>
 
+  <!-- JS de la página -->
   <script src="/eduadmin/js/niveles.js"></script>
 </body>
 </html>
